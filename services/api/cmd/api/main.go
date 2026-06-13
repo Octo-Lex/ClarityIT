@@ -13,6 +13,7 @@ import (
 
 	"github.com/clarityit/api/internal/admin"
 	"github.com/clarityit/api/internal/agent"
+	"github.com/clarityit/api/internal/approval"
 	"github.com/clarityit/api/internal/config"
 	"github.com/clarityit/api/internal/database"
 	"github.com/clarityit/api/internal/domain"
@@ -301,6 +302,23 @@ func main() {
 			Post("/tool-gateway/execute", agentHandler.ExecuteTool)
 
 
+		// ─── v1.0 Track 2: Approval Workflow ───
+		approvalHandler := approval.NewHandler(pool, cfg)
+		r.Route("/approvals", func(r chi.Router) {
+			r.With(middleware.RequirePermission(pool, "approvals.create")).Post("/", approvalHandler.Create)
+			r.With(middleware.RequirePermission(pool, "approvals.read")).Get("/", approvalHandler.List)
+			r.With(middleware.RequirePermission(pool, "approvals.read")).Get("/{approvalId}", approvalHandler.Get)
+			r.With(middleware.RequirePermission(pool, "approvals.approve")).
+				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
+				Post("/{approvalId}/approve", approvalHandler.Approve)
+			r.With(middleware.RequirePermission(pool, "approvals.approve")).
+				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
+				Post("/{approvalId}/reject", approvalHandler.Reject)
+			r.With(middleware.RequirePermission(pool, "approvals.create")).
+				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
+				Post("/{approvalId}/cancel", approvalHandler.Cancel)
+		})
+
 		// ─── Phase 8: Integration Keys ───
 		r.With(middleware.RequirePermission(pool, "integrations.keys.create")).
 			With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
@@ -326,29 +344,29 @@ func main() {
 			r.With(middleware.RequirePermission(pool, "integrations.proxmox.sync")).Post("/sync", proxmoxHandler.Sync)
 		})
 
-		// ─── Phase 8: Assets ───
-		r.With(middleware.RequirePermission(pool, "assets.read")).Get("/assets", func(w http.ResponseWriter, r *http.Request) {
-			rows, _ := pool.Query(r.Context(), `SELECT o.id::text, a.asset_type, a.provider, a.external_id, a.hostname, o.status, o.created_at FROM assets a JOIN objects o ON a.object_id=o.id WHERE o.team_id=$1`, chi.URLParam(r, "teamId"))
-			defer rows.Close()
-			var out []map[string]any
-			for rows.Next() {
-				var id, at, prov, eid, host, st string; var c time.Time
-				rows.Scan(&id, &at, &prov, &eid, &host, &st, &c)
-				out = append(out, map[string]any{"id": id, "asset_type": at, "provider": prov, "external_id": eid, "hostname": host, "status": st, "created_at": c})
-			}
-			if out == nil { out = []map[string]any{} }
-			writeJSON(w, 200, out)
-		})
-		r.With(middleware.RequirePermission(pool, "assets.read")).Get("/assets/{assetId}", func(w http.ResponseWriter, r *http.Request) {
-			var id, at, prov, eid, host, st string; var c time.Time
-			err := pool.QueryRow(r.Context(), `SELECT o.id::text, a.asset_type, a.provider, a.external_id, a.hostname, o.status, o.created_at FROM assets a JOIN objects o ON a.object_id=o.id WHERE o.id=$1 AND o.team_id=$2`, chi.URLParam(r, "assetId"), chi.URLParam(r, "teamId")).Scan(&id, &at, &prov, &eid, &host, &st, &c)
-			if err != nil { writeJSON(w, 404, map[string]string{"detail": "not found"}); return }
-			writeJSON(w, 200, map[string]any{"id": id, "asset_type": at, "provider": prov, "external_id": eid, "hostname": host, "status": st, "created_at": c})
-		})
-
-		// ─── v1.0: Proxmox Controlled Mutation Pipeline ───
+		// Phase 8 + v1.0: Assets + Proxmox Controlled Mutation Pipeline
 		actionHandler := proxmox.NewActionHandler(pool, pxCtxClient, cfg)
 		r.Route("/assets", func(r chi.Router) {
+			// Asset list and detail (inside route group to avoid chi shadowing)
+			r.With(middleware.RequirePermission(pool, "assets.read")).Get("/", func(w http.ResponseWriter, r *http.Request) {
+				rows, _ := pool.Query(r.Context(), `SELECT o.id::text, a.asset_type, a.provider, a.external_id, a.hostname, o.status, o.created_at FROM assets a JOIN objects o ON a.object_id=o.id WHERE o.team_id=$1`, chi.URLParam(r, "teamId"))
+				defer rows.Close()
+				var out []map[string]any
+				for rows.Next() {
+					var id, at, prov, eid, host, st string; var c time.Time
+					rows.Scan(&id, &at, &prov, &eid, &host, &st, &c)
+					out = append(out, map[string]any{"id": id, "asset_type": at, "provider": prov, "external_id": eid, "hostname": host, "status": st, "created_at": c})
+				}
+				if out == nil { out = []map[string]any{} }
+				writeJSON(w, 200, out)
+			})
+			r.With(middleware.RequirePermission(pool, "assets.read")).Get("/{assetId}", func(w http.ResponseWriter, r *http.Request) {
+				var id, at, prov, eid, host, st string; var c time.Time
+				err := pool.QueryRow(r.Context(), `SELECT o.id::text, a.asset_type, a.provider, a.external_id, a.hostname, o.status, o.created_at FROM assets a JOIN objects o ON a.object_id=o.id WHERE o.id=$1 AND o.team_id=$2`, chi.URLParam(r, "assetId"), chi.URLParam(r, "teamId")).Scan(&id, &at, &prov, &eid, &host, &st, &c)
+				if err != nil { writeJSON(w, 404, map[string]string{"detail": "not found"}); return }
+				writeJSON(w, 200, map[string]any{"id": id, "asset_type": at, "provider": prov, "external_id": eid, "hostname": host, "status": st, "created_at": c})
+			})
+			// Proxmox mutation actions
 			r.With(middleware.RequirePermission(pool, "assets.actions.create")).
 				Post("/{assetId}/actions/proxmox/start", actionHandler.CreateAction)
 			r.With(middleware.RequirePermission(pool, "assets.actions.create")).
