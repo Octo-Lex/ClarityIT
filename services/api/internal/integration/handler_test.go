@@ -298,3 +298,63 @@ func TestWebhookSignatureNotStoredInAudit(t *testing.T) {
 	if strings.Contains(metaStr, rawKey) { t.Error("integration key appeared in audit log") }
 	if !strings.Contains(metaStr, "payload_hash") { t.Error("expected payload_hash in audit log") }
 }
+
+// ─── Rotation Required Tests ───
+
+func TestListKeysIncludesRotationRequired(t *testing.T) {
+	_, r, token, teamID := testSetup(t, "development")
+	createTestKey(t, r, token, teamID, false)
+
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/teams/%s/integration-keys", teamID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 200 { t.Fatalf("expected 200, got %d", w.Code) }
+
+	var listResp []map[string]any
+	json.Unmarshal(w.Body.Bytes(), &listResp)
+	if len(listResp) == 0 { t.Fatal("no keys returned") }
+	if _, ok := listResp[0]["rotation_required"]; !ok {
+		t.Error("rotation_required field missing from list response")
+	}
+}
+
+func TestProductionRejectsKeyWithoutSigningSecret(t *testing.T) {
+	pool, err := pgxpool.New(t.Context(), testDBURL)
+	if err != nil { t.Fatal(err) }
+	defer pool.Close()
+
+	// Insert a legacy key directly (no signing_secret_hash, rotation_required=true)
+	var teamID, userID string
+	pool.QueryRow(t.Context(), `SELECT id::text FROM teams LIMIT 1`).Scan(&teamID)
+	pool.QueryRow(t.Context(), `SELECT id::text FROM users WHERE email='owner@test.dev'`).Scan(&userID)
+
+	legacyHash := hashKey("test-hmac-key-for-integration-tests", "clarity_legacy_key_12345")
+	pool.Exec(t.Context(), `INSERT INTO integration_api_keys (team_id, name, key_hash, key_prefix, allowed_sources, allowed_scopes, signing_secret_hash, allow_unsigned_dev, rotation_required, created_by) VALUES ($1,'legacy-test',$2,'clarity_leg',ARRAY['grafana'],ARRAY['webhooks:ingest'],'',false,true,$3) ON CONFLICT DO NOTHING`, teamID, legacyHash, userID)
+
+	// In production mode, this key should be rejected
+	_, r, _, _ := testSetup(t, "production")
+
+	payload := []byte(`{"name":"test","severity":"warning","source_id":"x"}`)
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+	sig := signPayload("clarity_legacy_key_12345", timestamp, payload)
+
+	req := httptest.NewRequest("POST", "/api/webhooks/grafana", bytes.NewReader(payload))
+	req.Header.Set("X-ClarityIT-Integration-Key", "clarity_legacy_key_12345")
+	req.Header.Set("X-ClarityIT-Signature", sig)
+	req.Header.Set("X-ClarityIT-Timestamp", timestamp)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != 401 {
+		t.Errorf("expected 401 for rotation-required key in production, got %d: %s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "rotation") {
+		t.Errorf("expected rotation message, got: %s", body)
+	}
+
+	// Cleanup
+	pool.Exec(t.Context(), `DELETE FROM integration_api_keys WHERE key_hash=$1`, legacyHash)
+}

@@ -163,13 +163,13 @@ func (h *Handler) CreateKey(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ListKeys(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	rows, _ := h.pool.Query(ctx, `SELECT id::text, name, key_prefix, allowed_sources, allowed_scopes, allow_unsigned_dev, expires_at, revoked_at, created_at FROM integration_api_keys WHERE team_id=$1 ORDER BY created_at DESC`, chi.URLParam(r, "teamId"))
+	rows, _ := h.pool.Query(ctx, `SELECT id::text, name, key_prefix, allowed_sources, allowed_scopes, allow_unsigned_dev, rotation_required, expires_at, revoked_at, created_at FROM integration_api_keys WHERE team_id=$1 ORDER BY created_at DESC`, chi.URLParam(r, "teamId"))
 	defer rows.Close()
 	var out []map[string]any
 	for rows.Next() {
-		var id, n, p string; var src, sc []string; var aud bool; var exp, rev *time.Time; var c time.Time
-		rows.Scan(&id, &n, &p, &src, &sc, &aud, &exp, &rev, &c)
-		out = append(out, map[string]any{"id": id, "name": n, "prefix": p, "allowed_sources": src, "allowed_scopes": sc, "allow_unsigned_dev": aud, "expires_at": exp, "revoked_at": rev, "created_at": c})
+		var id, n, p string; var src, sc []string; var aud, rotReq bool; var exp, rev *time.Time; var c time.Time
+		rows.Scan(&id, &n, &p, &src, &sc, &aud, &rotReq, &exp, &rev, &c)
+		out = append(out, map[string]any{"id": id, "name": n, "prefix": p, "allowed_sources": src, "allowed_scopes": sc, "allow_unsigned_dev": aud, "rotation_required": rotReq, "expires_at": exp, "revoked_at": rev, "created_at": c})
 	}
 	if out == nil { out = []map[string]any{} }
 	writeJSON(w, 200, out)
@@ -232,6 +232,11 @@ func (h *Handler) ReceiveWebhook(w http.ResponseWriter, r *http.Request) {
 	sigHeader := r.Header.Get("X-ClarityIT-Signature")
 	tsHeader := r.Header.Get("X-ClarityIT-Timestamp")
 
+	// In production, keys without signing_secret_hash are rejected (rotation required)
+	if h.env == "production" && signingSecretHash == "" {
+		writeErr(w, 401, "Integration key requires rotation — signing secret not configured"); return
+	}
+
 	sigRequired := h.env == "production" || !allowUnsignedDev
 
 	if sigRequired {
@@ -283,9 +288,7 @@ func (h *Handler) ReceiveWebhook(w http.ResponseWriter, r *http.Request) {
 
 	tid, _ := uuid.Parse(teamID)
 
-	// Update metrics
-	_ = signingSecretHash // used for future per-key signing
-	_ = allowUnsignedDev
+		_ = allowUnsignedDev
 
 	// Create alert object
 	var objectID string
