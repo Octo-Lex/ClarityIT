@@ -298,6 +298,9 @@ func main() {
 		r.With(middleware.RequirePermission(pool, "integrations.keys.revoke")).
 			With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 			Delete("/integration-keys/{keyId}", integrationHandler.RevokeKey)
+		r.With(middleware.RequirePermission(pool, "integrations.keys.revoke")).
+			With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
+			Post("/integration-keys/{keyId}/rotate", integrationHandler.RotateKey)
 
 		// ─── Phase 8: Proxmox Integration ───
 		var pxCtxClient proxmox.ProxmoxClient

@@ -358,3 +358,109 @@ func TestProductionRejectsKeyWithoutSigningSecret(t *testing.T) {
 	// Cleanup
 	pool.Exec(t.Context(), `DELETE FROM integration_api_keys WHERE key_hash=$1`, legacyHash)
 }
+
+// ─── Key Rotation Tests ───
+
+func TestRotateKeyCreatesNewSigningSecret(t *testing.T) {
+	_, r, token, teamID := testSetup(t, "development")
+	rawKey, _ := createTestKey(t, r, token, teamID, false)
+
+	// Get key ID from list
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/teams/%s/integration-keys", teamID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	var keys []map[string]any
+	json.Unmarshal(w.Body.Bytes(), &keys)
+	keyID, _ := keys[0]["id"].(string)
+
+	// Rotate
+	req = httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/integration-keys/%s/rotate", teamID, keyID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Idempotency-Key", "rotate-test-1")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 201 { t.Fatalf("rotate: expected 201, got %d: %s", w.Code, w.Body.String()) }
+
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	newKey, _ := resp["key"].(string)
+	newSecret, _ := resp["signing_secret"].(string)
+	if newKey == "" { t.Error("rotated key missing raw key") }
+	if newSecret == "" { t.Error("rotated key missing signing_secret") }
+	if newKey == rawKey { t.Error("rotated key is same as old key") }
+	if !strings.HasPrefix(newKey, "clarity_") { t.Error("new key should have clarity_ prefix") }
+	if !strings.HasPrefix(newSecret, "clss_") { t.Error("new signing secret should have clss_ prefix") }
+}
+
+func TestRotateKeyOldKeyRevoked(t *testing.T) {
+	_, r, token, teamID := testSetup(t, "development")
+	rawKey, _ := createTestKey(t, r, token, teamID, true)
+
+	// Get key ID
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/teams/%s/integration-keys", teamID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	var keys []map[string]any
+	json.Unmarshal(w.Body.Bytes(), &keys)
+	keyID, _ := keys[0]["id"].(string)
+
+	// Rotate
+	req = httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/integration-keys/%s/rotate", teamID, keyID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Idempotency-Key", "rotate-test-2")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 201 { t.Fatalf("rotate: %d %s", w.Code, w.Body.String()) }
+
+	// Old key should no longer authenticate
+	payload := []byte(`{"name":"test","severity":"low","source_id":"x"}`)
+	req = httptest.NewRequest("POST", "/api/webhooks/grafana", bytes.NewReader(payload))
+	req.Header.Set("X-ClarityIT-Integration-Key", rawKey)
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 401 { t.Errorf("expected 401 for old key after rotation, got %d", w.Code) }
+}
+
+func TestRotateKeyWritesAuditAndOutbox(t *testing.T) {
+	pool, _ := pgxpool.New(t.Context(), testDBURL)
+	defer pool.Close()
+
+	_, r, token, teamID := testSetup(t, "development")
+	createTestKey(t, r, token, teamID, false)
+
+	// Get key ID
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/teams/%s/integration-keys", teamID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	var keys []map[string]any
+	json.Unmarshal(w.Body.Bytes(), &keys)
+	keyID, _ := keys[0]["id"].(string)
+
+	// Rotate
+	req = httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/integration-keys/%s/rotate", teamID, keyID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Idempotency-Key", "rotate-test-3")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 201 { t.Fatalf("rotate: %d", w.Code) }
+
+	// Verify audit
+	var auditCount int
+	pool.QueryRow(t.Context(), `SELECT COUNT(*) FROM audit_logs WHERE action='integration.key.rotated'`).Scan(&auditCount)
+	if auditCount == 0 { t.Error("no audit entry for rotation") }
+
+	// Verify outbox
+	var outboxCount int
+	pool.QueryRow(t.Context(), `SELECT COUNT(*) FROM outbox_events WHERE event_type='clarity.v1.integration.key.rotated'`).Scan(&outboxCount)
+	if outboxCount == 0 { t.Error("no outbox event for rotation") }
+
+	// Verify raw key not in audit
+	var metaStr string
+	pool.QueryRow(t.Context(), `SELECT new_value::text FROM audit_logs WHERE action='integration.key.rotated' ORDER BY created_at DESC LIMIT 1`).Scan(&metaStr)
+	if strings.Contains(metaStr, "clss_") { t.Error("raw signing secret in audit log") }
+	// The prefix (clarity_XXXXXXXX) is intentionally stored — only check signing secrets aren't present
+}

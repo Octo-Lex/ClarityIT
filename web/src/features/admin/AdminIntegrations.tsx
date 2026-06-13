@@ -64,6 +64,17 @@ export default function AdminIntegrations() {
     }
   };
 
+  const handleRotate = async (keyId: string) => {
+    if (!teamId || !confirm('Rotate this key? The old key will be revoked immediately and a new key + signing secret will be generated.')) return;
+    try {
+      const result = await api.rotateIntegrationKey(teamId, keyId);
+      setCreatedKey({ key: result.key, signing_secret: result.signing_secret, id: result.id });
+      load();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopied(label);
@@ -177,9 +188,12 @@ export default function AdminIntegrations() {
                     )}
                   </td>
                   <td className="py-2 pr-4 text-xs text-[var(--text-muted)]">{k.created_at ? new Date(k.created_at).toLocaleDateString() : '—'}</td>
-                  <td className="py-2">
+                  <td className="py-2 flex gap-2">
                     {!k.revoked_at && (
-                      <button onClick={() => handleRevoke(k.id)} className="text-xs text-[var(--danger)] hover:underline">Revoke</button>
+                      <>
+                        <button onClick={() => handleRotate(k.id)} className="text-xs text-[var(--warning)] hover:underline">Rotate</button>
+                        <button onClick={() => handleRevoke(k.id)} className="text-xs text-[var(--danger)] hover:underline">Revoke</button>
+                      </>
                     )}
                   </td>
                 </tr>

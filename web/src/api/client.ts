@@ -306,4 +306,6 @@ export const api = {
     mutation<any>('POST', `/teams/${teamId}/integration-keys`, data),
   revokeIntegrationKey: (teamId: string, keyId: string) =>
     mutation<{ message: string }>('DELETE', `/teams/${teamId}/integration-keys/${keyId}`),
+  rotateIntegrationKey: (teamId: string, keyId: string) =>
+    mutation<{ id: string; key: string; signing_secret: string; prefix: string; name: string }>('POST', `/teams/${teamId}/integration-keys/${keyId}/rotate`),
 };

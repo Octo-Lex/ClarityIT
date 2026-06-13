@@ -110,6 +110,7 @@ func (h *Handler) KeyRoutes() chi.Router {
 	r.Post("/", h.CreateKey)
 	r.Get("/", h.ListKeys)
 	r.Delete("/{keyId}", h.RevokeKey)
+	r.Post("/{keyId}/rotate", h.RotateKey)
 	return r
 }
 
@@ -193,6 +194,59 @@ func (h *Handler) RevokeKey(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil { writeErr(w, 404, "Key not found"); return }
 	writeJSON(w, 200, map[string]any{"message": "revoked"})
+}
+
+// ─── Rotate Key ───
+// Creates a new key + signing secret, revokes the old key.
+// Returns raw key + signing secret ONCE.
+func (h *Handler) RotateKey(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	teamID := chi.URLParam(r, "teamId"); keyID := chi.URLParam(r, "keyId")
+	cl, ok := claims(r)
+	if !ok { writeErr(w, 401, "unauthorized"); return }
+	actorID, _ := uuid.Parse(cl.UserID)
+	tid, _ := uuid.Parse(teamID); kid, _ := uuid.Parse(keyID)
+
+	// Get old key details for copying config
+	var oldName string; var oldSources, oldScopes []string; var oldAllowUnsigned bool
+	err := h.pool.QueryRow(ctx,
+		`SELECT name, allowed_sources, allowed_scopes, allow_unsigned_dev FROM integration_api_keys WHERE id=$1 AND team_id=$2 AND revoked_at IS NULL`,
+		kid, tid).Scan(&oldName, &oldSources, &oldScopes, &oldAllowUnsigned)
+	if err != nil { writeErr(w, 404, "Key not found or already revoked"); return }
+
+	// Generate new credentials
+	raw, prefix, hash := generateKey(h.hmacKey)
+	signingSecret, signingHash := generateSigningSecret(h.hmacKey)
+	var newID string
+
+	err = database.WithTx(ctx, h.pool, func(ctx context.Context, tx pgx.Tx) error {
+		// Revoke old key
+		if _, err := tx.Exec(ctx, `UPDATE integration_api_keys SET revoked_at=now() WHERE id=$1 AND team_id=$2`, kid, tid); err != nil { return err }
+
+		// Create new key with same config + fresh signing secret
+		if err := tx.QueryRow(ctx,
+			`INSERT INTO integration_api_keys (team_id, name, key_hash, key_prefix, allowed_sources, allowed_scopes, signing_secret_hash, allow_unsigned_dev, rotation_required, created_by)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false,$9) RETURNING id::text`,
+			tid, oldName+" (rotated)", hash, prefix, oldSources, oldScopes, signingHash, oldAllowUnsigned, actorID).
+			Scan(&newID); err != nil { return err }
+
+		// Audit
+		meta, _ := json.Marshal(map[string]any{"old_key_id": keyID, "new_key_id": newID, "prefix": prefix})
+		eid, _ := uuid.Parse(newID)
+		_ = audit.Write(ctx, tx, audit.Event{TeamID: &tid, ActorID: actorID, Action: "integration.key.rotated", EntityType: "integration_api_key", EntityID: eid, NewValue: meta})
+		return outbox.Write(ctx, tx, &teamID, outbox.Event{EventType: "clarity.v1.integration.key.rotated", AggregateType: "integration_api_key", AggregateID: newID, Payload: meta})
+	})
+	if err != nil { writeErr(w, 500, "Rotation failed"); return }
+
+	// Return new credentials ONCE
+	writeJSON(w, 201, map[string]any{
+		"id":             newID,
+		"key":            raw,
+		"signing_secret": signingSecret,
+		"prefix":         prefix,
+		"name":           oldName + " (rotated)",
+		"_notice":        "Old key revoked. Store the new key and signing secret securely — they cannot be retrieved again.",
+	})
 }
 
 // ─── Webhook Receiver ───
