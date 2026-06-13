@@ -90,3 +90,7 @@ verify-deployment:
 	@echo "NATS:" && (curl -sf --max-time 2 http://192.168.3.20:4222 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
 	@echo "Redis:" && (curl -sf --max-time 2 http://192.168.3.20:6379 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
 	@echo "MinIO:" && (curl -sf --max-time 2 http://192.168.3.20:9000 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
+
+# Playwright E2E smoke tests
+test-e2e:
+	cd e2e && npm install && npx playwright install --with-deps chromium && npx playwright test
