@@ -19,6 +19,7 @@ import (
 	"github.com/clarityit/api/internal/iam"
 	"github.com/clarityit/api/internal/middleware"
 	"github.com/clarityit/api/internal/health"
+	"github.com/clarityit/api/internal/mfa"
 	"github.com/clarityit/api/internal/integration"
 	"github.com/clarityit/api/internal/proxmox"
 	"github.com/clarityit/api/internal/storage"
@@ -53,6 +54,12 @@ func main() {
 	log.Println("Database connected")
 
 	iamHandler := iam.NewHandler(pool, cfg)
+
+	// MFA handler (Track 1: Real MFA)
+	mfaHandler, err := mfa.NewHandler(pool, cfg)
+	if err != nil {
+		log.Fatalf("failed to create MFA handler: %v", err)
+	}
 	teamHandler := team.NewHandler(pool, cfg)
 	adminHandler := admin.NewHandler(pool, cfg)
 	domainHandler := domain.NewHandler(pool, cfg)
@@ -135,6 +142,9 @@ func main() {
 		r.Get("/api/auth/sessions", iamHandler.ListSessions)
 		r.With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 			Delete("/api/auth/sessions/{id}", iamHandler.RevokeSession)
+
+		// MFA routes (Track 1: Real MFA)
+		r.Mount("/api/auth/mfa", mfaHandler.Routes())
 	})
 
 	// ─── Team Management ───

@@ -116,6 +116,7 @@ func TestValidProductionConfig(t *testing.T) {
 	os.Setenv("DATABASE_URL", "postgres://user:pass@host:5432/db")
 	os.Setenv("JWT_SECRET", "this-is-a-long-enough-jwt-secret-for-production-use-case")
 	os.Setenv("HMAC_KEY", "this-is-a-long-enough-hmac-key-for-production")
+	os.Setenv("MFA_KEY", "this-is-a-long-enough-mfa-key-for-production")
 	os.Setenv("NATS_URL", "nats://nats:4222")
 	os.Setenv("REDIS_URL", "redis://redis:6379")
 	defer func() {
@@ -123,6 +124,7 @@ func TestValidProductionConfig(t *testing.T) {
 		os.Unsetenv("DATABASE_URL")
 		os.Unsetenv("JWT_SECRET")
 		os.Unsetenv("HMAC_KEY")
+		os.Unsetenv("MFA_KEY")
 		os.Unsetenv("NATS_URL")
 		os.Unsetenv("REDIS_URL")
 	}()

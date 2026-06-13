@@ -25,6 +25,7 @@ type Config struct {
 	RedisURL        string
 	JWTSecret       string
 	HMACKey         string
+	MFAKey          string
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
 	Port            string
@@ -69,6 +70,7 @@ func Load() (*Config, error) {
 		RedisURL:        getEnv("REDIS_URL", ""),
 		JWTSecret:       getEnv("JWT_SECRET", ""),
 		HMACKey:         getEnv("HMAC_KEY", ""),
+		MFAKey:          getEnv("MFA_KEY", ""),
 		AccessTokenTTL:  getEnvDuration("ACCESS_TOKEN_TTL_MINUTES", 15) * time.Minute,
 		RefreshTokenTTL: getEnvDuration("REFRESH_TOKEN_TTL_DAYS", 7) * 24 * time.Hour,
 		Port:            getEnv("PORT", "8765"),
@@ -126,6 +128,9 @@ func (c *Config) applyDevDefaults() {
 	if c.HMACKey == "" {
 		c.HMACKey = mustGenerateRandomKey("hmac-dev")
 	}
+	if c.MFAKey == "" {
+		c.MFAKey = mustGenerateRandomKey("mfa-dev")
+	}
 	if c.MinioEndpoint == "" {
 		c.MinioEndpoint = "minio:9000"
 	}
@@ -160,12 +165,18 @@ func (c *Config) Validate() error {
 		if err := validateSecretStrength("HMAC_KEY", c.HMACKey, 32); err != nil {
 			errs = append(errs, err.Error())
 		}
+		if err := validateSecretStrength("MFA_KEY", c.MFAKey, 32); err != nil {
+			errs = append(errs, err.Error())
+		}
 		// Disallow known dev defaults in production
 		if c.JWTSecret == "clarityit-dev-jwt-secret-change-in-production" {
 			errs = append(errs, "JWT_SECRET must be changed from dev default in production")
 		}
 		if c.HMACKey == "clarityit-dev-hmac-key-change-in-production" {
 			errs = append(errs, "HMAC_KEY must be changed from dev default in production")
+		}
+		if c.MFAKey == "" || len(c.MFAKey) < 32 {
+			errs = append(errs, "MFA_KEY must be at least 32 characters in production")
 		}
 		// NATS and Redis required in production
 		if c.NATSURL == "" {
