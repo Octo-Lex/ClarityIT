@@ -299,4 +299,11 @@ export const api = {
   opsWebhookRejections: () => request<any[]>('/admin/ops/webhooks/rejections'),
   opsAgentBlocks: () => request<any[]>('/admin/ops/agent-blocks'),
   deepHealth: () => request<any>('/health/deep'),
+
+  // Integration keys (direct, no team-scoping helper needed)
+  listIntegrationKeys: (teamId: string) => request<any[]>(`/teams/${teamId}/integration-keys`),
+  createIntegrationKey: (teamId: string, data: { name: string; allowed_sources: string[]; allowed_scopes: string[]; allow_unsigned_dev?: boolean }) =>
+    mutation<any>('POST', `/teams/${teamId}/integration-keys`, data),
+  revokeIntegrationKey: (teamId: string, keyId: string) =>
+    mutation<{ message: string }>('DELETE', `/teams/${teamId}/integration-keys/${keyId}`),
 };
