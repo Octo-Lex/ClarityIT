@@ -68,11 +68,23 @@ audit:
 	cd services/api && go vet ./...
 	@echo "=== Go Tests ==="
 	cd services/api && go test -p 1 -count=1 -timeout 180s ./...
-	@echo "=== Frontend Audit ==="
-	cd web && npm audit --audit-level=high 2>&1 || true
+	@echo "=== Production Dependency Audit (runtime only) ==="
+	cd web && npm audit --omit=dev --audit-level=high
+	@echo "=== Dev Dependency Audit (informational) ==="
+	cd web && npm audit --audit-level=high 2>&1 || echo "  (dev-only findings — see docs/security/risk-acceptance-v1.md)"
 	@echo "=== Python Check ==="
 	cd services/workers/reasoning && python -m pip check 2>&1 || true
 	@echo "=== Audit Complete ==="
+
+# Production-only dependency audit (must be clean)
+audit-prod:
+	@echo "=== Production Runtime Dependencies ==="
+	cd web && npm audit --omit=dev --audit-level=high
+	@echo "=== Python Runtime Dependencies ==="
+	cd services/workers/reasoning && python -m pip check
+	@echo "=== Go Module Check ==="
+	cd services/api && go vet ./...
+	@echo "=== Production audit clean ==="
 
 # Full deployment verification
 verify-deployment:

@@ -172,7 +172,22 @@ All payloads contain only identity information:
 - No network calls
 - Used in all unit/integration tests
 
-## 7. UI Layer
+## 7. Validation Status
+
+### Track 7 (Security Review)
+- **`PROXMOX_MUTATION_ENABLED=false`** by default — mutation pipeline code exists but cannot execute without explicit operator enablement
+- Real Proxmox mutation client implemented with full API call paths for start/shutdown/stop/snapshot
+- All 16 guardrails verified via unit tests using FakeProxmoxClient (deterministic task UPIDs, no network calls)
+- Mutation pipeline NOT live-exercised against real Proxmox in Track 7
+
+### Track 8 (Release Verification) — DEFERRED
+- Live Proxmox mutation validation against real PVE cluster
+- End-to-end: create asset action → approve → execute → verify VM state change
+- Task status polling verification
+- Feature flag enable/disable cycle
+- This deferral is acceptable because the feature is disabled by default and fully tested with fakes
+
+## 8. UI Layer
 
 ### Frontend Routes
 - `/admin/asset-actions` — Action history table (AdminAssetActions)

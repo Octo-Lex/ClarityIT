@@ -99,13 +99,16 @@ services:
     container_name: clarityit-web
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:8080"
     depends_on:
       - clarityit-api
     networks:
       - clarityit-net
+    read_only: true
     tmpfs:
       - /var/cache/nginx
+      - /var/run
+      - /tmp
     security_opt:
       - no-new-privileges:true
 
