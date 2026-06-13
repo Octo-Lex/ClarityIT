@@ -95,12 +95,20 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(ctx)
 
+	// Use NULL for policy_id when no DB policy exists (builtin fallback returns zero UUID)
+	var policyIDArg any
+	if policy.ID != (uuid.UUID{}) {
+		policyIDArg = policy.ID
+	} else {
+		policyIDArg = nil
+	}
+
 	_, err = tx.Exec(ctx, `
 		INSERT INTO approval_requests (id, team_id, action_type, action_target, risk_level, description,
 		                                requested_by, status, policy_id, expires_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9)
 	`, approvalID, teamID, req.ActionType, sanitizedTarget, req.RiskLevel, req.Description,
-		userID, policy.ID, expiresAt)
+		userID, policyIDArg, expiresAt)
 	if err != nil {
 		writeErr(w, 500, "Failed to create approval request")
 		return

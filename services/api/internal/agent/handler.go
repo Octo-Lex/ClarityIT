@@ -302,80 +302,169 @@ func (h *Handler) ListIntentions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, out)
 }
 
-// ─── Tool Gateway ───
+// ─── Tool Gateway (Policy-Governed) ───
 
 func (h *Handler) ExecuteTool(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	teamID := chi.URLParam(r, "teamId"); cl, _ := claims(r)
-	actorID, _ := uuid.Parse(cl.UserID); tid, _ := uuid.Parse(teamID)
+	teamIDStr := chi.URLParam(r, "teamId")
+	teamID, _ := uuid.Parse(teamIDStr)
+	cl, ok := claims(r)
+	if !ok {
+		writeErr(w, 401, "unauthorized")
+		return
+	}
+	actorID, _ := uuid.Parse(cl.UserID)
 
 	var req struct {
-		AgentID       string `json:"agent_id"`
-		RunID         string `json:"run_id"`
-		IntentionID   string `json:"intention_id"`
-		ToolName      string `json:"tool_name"`
-		AutonomyLevel string `json:"autonomy_level"`
+		AgentID        string          `json:"agent_id"`
+		RunID          string          `json:"run_id"`
+		IntentionID    string          `json:"intention_id"`
+		ToolName       string          `json:"tool_name"`
+		AutonomyLevel  string          `json:"autonomy_level"`
+		ApprovalID     string          `json:"approval_id"`
+		ActionTarget   json.RawMessage `json:"action_target"`
+		TargetObjectID string          `json:"target_object_id"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
-	if req.AgentID == "" || req.ToolName == "" || req.IntentionID == "" { writeErr(w, 400, "agent_id, tool_name, intention_id required"); return }
-	aid, _ := uuid.Parse(req.AgentID); iid, _ := uuid.Parse(req.IntentionID)
-
-	// 1. Agent active?
-	var agentSt, agentMax string
-	if err := h.pool.QueryRow(ctx, `SELECT status,max_autonomy FROM agent_identities WHERE id=$1 AND team_id=$2 AND deleted_at IS NULL`, aid, tid).Scan(&agentSt, &agentMax); err != nil {
-		h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "agent_not_found"); writeErr(w, 403, "Agent not found or disabled"); return
-	}
-	if agentSt != "active" { h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "agent_disabled"); writeErr(w, 403, "Agent disabled"); return }
-
-	// 2. Run active?
-	var runSt string
-	if err := h.pool.QueryRow(ctx, `SELECT status FROM agent_runs WHERE id=$1 AND team_id=$2`, req.RunID, tid).Scan(&runSt); err != nil || (runSt != "pending" && runSt != "running") {
-		h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "run_not_active"); writeErr(w, 403, "Run not active"); return
+	if req.AgentID == "" || req.ToolName == "" || req.IntentionID == "" {
+		writeErr(w, 400, "agent_id, tool_name, intention_id required")
+		return
 	}
 
-	// 3. Tool exists?
-	var toolRisk string; var toolApproval, toolMFA bool
-	if err := h.pool.QueryRow(ctx, `SELECT risk_level,requires_approval,requires_mfa FROM tool_registry WHERE tool_name=$1 AND is_active`, req.ToolName).Scan(&toolRisk, &toolApproval, &toolMFA); err != nil {
-		h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "tool_not_found"); writeErr(w, 400, "Tool not found"); return
+	agentID, _ := uuid.Parse(req.AgentID)
+	runID, _ := uuid.Parse(req.RunID)
+	intentionID, _ := uuid.Parse(req.IntentionID)
+	autonomy := req.AutonomyLevel
+	if autonomy == "" {
+		autonomy = "A3"
 	}
 
-	// 4. Grant exists?
-	var grantMax string; var grantApproval, grantMFA bool; var grantExp *time.Time
-	if err := h.pool.QueryRow(ctx, `SELECT max_autonomy_level,requires_approval,requires_mfa,expires_at FROM agent_tool_grants WHERE agent_id=$1 AND tool_name=$2 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1`, aid, req.ToolName).Scan(&grantMax, &grantApproval, &grantMFA, &grantExp); err != nil {
-		h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "grant_missing"); writeErr(w, 403, "No active grant"); return
+	// Build policy request
+	toolReq := ToolRequest{
+		AgentID:        agentID,
+		RunID:          runID,
+		IntentionID:    intentionID,
+		TeamID:         teamID,
+		UserID:         actorID,
+		ToolName:       req.ToolName,
+		AutonomyLevel:  autonomy,
+		ActionTarget:   req.ActionTarget,
+		IdempotencyKey: r.Header.Get("Idempotency-Key"),
 	}
-	if grantExp != nil && grantExp.Before(time.Now()) { h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "grant_expired"); writeErr(w, 403, "Grant expired"); return }
+	if req.ApprovalID != "" {
+		aid, err := uuid.Parse(req.ApprovalID)
+		if err == nil {
+			toolReq.ApprovalID = &aid
+		}
+	}
+	if req.TargetObjectID != "" {
+		toid, err := uuid.Parse(req.TargetObjectID)
+		if err == nil {
+			toolReq.TargetObjectID = &toid
+		}
+	}
 
-	// 5. Autonomy checks
-	ra := req.AutonomyLevel; if ra == "" { ra = "A3" }
-	if autRank(ra) > autRank(agentMax) { h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "autonomy_exceeded"); writeErr(w, 403, "Exceeds agent max autonomy"); return }
-	if autRank(ra) > autRank(grantMax) { h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "autonomy_exceeded"); writeErr(w, 403, "Exceeds grant max autonomy"); return }
+	// Run the 13-check policy chain
+	evaluator := NewPolicyEvaluator(h.pool)
+	decision, _ := evaluator.Evaluate(ctx, toolReq)
 
-	// 6. Approval/MFA blocks
-	if grantApproval || toolApproval { h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "approval_required"); writeErr(w, 403, "Approval required"); return }
-	if grantMFA || toolMFA { h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "mfa_required"); writeErr(w, 403, "MFA required"); return }
-	if toolRisk == "high" || toolRisk == "critical" { h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "risk_blocked"); writeErr(w, 403, "High risk blocked"); return }
-	if toolRisk != "low" { h.blocked(ctx, teamID, tid, actorID, iid, req.IntentionID, req.ToolName, "approval_required"); writeErr(w, 403, "Medium+ requires approval"); return }
+	if decision.Denied() {
+		// Record blocked/denied effect with sanitized payload
+		h.recordDecision(ctx, teamIDStr, teamID, actorID, intentionID, decision)
+		writeErr(w, decision.HTTPStatus(), decision.Reason)
+		return
+	}
 
-	// Execute
-	_ = database.WithTx(ctx, h.pool, func(ctx context.Context, tx pgx.Tx) error {
-		tx.Exec(ctx, `UPDATE agent_intentions SET status='executed' WHERE id=$1`, iid)
-		payload, _ := json.Marshal(map[string]any{"tool": req.ToolName, "status": "succeeded"})
-		tx.Exec(ctx, `INSERT INTO agent_effect_results (intention_id,team_id,tool_name,status,result) VALUES ($1,$2,$3,'succeeded',$4)`, iid, tid, req.ToolName, payload)
-		_ = audit.Write(ctx, tx, audit.Event{TeamID: &tid, ActorID: actorID, Action: "agent.tool.execution_succeeded", EntityType: "agent_effect_result", EntityID: iid, NewValue: payload})
-		_ = outbox.Write(ctx, tx, &teamID, outbox.Event{EventType: "clarity.v1.agent.tool.execution_succeeded", AggregateType: "agent_effect_result", AggregateID: req.IntentionID, Payload: payload})
+	// Execute within a single transaction
+	// Guardrail 7: Mark approval_request executed only in the same tx as the effect result.
+	err := database.WithTx(ctx, h.pool, func(ctx context.Context, tx pgx.Tx) error {
+		// Mark intention executed
+		tx.Exec(ctx, `UPDATE agent_intentions SET status='executed' WHERE id=$1`, intentionID)
+
+		// Store effect result with linked approval
+		payload, _ := json.Marshal(map[string]any{
+			"tool":   req.ToolName,
+			"status": "succeeded",
+		})
+		tx.Exec(ctx,
+			`INSERT INTO agent_effect_results (intention_id, team_id, tool_name, status, approval_id, result)
+			 VALUES ($1, $2, $3, 'succeeded', $4, $5)`,
+			intentionID, teamID, req.ToolName, decision.ApprovalID, payload)
+
+		// Guardrail 7: Mark approval as executed in same transaction
+		if decision.ApprovalID != nil {
+			tx.Exec(ctx,
+				`UPDATE approval_requests SET status='executed', executed_at=NOW(), updated_at=NOW()
+				 WHERE id=$1 AND status='approved'`,
+				*decision.ApprovalID)
+		}
+
+		// Audit — no raw target payload (guardrail 8)
+		auditPayload, _ := json.Marshal(map[string]any{
+			"tool":        req.ToolName,
+			"status":      "succeeded",
+			"approval_id": decision.ApprovalID,
+		})
+		_ = audit.Write(ctx, tx, audit.Event{
+			TeamID:     &teamID,
+			ActorID:    actorID,
+			Action:     "agent.tool.execution_succeeded",
+			EntityType: "agent_effect_result",
+			EntityID:   intentionID,
+			NewValue:   auditPayload,
+		})
+
+		// Outbox — no raw target (guardrail 8)
+		_ = outbox.Write(ctx, tx, &teamIDStr, outbox.Event{
+			EventType:     "clarity.v1.agent.tool.execution_succeeded",
+			AggregateType: "agent_effect_result",
+			AggregateID:   req.IntentionID,
+			Payload:       auditPayload,
+		})
 		return nil
 	})
+	if err != nil {
+		writeErr(w, 500, "Execution failed")
+		return
+	}
 	writeJSON(w, 200, map[string]any{"status": "succeeded", "tool": req.ToolName})
 }
 
-func (h *Handler) blocked(ctx context.Context, teamID string, tid, actorID, iid uuid.UUID, iidStr, tool, reason string) {
+// recordDecision persists a denied/blocked decision as an effect result,
+// audit entry, and outbox event. Payloads are sanitized — no raw target data
+// (guardrail 8).
+func (h *Handler) recordDecision(ctx context.Context, teamIDStr string, tid, actorID, iid uuid.UUID, d *Decision) {
+	effectStatus := d.EffectStatus()
+
+	// Sanitized payload — guardrail 8: denied/block events must not include raw target payloads.
+	payload, _ := json.Marshal(map[string]any{
+		"tool":    d.ToolName,
+		"status":  effectStatus,
+		"reason":  d.Reason,
+		"outcome": d.Outcome,
+		"check":   d.Check,
+	})
+
 	_ = database.WithTx(ctx, h.pool, func(ctx context.Context, tx pgx.Tx) error {
-		tx.Exec(ctx, `UPDATE agent_intentions SET status='blocked',blocked_reason=$1 WHERE id=$2`, reason, iid)
-		payload, _ := json.Marshal(map[string]any{"tool": tool, "status": "blocked", "reason": reason})
-		tx.Exec(ctx, `INSERT INTO agent_effect_results (intention_id,team_id,tool_name,status,result) VALUES ($1,$2,$3,'blocked',$4)`, iid, tid, tool, payload)
-		_ = audit.Write(ctx, tx, audit.Event{TeamID: &tid, ActorID: actorID, Action: "agent.tool.execution_blocked", EntityType: "agent_effect_result", EntityID: iid, NewValue: payload})
-		_ = outbox.Write(ctx, tx, &teamID, outbox.Event{EventType: "clarity.v1.agent.tool.execution_blocked", AggregateType: "agent_effect_result", AggregateID: iidStr, Payload: payload})
+		tx.Exec(ctx, `UPDATE agent_intentions SET status='blocked', blocked_reason=$1 WHERE id=$2`, d.Reason, iid)
+		tx.Exec(ctx,
+			`INSERT INTO agent_effect_results (intention_id, team_id, tool_name, status, result)
+			 VALUES ($1, $2, $3, $4, $5)`,
+			iid, tid, d.ToolName, effectStatus, payload)
+		_ = audit.Write(ctx, tx, audit.Event{
+			TeamID:     &tid,
+			ActorID:    actorID,
+			Action:     fmt.Sprintf("agent.tool.execution_%s", effectStatus),
+			EntityType: "agent_effect_result",
+			EntityID:   iid,
+			NewValue:   payload,
+		})
+		_ = outbox.Write(ctx, tx, &teamIDStr, outbox.Event{
+			EventType:     fmt.Sprintf("clarity.v1.agent.tool.execution_%s", effectStatus),
+			AggregateType: "agent_effect_result",
+			AggregateID:   iid.String(),
+			Payload:       payload,
+		})
 		return nil
 	})
 }
