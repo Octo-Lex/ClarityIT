@@ -51,6 +51,9 @@ type Config struct {
 	SMTPFrom     string
 	SMTPTLSMode  string // "none", "starttls", "tls"
 
+	// Email
+	EmailMode string // "dev", "smtp", "disabled"
+
 	// Build info (set via ldflags)
 	Version   string
 	GitCommit string
@@ -88,6 +91,7 @@ func Load() (*Config, error) {
 		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
 		SMTPFrom:     getEnv("SMTP_FROM", ""),
 		SMTPTLSMode:  getEnv("SMTP_TLS_MODE", "starttls"),
+		EmailMode:    getEnv("EMAIL_MODE", "dev"),
 
 		Version:   getEnv("CLARITY_VERSION", "dev"),
 		GitCommit: getEnv("CLARITY_GIT_COMMIT", ""),
@@ -193,6 +197,14 @@ func (c *Config) Validate() error {
 		if c.SMTPFrom == "" {
 			errs = append(errs, "SMTP_FROM is required when SMTP_HOST is set")
 		}
+	}
+
+	// Email mode validation
+	if c.EmailMode != "dev" && c.EmailMode != "smtp" && c.EmailMode != "disabled" {
+		errs = append(errs, "EMAIL_MODE must be dev, smtp, or disabled")
+	}
+	if c.EmailMode == "smtp" && c.SMTPHost == "" {
+		errs = append(errs, "SMTP_HOST is required when EMAIL_MODE=smtp")
 	}
 
 	if len(errs) > 0 {
