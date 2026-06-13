@@ -308,4 +308,7 @@ export const api = {
     mutation<{ message: string }>('DELETE', `/teams/${teamId}/integration-keys/${keyId}`),
   rotateIntegrationKey: (teamId: string, keyId: string) =>
     mutation<{ id: string; key: string; signing_secret: string; prefix: string; name: string }>('POST', `/teams/${teamId}/integration-keys/${keyId}/rotate`),
+
+  // Setup status
+  setupStatus: () => request<Record<string, any>>('/admin/setup-status'),
 };

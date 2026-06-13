@@ -23,6 +23,7 @@ import AdminTeams from './features/admin/AdminTeams';
 import AdminAudit from './features/admin/AdminAudit';
 import AdminOps from './features/admin/AdminOps';
 import AdminIntegrations from './features/admin/AdminIntegrations';
+import AdminSetup from './features/admin/AdminSetup';
 import { AgentsPage } from './features/agents/AgentsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -63,6 +64,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/admin/audit" element={<OwnerRoute><AdminAudit /></OwnerRoute>} />
             <Route path="/admin/ops" element={<OwnerRoute><AdminOps /></OwnerRoute>} />
             <Route path="/admin/integrations" element={<OwnerRoute><AdminIntegrations /></OwnerRoute>} />
+            <Route path="/admin/setup" element={<OwnerRoute><AdminSetup /></OwnerRoute>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

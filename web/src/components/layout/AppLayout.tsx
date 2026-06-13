@@ -23,6 +23,7 @@ export default function AppLayout() {
     { path: '/admin/teams', label: 'Teams', icon: '🏗️' },
     { path: '/admin/audit', label: 'Audit', icon: '📜' },
     { path: '/admin/integrations', label: 'Integrations', icon: '🔌' },
+    { path: '/admin/setup', label: 'Setup', icon: '✅' },
     { path: '/admin/ops', label: 'Ops', icon: '⚙️' },
   ] : [];
 

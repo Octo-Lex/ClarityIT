@@ -355,6 +355,7 @@ func main() {
 		r.Get("/teams", adminHandler.ListTeams)
 		r.Get("/audit", adminHandler.ListAudit)
 		r.Get("/settings", adminHandler.GetSettings)
+		r.Get("/setup-status", adminHandler.SetupStatus)
 		r.With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 			Patch("/settings", adminHandler.UpdateSettings)
 
