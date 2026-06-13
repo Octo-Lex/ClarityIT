@@ -319,4 +319,64 @@ export const api = {
 
   // Setup status
   setupStatus: () => request<Record<string, any>>('/admin/setup-status'),
+
+  // ─── MFA (v1.0 Track 1) ───
+  mfaEnroll: () =>
+    mutation<{ factor_id: string; secret: string; otpauth_uri: string }>('POST', '/auth/mfa/totp/enroll'),
+  mfaVerifyEnrollment: (factorId: string, code: string) =>
+    mutation<{ message: string }>('POST', '/auth/mfa/totp/verify-enrollment', { factor_id: factorId, code }),
+  mfaChallenge: (password: string) =>
+    mutation<{ challenge_token: string }>('POST', '/auth/mfa/challenge', { password }),
+  mfaVerify: (challengeToken: string, code: string) =>
+    mutation<{ message: string }>('POST', '/auth/mfa/verify', { challenge_token: challengeToken, code }),
+  mfaRegenerateRecovery: () =>
+    mutation<{ recovery_codes: string[] }>('POST', '/auth/mfa/recovery-codes/regenerate'),
+  mfaDisableFactor: (factorId: string) =>
+    mutation<{ message: string }>('DELETE', `/auth/mfa/factors/${factorId}`),
+  mfaListFactors: () =>
+    request<{ id: string; type: string; verified: boolean; created_at: string }[]>('/auth/mfa/factors'),
+  mfaStatus: () =>
+    request<{ enabled: boolean; verified_factors: number; pending_factors: number }>('/auth/mfa/status'),
+
+  // ─── Approvals (v1.0 Track 2) ───
+  listApprovals: (status?: string) => {
+    const qs = status ? `?status=${status}` : '';
+    return request<any[]>(teamPath(`/approvals${qs}`));
+  },
+  getApproval: (id: string) => request<any>(teamPath(`/approvals/${id}`)),
+  createApproval: (data: { action_type: string; risk_level: string; description?: string; action_target?: Record<string, unknown> }) =>
+    mutation<any>('POST', teamPath('/approvals'), data),
+  approveApproval: (id: string, reason?: string) =>
+    mutation<any>('POST', teamPath(`/approvals/${id}/approve`), { reason: reason || '' }),
+  rejectApproval: (id: string, reason?: string) =>
+    mutation<any>('POST', teamPath(`/approvals/${id}/reject`), { reason: reason || '' }),
+  cancelApproval: (id: string) =>
+    mutation<any>('POST', teamPath(`/approvals/${id}/cancel`)),
+
+  // ─── Asset Actions (v1.0 Track 4) ───
+  createAssetAction: (assetId: string, action: string, snapshotName?: string) =>
+    mutation<any>('POST', teamPath(`/assets/${assetId}/actions/proxmox/${action}`),
+      snapshotName ? { snapshot_name: snapshotName } : {}),
+  listAssetActions: (status?: string) => {
+    const qs = status ? `?status=${status}` : '';
+    return request<any[]>(teamPath(`/assets/asset-actions${qs}`));
+  },
+  getAssetAction: (id: string) => request<any>(teamPath(`/assets/asset-actions/${id}`)),
+  executeAssetAction: (id: string) =>
+    mutation<any>('POST', teamPath(`/assets/asset-actions/${id}/execute`)),
+
+  // ─── Remediation (v1.0 Track 5) ───
+  listRemediations: (status?: string) => {
+    const qs = status ? `?status=${status}` : '';
+    return request<any[]>(teamPath(`/remediations${qs}`));
+  },
+  getRemediation: (id: string) => request<any>(teamPath(`/remediations/${id}`)),
+  createRemediation: (data: Record<string, unknown>) =>
+    mutation<any>('POST', teamPath('/remediations'), data),
+  approveRemediation: (id: string) =>
+    mutation<any>('POST', teamPath(`/remediations/${id}/approve`)),
+  executeRemediation: (id: string) =>
+    mutation<any>('POST', teamPath(`/remediations/${id}/execute`)),
+  cancelRemediation: (id: string) =>
+    mutation<any>('POST', teamPath(`/remediations/${id}/cancel`)),
 };

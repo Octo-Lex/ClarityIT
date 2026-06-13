@@ -15,10 +15,13 @@ export default function AppLayout() {
     { path: '/board', label: 'Board', icon: '📌', perm: 'work.items.list' },
     { path: '/incidents', label: 'Incidents', icon: '🔥', perm: 'incidents.list' },
     { path: '/agents', label: 'Agents', icon: '🤖', perm: 'agents.read' },
+    { path: '/account/security', label: 'Security', icon: '🔐' },
     { path: '/settings/team', label: 'Team', icon: '👥', perm: 'team.settings.view' },
   ];
 
   const adminLinks: { path: string; label: string; icon: string; perm?: string }[] = isPlatformOwner ? [
+    { path: '/admin/approvals', label: 'Approvals', icon: '✅' },
+    { path: '/admin/asset-actions', label: 'Asset Ops', icon: '🖥️' },
     { path: '/admin/users', label: 'Users', icon: '👤' },
     { path: '/admin/teams', label: 'Teams', icon: '🏗️' },
     { path: '/admin/audit', label: 'Audit', icon: '📜' },

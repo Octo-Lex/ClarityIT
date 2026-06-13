@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import './index.css';
 import { AuthProvider, useAuth } from './auth/context';
 import { RefetchProvider } from './hooks/useRefetch';
@@ -24,6 +24,11 @@ import AdminAudit from './features/admin/AdminAudit';
 import AdminOps from './features/admin/AdminOps';
 import AdminIntegrations from './features/admin/AdminIntegrations';
 import AdminSetup from './features/admin/AdminSetup';
+import SecurityPage from './features/account/SecurityPage';
+import AdminApprovals from './features/admin/AdminApprovals';
+import AdminAssetActions from './features/admin/AdminAssetActions';
+import RemediationPanel from './features/incidents/RemediationPanel';
+import AssetActions from './features/assets/AssetActions';
 import { AgentsPage } from './features/agents/AgentsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -38,6 +43,18 @@ function OwnerRoute({ children }: { children: React.ReactNode }) {
   if (loading) return null;
   if (!isPlatformOwner) return <Navigate to="/" replace />;
   return <>{children}</>;
+}
+
+function PermissionRoute({ perm, children }: { perm: string; children: React.ReactNode }) {
+  const { hasPermission, loading } = useAuth();
+  if (loading) return null;
+  if (!hasPermission(perm)) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function AssetActionRoute() {
+  const { id } = useParams<{ id: string }>();
+  return <AssetActions assetId={id || ''} />;
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -59,6 +76,11 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/incidents/:id" element={<IncidentDetail />} />
             <Route path="/settings/team" element={<TeamSettings />} />
             <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/account/security" element={<SecurityPage />} />
+            <Route path="/admin/approvals" element={<PermissionRoute perm="approvals.read"><AdminApprovals /></PermissionRoute>} />
+            <Route path="/admin/asset-actions" element={<PermissionRoute perm="assets.actions.read"><AdminAssetActions /></PermissionRoute>} />
+            <Route path="/incidents/:id/remediation" element={<RemediationPanel />} />
+            <Route path="/assets/:id/actions" element={<AssetActionRoute />} />
             <Route path="/admin/users" element={<OwnerRoute><AdminUsers /></OwnerRoute>} />
             <Route path="/admin/teams" element={<OwnerRoute><AdminTeams /></OwnerRoute>} />
             <Route path="/admin/audit" element={<OwnerRoute><AdminAudit /></OwnerRoute>} />
