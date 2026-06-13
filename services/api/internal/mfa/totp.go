@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/base32"
 	"encoding/binary"
 	"fmt"
@@ -106,7 +107,7 @@ func GenerateRecoveryCodes(n int, hmacKey string) ([]string, []string) {
 
 // hashRecoveryCode hashes a recovery code using HMAC-SHA256.
 func hashRecoveryCode(hmacKey, code string) string {
-	mac := hmac.New(sha1.New, []byte(hmacKey))
+	mac := hmac.New(sha256.New, []byte(hmacKey))
 	mac.Write([]byte(code))
 	return fmt.Sprintf("%x", mac.Sum(nil))
 }

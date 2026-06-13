@@ -555,6 +555,11 @@ func hasRecentMFA(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID) boo
 }
 
 // sanitizeActionTarget strips known sensitive keys from action_target JSON.
+// SanitizeActionTargetForTest exposes sanitizeActionTarget for security review tests.
+func SanitizeActionTargetForTest(raw json.RawMessage) json.RawMessage {
+	return sanitizeActionTarget(raw)
+}
+
 func sanitizeActionTarget(raw json.RawMessage) json.RawMessage {
 	var data map[string]any
 	if err := json.Unmarshal(raw, &data); err != nil {
