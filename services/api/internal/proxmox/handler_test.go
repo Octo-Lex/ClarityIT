@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const dbURL = "postgres://clarityit:clarityit@192.168.3.20:5432/clarityit?sslmode=disable"
+const dbURL = "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
 
 type testClient struct{}
 

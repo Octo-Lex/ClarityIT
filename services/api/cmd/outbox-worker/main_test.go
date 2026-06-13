@@ -14,7 +14,7 @@ import (
 )
 
 func TestPhase5_OutboxWorker(t *testing.T) {
-	dbURL := "postgres://clarityit:clarityit@192.168.3.20:5432/clarityit?sslmode=disable"
+	dbURL := "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
 	natsURL := "nats://192.168.3.20:4222"
 	redisAddr := "192.168.3.20:6379"
 

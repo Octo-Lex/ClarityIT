@@ -18,7 +18,7 @@ import (
 )
 
 func TestPhase3Closure(t *testing.T) {
-	dbURL := "postgres://clarityit:clarityit@192.168.3.20:5432/clarityit?sslmode=disable"
+	dbURL := "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
 	cfg := &config.Config{
 		JWTSecret:       "test-secret",
 		HMACKey:         "test-hmac-key",

@@ -19,7 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const testDBURL = "postgres://clarityit:clarityit@192.168.3.20:5432/clarityit?sslmode=disable"
+const testDBURL = "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
 
 func testSetup(t *testing.T, env string) (*Handler, *chi.Mux, string, string) {
 	t.Helper()

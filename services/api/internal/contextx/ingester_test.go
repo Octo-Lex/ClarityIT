@@ -10,7 +10,7 @@ import (
 )
 
 func TestPhase5_ContextIngestion(t *testing.T) {
-	dbURL := "postgres://clarityit:clarityit@192.168.3.20:5432/clarityit?sslmode=disable"
+	dbURL := "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
 	ctx := t.Context()
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {

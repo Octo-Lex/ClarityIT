@@ -10,17 +10,32 @@ services:
     ports:
       - "8765:8765"
     environment:
+      CLARITY_ENV: ${CLARITY_ENV:-development}
       DATABASE_URL: postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-clarityit-dev-jwt-secret-change-in-production}
-      HMAC_KEY: ${HMAC_KEY:-clarityit-dev-hmac-key-change-in-production}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: clarityit
+      MINIO_ROOT_PASSWORD: clarityit123
+      JWT_SECRET: ${JWT_SECRET:-}
+      HMAC_KEY: ${HMAC_KEY:-}
       PORT: "8765"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8765/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     networks:
       - clarityit-net
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
 
   clarityit-outbox-worker:
     build:
@@ -31,16 +46,22 @@ services:
     container_name: clarityit-outbox-worker
     restart: unless-stopped
     environment:
+      CLARITY_ENV: ${CLARITY_ENV:-development}
       DATABASE_URL: postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-clarityit-dev-jwt-secret-change-in-production}
-      HMAC_KEY: ${HMAC_KEY:-clarityit-dev-hmac-key-change-in-production}
+      JWT_SECRET: ${JWT_SECRET:-}
+      HMAC_KEY: ${HMAC_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - clarityit-net
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
 
   clarityit-context-worker:
     build:
@@ -51,16 +72,22 @@ services:
     container_name: clarityit-context-worker
     restart: unless-stopped
     environment:
+      CLARITY_ENV: ${CLARITY_ENV:-development}
       DATABASE_URL: postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-clarityit-dev-jwt-secret-change-in-production}
-      HMAC_KEY: ${HMAC_KEY:-clarityit-dev-hmac-key-change-in-production}
+      JWT_SECRET: ${JWT_SECRET:-}
+      HMAC_KEY: ${HMAC_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - clarityit-net
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
 
   clarityit-web:
     build:
@@ -74,6 +101,10 @@ services:
       - clarityit-api
     networks:
       - clarityit-net
+    tmpfs:
+      - /var/cache/nginx
+    security_opt:
+      - no-new-privileges:true
 
   postgres:
     image: postgres:16-alpine
@@ -85,8 +116,6 @@ services:
       POSTGRES_DB: clarityit
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U clarityit"]
       interval: 5s
@@ -102,9 +131,6 @@ services:
     command: "--jetstream --store_dir /data"
     volumes:
       - natsdata:/data
-    ports:
-      - "4222:4222"
-      - "8222:8222"
     networks:
       - clarityit-net
 
@@ -112,8 +138,6 @@ services:
     image: redis:7-alpine
     container_name: clarityit-redis-1
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - redisdata:/data
     networks:
@@ -134,6 +158,8 @@ services:
       - clarityit-api
     networks:
       - clarityit-net
+    security_opt:
+      - no-new-privileges:true
 
   minio:
     image: minio/minio
@@ -143,9 +169,6 @@ services:
     environment:
       MINIO_ROOT_USER: clarityit
       MINIO_ROOT_PASSWORD: clarityit123
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     volumes:
       - miniodata:/data
     networks:

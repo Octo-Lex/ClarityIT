@@ -20,7 +20,7 @@ import (
 )
 
 func TestPhase4(t *testing.T) {
-	dbURL := "postgres://clarityit:clarityit@192.168.3.20:5432/clarityit?sslmode=disable"
+	dbURL := "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
 	cfg := &config.Config{
 		JWTSecret: "test-secret", HMACKey: "test-hmac-key",
 		AccessTokenTTL: 15 * 60 * 1e9, RefreshTokenTTL: 7 * 24 * 3600 * 1e9,
