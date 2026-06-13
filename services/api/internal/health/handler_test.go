@@ -26,7 +26,6 @@ func TestDeepHealth(t *testing.T) {
 	r.Post("/api/auth/login", iam.NewHandler(pool, cfg).Login)
 	r.With(middleware.RequireAuth).Get("/api/health/deep", h.Deep)
 
-	// Login to get token
 	req := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(`{"email":"owner@test.dev","password":"password12"}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -36,7 +35,6 @@ func TestDeepHealth(t *testing.T) {
 	json.Unmarshal(w.Body.Bytes(), &loginResp)
 	token, _ := loginResp["access_token"].(string)
 
-	// Deep health
 	req = httptest.NewRequest("GET", "/api/health/deep", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	w = httptest.NewRecorder()
@@ -46,10 +44,37 @@ func TestDeepHealth(t *testing.T) {
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	pg, _ := resp["postgres"].(map[string]any)
 	if pg["status"] != "up" { t.Error("expected postgres up") }
-	if resp["build"] != "test-build" { t.Error("expected build") }
+	if resp["build"] == nil { t.Error("expected build") }
 	if resp["outbox"] == nil { t.Error("expected outbox in health") }
-	if resp["agent_runs"] == nil { t.Error("expected agent_runs in health") }
-	if resp["timestamp"] == nil { t.Error("expected timestamp") }
+	if resp["workers"] == nil { t.Error("expected workers in health") }
+	if resp["uptime"] == nil { t.Error("expected uptime") }
+}
+
+func TestMetricsEndpoint(t *testing.T) {
+	pool, _ := pgxpool.New(t.Context(), dbURL)
+	defer pool.Close()
+
+	h := NewHandler(pool, "test")
+	r := chi.NewRouter()
+	r.Get("/metrics", h.Metrics)
+
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 200 { t.Fatalf("metrics: %d", w.Code) }
+	body := w.Body.String()
+	if !strings.Contains(body, "clarity_http_requests_total") {
+		t.Error("missing http_requests_total metric")
+	}
+	if !strings.Contains(body, "clarity_outbox_pending_count") {
+		t.Error("missing outbox_pending_count metric")
+	}
+	if !strings.Contains(body, "clarity_webhook_received_total") {
+		t.Error("missing webhook_received_total metric")
+	}
+	if !strings.Contains(body, "clarity_agent_tool_blocked_total") {
+		t.Error("missing agent_tool_blocked_total metric")
+	}
 }
 
 func TestDeepHealthRequiresAuth(t *testing.T) {

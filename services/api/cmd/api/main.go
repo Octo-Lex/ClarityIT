@@ -37,6 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Config error: %v", err)
 	}
+	config.InitLogger("clarityit-api", cfg.Version)
 	if err := cfg.Validate(); err != nil {
 		log.Fatalf("Config validation: %v", err)
 	}
@@ -86,7 +87,8 @@ func main() {
 	})
 
 	// Deep health (authenticated)
-	healthHandler := health.NewHandler(pool, "0.7.0")
+	healthHandler := health.NewHandler(pool, cfg.Version)
+	r.Get("/metrics", healthHandler.Metrics)
 	r.With(middleware.RequireAuth).Get("/api/health/deep", healthHandler.Deep)
 
 	// ─── WebSocket ───
