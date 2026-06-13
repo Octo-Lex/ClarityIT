@@ -26,6 +26,7 @@ import (
 	"github.com/clarityit/api/internal/wsx"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -60,6 +61,18 @@ func main() {
 
 	// Wire Redis pub/sub for WebSocket fanout
 	rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisURLHost()})
+
+	// Connect to NATS for deep health + event transport
+	nc, err := nats.Connect(cfg.NATSURL)
+	if err != nil {
+		log.Printf("NATS not available: %v", err)
+	}
+
+	// MinIO health checker
+	var minioChecker health.S3BucketChecker
+	if cfg.MinioEndpoint != "" {
+		minioChecker = health.NewMinIOHealthChecker(cfg.MinioEndpoint, cfg.MinioUseSSL)
+	}
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		log.Printf("Redis not available, WebSocket fanout disabled: %v", err)
 	} else {
@@ -87,7 +100,7 @@ func main() {
 	})
 
 	// Deep health (authenticated)
-	healthHandler := health.NewHandler(pool, cfg.Version)
+	healthHandler := health.NewHandlerWithDeps(pool, cfg.Version, "", nc, rdb, minioChecker, cfg.MinioBucket)
 	r.Get("/metrics", healthHandler.Metrics)
 	r.With(middleware.RequireAuth).Get("/api/health/deep", healthHandler.Deep)
 
