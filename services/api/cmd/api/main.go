@@ -286,8 +286,8 @@ func main() {
 
 		// ─── Phase 8: Proxmox Integration ───
 		var pxCtxClient proxmox.ProxmoxClient
-		if cfg.ProxmoxURL != "" {
-			pxCtxClient = &proxmox.FakeProxmoxClient{} // TODO: real client
+		if cfg.ProxmoxEnabled {
+			pxCtxClient = proxmox.NewRealProxmoxClient(cfg.ProxmoxURL, cfg.ProxmoxTokenID, cfg.ProxmoxSecret, cfg.ProxmoxVerifyTLS)
 		} else {
 			pxCtxClient = &proxmox.FakeProxmoxClient{}
 		}

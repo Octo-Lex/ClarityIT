@@ -88,8 +88,19 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"connected":   h.client != nil,
 		"sync_count":  syncCount,
-		"client_type": fmt.Sprintf("%T", h.client),
+		"mode":         h.clientMode(),
 	})
+}
+
+func (h *Handler) clientMode() string {
+	switch h.client.(type) {
+	case *RealProxmoxClient:
+		return "real"
+	case *FakeProxmoxClient:
+		return "fake"
+	default:
+		return "unknown"
+	}
 }
 
 func (h *Handler) Sync(w http.ResponseWriter, r *http.Request) {
