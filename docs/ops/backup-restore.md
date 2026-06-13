@@ -2,10 +2,10 @@
 
 ## What Gets Backed Up
 
-| Component | Data | Method |
-|-----------|------|--------|
-| PostgreSQL | All tables (37+), migrations state | `pg_dump` |
-| MinIO | Uploaded files/attachments | `tar` from container |
+| Component | Data | Method | Verified |
+|-----------|------|--------|----------|
+| PostgreSQL | All tables (37+), migrations state | `pg_dump` | ✅ Smoke-tested (96K dump) |
+| MinIO | Uploaded files/attachments + bucket metadata | Docker volume `tar` | ✅ Smoke-tested (4.8K tarball, `.minio.sys` verified) |
 
 ## What Is NOT Backed Up
 
@@ -45,7 +45,26 @@ ls -la /opt/clarityit/backups/postgresql_*.sql.gz
 ./scripts/restore-postgres.sh /opt/clarityit/backups/postgresql_20260613_020000.sql.gz
 ```
 
-### Fresh VM/LXC Recovery
+### MinIO Restore
+
+MinIO data lives in the Docker named volume `clarityit_miniodata`. To restore:
+
+```bash
+# Stop MinIO
+docker compose stop minio
+
+# Restore volume from backup
+tar xzf /opt/clarityit/backups/minio_TIMESTAMP.tar.gz -C /var/lib/docker/volumes/clarityit_miniodata/_data/
+
+# Start MinIO
+docker compose start minio
+```
+
+On a fresh machine, create the volume first:
+```bash
+docker volume create clarityit_miniodata
+tar xzf backup.tar.gz -C /var/lib/docker/volumes/clarityit_miniodata/_data/
+```
 
 On a new machine:
 
