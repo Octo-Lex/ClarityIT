@@ -1,0 +1,50 @@
+# Go
+services/api/api
+services/api/outbox-worker
+services/api/context-worker
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Node
+node_modules/
+dist/
+.vite/
+*.local
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Docker volumes
+postgres-data/
+redis-data/
+minio-data/
+
+# Build artifacts
+web/web/

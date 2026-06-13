@@ -1,0 +1,162 @@
+services:
+  clarityit-api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+      args:
+        BINARY: api
+    container_name: clarityit-api
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      DATABASE_URL: postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-clarityit-dev-jwt-secret-change-in-production}
+      HMAC_KEY: ${HMAC_KEY:-clarityit-dev-hmac-key-change-in-production}
+      PORT: "8765"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clarityit-net
+
+  clarityit-outbox-worker:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+      args:
+        BINARY: outbox-worker
+    container_name: clarityit-outbox-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-clarityit-dev-jwt-secret-change-in-production}
+      HMAC_KEY: ${HMAC_KEY:-clarityit-dev-hmac-key-change-in-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clarityit-net
+
+  clarityit-context-worker:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+      args:
+        BINARY: context-worker
+    container_name: clarityit-context-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-clarityit-dev-jwt-secret-change-in-production}
+      HMAC_KEY: ${HMAC_KEY:-clarityit-dev-hmac-key-change-in-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clarityit-net
+
+  clarityit-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: clarityit-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - clarityit-api
+    networks:
+      - clarityit-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: clarityit-postgres-1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clarityit
+      POSTGRES_PASSWORD: clarityit
+      POSTGRES_DB: clarityit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clarityit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clarityit-net
+
+  nats:
+    image: nats:2-alpine
+    container_name: clarityit-nats-1
+    restart: unless-stopped
+    command: "--jetstream --store_dir /data"
+    volumes:
+      - natsdata:/data
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - clarityit-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: clarityit-redis-1
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - clarityit-net
+
+  clarityit-reasoning-worker:
+    build:
+      context: ./services/workers/reasoning
+      dockerfile: Dockerfile
+    container_name: clarityit-reasoning-worker
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: http://clarityit-api:8765
+      WORKER_TOKEN: ${WORKER_TOKEN:-}
+      POLL_INTERVAL: "5"
+      TEAM_ID: ${TEAM_ID:-}
+    depends_on:
+      - clarityit-api
+    networks:
+      - clarityit-net
+
+  minio:
+    image: minio/minio
+    container_name: clarityit-minio-1
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: clarityit
+      MINIO_ROOT_PASSWORD: clarityit123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    networks:
+      - clarityit-net
+
+volumes:
+  pgdata:
+  natsdata:
+  redisdata:
+  miniodata:
+
+networks:
+  clarityit-net:
+    driver: bridge
