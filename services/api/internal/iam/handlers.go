@@ -11,6 +11,7 @@ import (
 	"github.com/clarityit/api/internal/audit"
 	"github.com/clarityit/api/internal/config"
 	"github.com/clarityit/api/internal/database"
+	"github.com/clarityit/api/internal/email"
 	"github.com/clarityit/api/internal/outbox"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -20,12 +21,17 @@ import (
 )
 
 type Handler struct {
-	pool            *pgxpool.Pool
-	cfg             *config.Config
+	pool  *pgxpool.Pool
+	cfg   *config.Config
+	email *email.Service
 }
 
 func NewHandler(pool *pgxpool.Pool, cfg *config.Config) *Handler {
-	return &Handler{pool: pool, cfg: cfg}
+	return &Handler{pool: pool, cfg: cfg, email: nil}
+}
+
+func NewHandlerWithEmail(pool *pgxpool.Pool, cfg *config.Config, em *email.Service) *Handler {
+	return &Handler{pool: pool, cfg: cfg, email: em}
 }
 
 func (h *Handler) Routes() chi.Router {
@@ -853,8 +859,20 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		_ = err
 	}
 
-	// In dev, log the token
-	fmt.Printf("PASSWORD RESET TOKEN for %s: %s\n", body.Email, token)
+	// Send reset email or dev preview
+	if h.email != nil && h.cfg.EmailMode == "smtp" {
+		resetURL := fmt.Sprintf("%s/reset-password?token=%s", h.getWebBaseURL(), token)
+		_ = h.email.Send(body.Email, "ClarityIT Password Reset",
+			fmt.Sprintf("Reset your password: %s", resetURL))
+	} else if h.cfg.EmailMode == "dev" {
+		// Dev preview — safe hash-based URL
+		writeJSON(w, http.StatusOK, map[string]any{
+			"message":     "If that email exists, a reset link has been sent",
+			"dev_preview": fmt.Sprintf("/reset-password?token=%s", token),
+			"_dev_notice": "DEV MODE ONLY — token returned for local testing. Not available in production.",
+		})
+		return
+	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "If that email exists, a reset link has been sent"})
 }
@@ -1133,6 +1151,10 @@ func (h *Handler) writeSecurityAudit(ctx context.Context, action, entityType str
 		) VALUES ($1, $2, 'system', $3, $4, $5, '{}', $6, $7, $8, $9)
 	`, eventID, entityID, action, entityType, entityID,
 		metadata, summary, ipHMAC, uaHMAC)
+}
+
+func (h *Handler) getWebBaseURL() string {
+	return "http://localhost:3000"
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

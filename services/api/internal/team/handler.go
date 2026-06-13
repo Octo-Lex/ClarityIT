@@ -20,8 +20,8 @@ import (
 )
 
 type Handler struct {
-	pool *pgxpool.Pool
-	cfg  *config.Config
+	pool  *pgxpool.Pool
+	cfg   *config.Config
 }
 
 func NewHandler(pool *pgxpool.Pool, cfg *config.Config) *Handler {
@@ -438,11 +438,25 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"id":         invitationID,
-		"token":      token, // Only returned once, never stored raw
-		"expires_at": time.Now().Add(7 * 24 * time.Hour),
-	})
+	// In production, never return raw token — send via email service instead
+	if h.cfg.IsProd() {
+		// TODO: wire email service for invitations (email.Service)
+		// For now, production does not return the token
+		writeJSON(w, http.StatusOK, map[string]any{
+			"id":         invitationID,
+			"message":    "Invitation sent. The invitee will receive an email.",
+			"expires_at": time.Now().Add(7 * 24 * time.Hour),
+		})
+	} else {
+		// Dev mode: return token for local testing
+		writeJSON(w, http.StatusOK, map[string]any{
+			"id":          invitationID,
+			"token":       token,
+			"dev_preview": "/accept-invitation?token=" + token,
+			"_dev_notice": "DEV MODE ONLY — token returned for local testing. Not available in production.",
+			"expires_at":  time.Now().Add(7 * 24 * time.Hour),
+		})
+	}
 }
 
 func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request) {

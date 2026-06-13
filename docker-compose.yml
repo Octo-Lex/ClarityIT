@@ -1,3 +1,6 @@
+# Core profile (default): API, web, workers, infrastructure
+# Agent profile (optional): reasoning worker — requires WORKER_TOKEN
+#   Enable with: docker compose --profile agent up -d
 services:
   clarityit-api:
     build:
@@ -149,6 +152,7 @@ services:
       dockerfile: Dockerfile
     container_name: clarityit-reasoning-worker
     restart: unless-stopped
+    profiles: [agent]
     environment:
       API_BASE_URL: http://clarityit-api:8765
       WORKER_TOKEN: ${WORKER_TOKEN:-}
