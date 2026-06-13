@@ -290,4 +290,13 @@ export const api = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return request<any[]>(`/admin/audit${qs}`);
   },
+
+  // Ops Dashboard
+  opsSummary: () => request<Record<string, number>>('/admin/ops/summary'),
+  opsOutbox: () => request<any[]>('/admin/ops/outbox'),
+  opsDeadLetters: () => request<any[]>('/admin/ops/dead-letters'),
+  opsWorkers: () => request<{ name: string; status: string; last_seen?: string }[]>('/admin/ops/workers'),
+  opsWebhookRejections: () => request<any[]>('/admin/ops/webhooks/rejections'),
+  opsAgentBlocks: () => request<any[]>('/admin/ops/agent-blocks'),
+  deepHealth: () => request<any>('/health/deep'),
 };

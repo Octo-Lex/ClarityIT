@@ -104,6 +104,8 @@ func main() {
 	r.Get("/metrics", healthHandler.Metrics)
 	r.With(middleware.RequireAuth).Get("/api/health/deep", healthHandler.Deep)
 
+	opsHandler := admin.NewOpsHandler(pool, healthHandler)
+
 	// ─── WebSocket ───
 	r.With(middleware.RequireAuth).Get("/api/ws", wsHub.HandleWS)
 
@@ -352,6 +354,16 @@ func main() {
 		r.Get("/settings", adminHandler.GetSettings)
 		r.With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 			Patch("/settings", adminHandler.UpdateSettings)
+
+		// Ops dashboard (read-only)
+		r.Route("/ops", func(r chi.Router) {
+			r.Get("/summary", opsHandler.Summary)
+			r.Get("/outbox", opsHandler.Outbox)
+			r.Get("/dead-letters", opsHandler.DeadLetters)
+			r.Get("/workers", opsHandler.Workers)
+			r.Get("/webhooks/rejections", opsHandler.WebhookRejections)
+			r.Get("/agent-blocks", opsHandler.AgentBlocks)
+		})
 	})
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", cfg.Port), Handler: r}
