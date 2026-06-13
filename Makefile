@@ -1,4 +1,4 @@
-.PHONY: build test test-iam test-team deploy
+.PHONY: build test test-iam test-team deploy audit
 
 # Build the Go binary
 build:
@@ -61,6 +61,18 @@ verify-deploy:
 	curl -sf http://192.168.3.20:8765/health
 	docker logs clarityit-outbox-worker 2>&1 | tail -3
 	docker logs clarityit-context-worker 2>&1 | tail -3
+
+# Security and dependency audit
+audit:
+	@echo "=== Go Vet ==="
+	cd services/api && go vet ./...
+	@echo "=== Go Tests ==="
+	cd services/api && go test -p 1 -count=1 -timeout 180s ./...
+	@echo "=== Frontend Audit ==="
+	cd web && npm audit --audit-level=high 2>&1 || true
+	@echo "=== Python Check ==="
+	cd services/workers/reasoning && python -m pip check 2>&1 || true
+	@echo "=== Audit Complete ==="
 
 # Full deployment verification
 verify-deployment:
