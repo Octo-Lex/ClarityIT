@@ -48,3 +48,5 @@ minio-data/
 
 # Build artifacts
 web/web/
+e2e/test-results/
+e2e/node_modules/

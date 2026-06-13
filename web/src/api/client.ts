@@ -9,8 +9,16 @@ export function setAccessToken(t: string | null) { accessToken = t; }
 export function getAccessToken() { return accessToken; }
 
 // Generate UUID v4 for idempotency keys
+// Fallback for non-secure contexts (HTTP) where crypto.randomUUID is unavailable
 function uuid(): string {
-  return crypto.randomUUID();
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // RFC 4122 v4 fallback
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
 }
 
 // Persist/restore team across reloads (not sensitive)

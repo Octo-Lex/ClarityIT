@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/clarityit/api/internal/audit"
@@ -90,8 +91,20 @@ func verifySignature(signingSecret, timestamp string, body []byte, signature str
 	return hmac.Equal([]byte(expected), []byte(signature))
 }
 
-// verifyTimestamp checks the timestamp is within the replay window
+// verifyTimestamp checks the timestamp is within the replay window.
+// Supports both Unix epoch seconds (standard for webhook signatures)
+// and RFC3339 format.
 func verifyTimestamp(ts string, window time.Duration) bool {
+	// Try Unix epoch seconds first (standard format: Stripe, GitHub, etc.)
+	if epoch, err := strconv.ParseInt(ts, 10, 64); err == nil {
+		t := time.Unix(epoch, 0)
+		diff := time.Since(t)
+		if diff < 0 {
+			diff = -diff
+		}
+		return diff <= window
+	}
+	// Fall back to RFC3339
 	t, err := time.Parse(time.RFC3339, ts)
 	if err != nil {
 		return false

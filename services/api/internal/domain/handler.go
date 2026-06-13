@@ -268,8 +268,8 @@ func (h *Handler) GetObject(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt  string          `json:"updated_at"`
 	}
 	err = h.pool.QueryRow(ctx, `
-		SELECT id, team_id, object_type, title, COALESCE(summary,''), status, priority,
-		       owner_user_id, created_by, version, COALESCE(metadata,'{}'), created_at, updated_at
+		SELECT id::text, team_id::text, object_type, title, COALESCE(summary,''), status, priority,
+		       owner_user_id::text, created_by::text, version, COALESCE(metadata,'{}'), created_at::text, updated_at::text
 		FROM objects WHERE id = $1 AND deleted_at IS NULL
 	`, objectID).Scan(&obj.ID, &obj.TeamID, &obj.ObjectType, &obj.Title, &obj.Summary, &obj.Status, &obj.Priority,
 		&obj.OwnerID, &obj.CreatedBy, &obj.Version, &obj.Metadata, &obj.CreatedAt, &obj.UpdatedAt)

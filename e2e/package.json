@@ -2,12 +2,13 @@
   "name": "clarityit-e2e",
   "version": "1.0.0",
   "description": "ClarityIT Playwright smoke tests",
+  "type": "module",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "report": "playwright show-report"
   },
   "devDependencies": {
-    "@playwright/test": "^1.40.0"
+    "@playwright/test": "^1.52.0"
   }
 }

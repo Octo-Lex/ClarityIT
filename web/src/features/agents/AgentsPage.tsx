@@ -3,7 +3,7 @@ import { api, type Agent, type AgentGrant, type AgentRun, type AgentIntention } 
 import { usePermissions } from '../../hooks/usePermissions';
 
 export function AgentsPage() {
-  const { has } = usePermissions();
+  const { hasPermission: has } = usePermissions();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [grants, setGrants] = useState<AgentGrant[]>([]);

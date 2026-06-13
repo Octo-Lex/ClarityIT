@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: '.',
   timeout: 30000,
-  retries: 1,
+  retries: 0,
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://192.168.3.20:3000',
     headless: true,
@@ -12,8 +12,8 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'smoke',
-      testMatch: '*.spec.ts',
+      name: 'chromium',
+      use: { browserName: 'chromium' },
     },
   ],
 });
