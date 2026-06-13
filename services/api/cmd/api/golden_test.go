@@ -25,7 +25,7 @@ func setupGolden(t *testing.T) (*chi.Mux, *pgxpool.Pool) {
 	t.Cleanup(func() { pool.Close() })
 	iamH := iam.NewHandler(pool, cfg)
 	teamH := team.NewHandler(pool, cfg)
-	intH := integration.NewHandler(pool, cfg.HMACKey)
+	intH := integration.NewHandlerWithEnv(pool, cfg.HMACKey, "development")
 	r := chi.NewRouter()
 	r.Use(middleware.ResolveAuth(cfg.JWTSecret))
 	r.Post("/api/auth/login", iamH.Login)
@@ -76,7 +76,7 @@ func TestGolden_IncidentResponse(t *testing.T) {
 
 	// Create integration key
 	w := goldenReq(r, "POST", fmt.Sprintf("/api/teams/%s/integration-keys", tid), token,
-		map[string]any{"name": "Prometheus", "allowed_sources": []string{"prometheus"}, "allowed_scopes": []string{"webhooks:ingest"}},
+		map[string]any{"name": "Prometheus", "allowed_sources": []string{"prometheus"}, "allowed_scopes": []string{"webhooks:ingest"}, "allow_unsigned_dev": true},
 		map[string]string{"Idempotency-Key": "g1-key"})
 	if w.Code != 201 { t.Fatalf("key: %d", w.Code) }
 	var kr map[string]any
@@ -118,7 +118,7 @@ func TestGolden_ServiceDeskTriage(t *testing.T) {
 	token, tid := goldenLogin(t, r)
 
 	w := goldenReq(r, "POST", fmt.Sprintf("/api/teams/%s/integration-keys", tid), token,
-		map[string]any{"name": "PagerDuty", "allowed_sources": []string{"pagerduty"}, "allowed_scopes": []string{"*"}},
+		map[string]any{"name": "PagerDuty", "allowed_sources": []string{"pagerduty"}, "allowed_scopes": []string{"*"}, "allow_unsigned_dev": true},
 		map[string]string{"Idempotency-Key": "g2-key"})
 	var kr map[string]any
 	json.Unmarshal(w.Body.Bytes(), &kr)
