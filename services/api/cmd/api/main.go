@@ -22,6 +22,7 @@ import (
 	"github.com/clarityit/api/internal/mfa"
 	"github.com/clarityit/api/internal/integration"
 	"github.com/clarityit/api/internal/proxmox"
+	"github.com/clarityit/api/internal/remediation"
 	"github.com/clarityit/api/internal/storage"
 	"github.com/clarityit/api/internal/team"
 	"github.com/clarityit/api/internal/wsx"
@@ -369,6 +370,25 @@ func main() {
 			r.With(middleware.RequirePermission(pool, "objects.attachments.create")).Post("/", storageHandler.Upload)
 			r.With(middleware.RequirePermission(pool, "objects.attachments.read")).Get("/", storageHandler.List)
 			r.With(middleware.RequirePermission(pool, "objects.attachments.read")).Get("/{attachmentId}/download-url", storageHandler.DownloadURL)
+		})
+
+		// ─── v1.0 Track 5: Remediation ───
+		remediationHandler := remediation.NewHandler(pool)
+		r.Route("/remediations", func(r chi.Router) {
+			r.With(middleware.RequirePermission(pool, "remediations.create")).
+				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
+				Post("/", remediationHandler.Create)
+			r.With(middleware.RequirePermission(pool, "remediations.read")).Get("/", remediationHandler.List)
+			r.With(middleware.RequirePermission(pool, "remediations.read")).Get("/{remediationId}", remediationHandler.Get)
+			r.With(middleware.RequirePermission(pool, "remediations.approve")).
+				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
+				Post("/{remediationId}/approve", remediationHandler.Approve)
+			r.With(middleware.RequirePermission(pool, "remediations.execute")).
+				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
+				Post("/{remediationId}/execute", remediationHandler.Execute)
+			r.With(middleware.RequirePermission(pool, "remediations.cancel")).
+				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
+				Post("/{remediationId}/cancel", remediationHandler.Cancel)
 		})
 	})
 
