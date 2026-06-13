@@ -103,8 +103,9 @@ func TestRealClientImplementsInterface(t *testing.T) {
 }
 
 func TestRealClientInterfaceHasNoMutationMethods(t *testing.T) {
-	// This is a design assertion — ProxmoxClient only has List* methods
-	// No Create*, Update*, Delete*, Start*, Stop* methods exist
+	// v1.0: ProxmoxClient now has controlled mutation methods (StartVM, ShutdownVM, StopVM, SnapshotVM)
+	// Forbidden mutations (delete, migrate, clone, etc.) are verified in readonly_test.go
+	var _ ProxmoxClient = (*RealProxmoxClient)(nil)
 }
 
 func contains(s, sub string) bool {

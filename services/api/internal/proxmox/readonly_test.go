@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestProxmoxClientExposesNoMutations(t *testing.T) {
-	// Verify the ProxmoxClient interface has only read methods
+func TestProxmoxClientExposesOnlyAllowedMethods(t *testing.T) {
+	// Verify the ProxmoxClient interface has only allowed methods
 	iface := reflect.TypeOf((*ProxmoxClient)(nil)).Elem()
 
 	// Collect all method names
@@ -23,39 +23,51 @@ func TestProxmoxClientExposesNoMutations(t *testing.T) {
 		}
 	}
 
-	// Verify only read methods exist (List* prefix only)
-	for name := range methods {
-		if !strings.HasPrefix(name, "List") && !strings.HasPrefix(name, "Get") {
-			t.Errorf("non-read method %s found on ProxmoxClient — interface must be read-only", name)
+	// Verify allowed mutation methods exist (v1.0)
+	for _, expected := range []string{"StartVM", "ShutdownVM", "StopVM", "SnapshotVM", "GetTaskStatus"} {
+		if !methods[expected] {
+			t.Errorf("expected mutation method %s not found on ProxmoxClient", expected)
+		}
+	}
+
+	// Verify FORBIDDEN mutation methods do NOT exist
+	forbidden := []string{
+		"DeleteVM", "MigrateVM", "CloneVM", "ResetVM", "RebootVM",
+		"ResizeVM", "SetConfig", "UpdateConfig",
+		"ModifyFirewall", "UpdateNetwork", "ModifyStorage",
+		"CreateCertificate", "BulkStart", "BulkStop", "BulkShutdown",
+	}
+	for _, name := range forbidden {
+		if methods[name] {
+			t.Errorf("forbidden method %s found on ProxmoxClient — must not exist", name)
 		}
 	}
 }
 
-func TestFakeProxmoxClientImplementsReadonly(t *testing.T) {
+func TestFakeProxmoxClientImplementsInterface(t *testing.T) {
 	// Compile-time check
 	var _ ProxmoxClient = &FakeProxmoxClient{}
 }
 
-func TestHandlerExposesNoMutationMethods(t *testing.T) {
+func TestHandlerExposesNoForbiddenMethods(t *testing.T) {
 	handlerType := reflect.TypeOf(&Handler{}).Elem()
 
-	mutationNames := map[string]bool{
-		"Start": true, "Stop": true, "Restart": true, "Migrate": true,
-		"DeleteVM": true, "Reboot": true, "Suspend": true, "Resize": true,
-		"Snapshot": true, "Clone": true, "Firewall": true, "Network": true,
-		"SetConfig": true, "Update": true,
+	forbiddenNames := map[string]bool{
+		"Delete": true, "Migrate": true, "Clone": true, "Reset": true,
+		"Reboot": true, "Suspend": true, "Resize": true,
+		"Firewall": true, "Network": true, "SetConfig": true,
+		"BulkAction": true, "ModifyCertificate": true,
 	}
 	for i := 0; i < handlerType.NumMethod(); i++ {
 		name := handlerType.Method(i).Name
-		if mutationNames[name] {
-			t.Errorf("Handler has mutation method %s — must be read-only", name)
+		if forbiddenNames[name] {
+			t.Errorf("Handler has forbidden method %s", name)
 		}
 	}
 }
 
-func TestProxmoxTokenNeverInAudit(t *testing.T) {
-	// This is a design assertion — the Proxmox handler never receives tokens directly,
-	// only a ProxmoxClient interface. Verify the Handler struct has no token fields.
+func TestProxmoxTokenNeverInHandlerFields(t *testing.T) {
+	// Verify the Handler struct has no token/secret fields
 	handlerType := reflect.TypeOf(&Handler{}).Elem()
 	for i := 0; i < handlerType.NumField(); i++ {
 		field := handlerType.Field(i)

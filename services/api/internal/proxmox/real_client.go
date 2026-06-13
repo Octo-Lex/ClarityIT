@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -127,7 +128,95 @@ func (c *RealProxmoxClient) get(ctx context.Context, path string, target any) er
 	return json.Unmarshal(apiResp.Data, target)
 }
 
-// sanitizeError removes token secrets from error messages.
+// ─── Mutation methods (v1.0) ───
+
+// post performs an authenticated POST request against the PVE API.
+func (c *RealProxmoxClient) post(ctx context.Context, path string, form url.Values) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+path, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "PVEAPIToken="+c.tokenID+"="+c.secret)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", c.sanitizeError(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("PVE API returned %d", resp.StatusCode)
+	}
+
+	var apiResp proxmoxAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return "", fmt.Errorf("decode PVE response: %w", err)
+	}
+
+	// PVE returns the UPID as a string in the data field
+	var upid string
+	if err := json.Unmarshal(apiResp.Data, &upid); err != nil {
+		return "", fmt.Errorf("decode UPID: %w", err)
+	}
+	return upid, nil
+}
+
+// StartVM starts a stopped VM/LXC.
+func (c *RealProxmoxClient) StartVM(ctx context.Context, target MutationTarget) (string, error) {
+	path := fmt.Sprintf("/api2/json/nodes/%s/%s/%d/status/start", target.Node, target.VMType, target.VMID)
+	upid, err := c.post(ctx, path, url.Values{})
+	if err != nil {
+		return "", fmt.Errorf("start VM: %w", c.sanitizeError(err))
+	}
+	return upid, nil
+}
+
+// ShutdownVM gracefully shuts down a running VM/LXC.
+func (c *RealProxmoxClient) ShutdownVM(ctx context.Context, target MutationTarget) (string, error) {
+	path := fmt.Sprintf("/api2/json/nodes/%s/%s/%d/status/shutdown", target.Node, target.VMType, target.VMID)
+	upid, err := c.post(ctx, path, url.Values{})
+	if err != nil {
+		return "", fmt.Errorf("shutdown VM: %w", c.sanitizeError(err))
+	}
+	return upid, nil
+}
+
+// StopVM forcefully stops a running VM/LXC.
+func (c *RealProxmoxClient) StopVM(ctx context.Context, target MutationTarget) (string, error) {
+	path := fmt.Sprintf("/api2/json/nodes/%s/%s/%d/status/stop", target.Node, target.VMType, target.VMID)
+	upid, err := c.post(ctx, path, url.Values{})
+	if err != nil {
+		return "", fmt.Errorf("stop VM: %w", c.sanitizeError(err))
+	}
+	return upid, nil
+}
+
+// SnapshotVM creates a snapshot of a VM/LXC.
+func (c *RealProxmoxClient) SnapshotVM(ctx context.Context, target MutationTarget, snapName string) (string, error) {
+	path := fmt.Sprintf("/api2/json/nodes/%s/%s/%d/snapshot", target.Node, target.VMType, target.VMID)
+	form := url.Values{}
+	form.Set("snapname", snapName)
+	upid, err := c.post(ctx, path, form)
+	if err != nil {
+		return "", fmt.Errorf("snapshot VM: %w", c.sanitizeError(err))
+	}
+	return upid, nil
+}
+
+// GetTaskStatus checks the status of a Proxmox async task.
+func (c *RealProxmoxClient) GetTaskStatus(ctx context.Context, node string, taskID string) (*TaskStatus, error) {
+	path := fmt.Sprintf("/api2/json/nodes/%s/tasks/%s/status", node, taskID)
+	var raw struct {
+		Status   string `json:"status"`
+		ExitCode string `json:"exitcode"`
+		Output   string `json:"output"`
+	}
+	if err := c.get(ctx, path, &raw); err != nil {
+		return nil, fmt.Errorf("task status: %w", c.sanitizeError(err))
+	}
+	return &TaskStatus{Status: raw.Status, ExitCode: raw.ExitCode, Output: raw.Output}, nil
+}
 func (c *RealProxmoxClient) sanitizeError(err error) error {
 	if err == nil {
 		return nil

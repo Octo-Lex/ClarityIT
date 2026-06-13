@@ -345,6 +345,24 @@ func main() {
 			writeJSON(w, 200, map[string]any{"id": id, "asset_type": at, "provider": prov, "external_id": eid, "hostname": host, "status": st, "created_at": c})
 		})
 
+		// ─── v1.0: Proxmox Controlled Mutation Pipeline ───
+		actionHandler := proxmox.NewActionHandler(pool, pxCtxClient, cfg)
+		r.Route("/assets", func(r chi.Router) {
+			r.With(middleware.RequirePermission(pool, "assets.actions.create")).
+				Post("/{assetId}/actions/proxmox/start", actionHandler.CreateAction)
+			r.With(middleware.RequirePermission(pool, "assets.actions.create")).
+				Post("/{assetId}/actions/proxmox/shutdown", actionHandler.CreateAction)
+			r.With(middleware.RequirePermission(pool, "assets.actions.create")).
+				Post("/{assetId}/actions/proxmox/stop", actionHandler.CreateAction)
+			r.With(middleware.RequirePermission(pool, "assets.actions.create")).
+				Post("/{assetId}/actions/proxmox/snapshot", actionHandler.CreateAction)
+			r.With(middleware.RequirePermission(pool, "assets.actions.read")).Get("/asset-actions", actionHandler.ListActions)
+			r.With(middleware.RequirePermission(pool, "assets.actions.read")).Get("/asset-actions/{actionId}", actionHandler.GetAction)
+			r.With(middleware.RequirePermission(pool, "assets.actions.execute")).
+				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "tool-gateway", Expiry: 1 * time.Hour})).
+				Post("/asset-actions/{actionId}/execute", actionHandler.ExecuteAction)
+		})
+
 		// ─── Phase 8: Object Attachments ───
 		storageHandler := storage.NewHandler(pool, nil, cfg.MinioBucket) // S3 client nil until MinIO wired
 		r.Route("/objects/{objectId}/attachments", func(r chi.Router) {

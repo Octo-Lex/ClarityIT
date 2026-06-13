@@ -31,11 +31,12 @@ type Config struct {
 	Port            string
 
 	// Proxmox (optional)
-	ProxmoxEnabled  bool
-	ProxmoxURL      string
-	ProxmoxTokenID  string
-	ProxmoxSecret   string
-	ProxmoxVerifyTLS bool
+	ProxmoxEnabled         bool
+	ProxmoxURL             string
+	ProxmoxTokenID         string
+	ProxmoxSecret          string
+	ProxmoxVerifyTLS       bool
+	ProxmoxMutationEnabled bool
 
 	// MinIO
 	MinioEndpoint   string
@@ -75,11 +76,12 @@ func Load() (*Config, error) {
 		RefreshTokenTTL: getEnvDuration("REFRESH_TOKEN_TTL_DAYS", 7) * 24 * time.Hour,
 		Port:            getEnv("PORT", "8765"),
 
-		ProxmoxEnabled:  getEnvBool("PROXMOX_ENABLED", false),
-		ProxmoxURL:      getEnv("PROXMOX_URL", ""),
-		ProxmoxTokenID:  getEnv("PROXMOX_TOKEN_ID", ""),
-		ProxmoxSecret:   getEnv("PROXMOX_TOKEN_SECRET", ""),
-		ProxmoxVerifyTLS: getEnvBool("PROXMOX_VERIFY_TLS", false),
+		ProxmoxEnabled:         getEnvBool("PROXMOX_ENABLED", false),
+		ProxmoxURL:             getEnv("PROXMOX_URL", ""),
+		ProxmoxTokenID:         getEnv("PROXMOX_TOKEN_ID", ""),
+		ProxmoxSecret:          getEnv("PROXMOX_TOKEN_SECRET", ""),
+		ProxmoxVerifyTLS:       getEnvBool("PROXMOX_VERIFY_TLS", false),
+		ProxmoxMutationEnabled: getEnvBool("PROXMOX_MUTATION_ENABLED", false),
 
 		MinioEndpoint:   getEnv("MINIO_ENDPOINT", ""),
 		MinioAccessKey:  getEnv("MINIO_ROOT_USER", ""),

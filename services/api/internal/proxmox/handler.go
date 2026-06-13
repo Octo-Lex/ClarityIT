@@ -16,10 +16,34 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ProxmoxClient is a read-only interface for Proxmox API.
+// MutationTarget carries the identifying information for a Proxmox VM/LXC
+// that is the target of a mutation action.
+type MutationTarget struct {
+	Node   string
+	VMID   int
+	VMType string // "qemu" or "lxc"
+}
+
+// TaskStatus represents the result of a Proxmox async task.
+type TaskStatus struct {
+	Status   string // "running", "stopped"
+	ExitCode string // "OK", "ERROR", etc.
+	Output   string
+}
+
+// ProxmoxClient is the interface for Proxmox API operations.
+// v1.0 adds controlled mutation methods (start, shutdown, stop, snapshot).
 type ProxmoxClient interface {
+	// Read methods
 	ListNodes(ctx context.Context) ([]ProxmoxNode, error)
 	ListVMs(ctx context.Context, node string) ([]ProxmoxVM, error)
+
+	// Mutation methods (v1.0 — all require approved approval_request + MFA)
+	StartVM(ctx context.Context, target MutationTarget) (taskUPID string, err error)
+	ShutdownVM(ctx context.Context, target MutationTarget) (taskUPID string, err error)
+	StopVM(ctx context.Context, target MutationTarget) (taskUPID string, err error)
+	SnapshotVM(ctx context.Context, target MutationTarget, snapName string) (taskUPID string, err error)
+	GetTaskStatus(ctx context.Context, node string, taskID string) (*TaskStatus, error)
 }
 
 // ProxmoxNode represents a Proxmox node.
@@ -57,6 +81,28 @@ func (f *FakeProxmoxClient) ListVMs(ctx context.Context, node string) ([]Proxmox
 		{VMID: 100, Name: "clarityit", Status: "running", Type: "lxc", Node: node, CPU: 0.12, Mem: 2 * 1024 * 1024 * 1024, MaxMem: 4 * 1024 * 1024 * 1024},
 		{VMID: 101, Name: "monitoring", Status: "running", Type: "qemu", Node: node, CPU: 0.08, Mem: 1 * 1024 * 1024 * 1024, MaxMem: 2 * 1024 * 1024 * 1024},
 	}, nil
+}
+
+// ─── Fake mutation methods ───
+
+func (f *FakeProxmoxClient) StartVM(ctx context.Context, target MutationTarget) (string, error) {
+	return fmt.Sprintf("UPID:pve:%s:fake:start:%d::", target.Node, target.VMID), nil
+}
+
+func (f *FakeProxmoxClient) ShutdownVM(ctx context.Context, target MutationTarget) (string, error) {
+	return fmt.Sprintf("UPID:pve:%s:fake:shutdown:%d::", target.Node, target.VMID), nil
+}
+
+func (f *FakeProxmoxClient) StopVM(ctx context.Context, target MutationTarget) (string, error) {
+	return fmt.Sprintf("UPID:pve:%s:fake:stop:%d::", target.Node, target.VMID), nil
+}
+
+func (f *FakeProxmoxClient) SnapshotVM(ctx context.Context, target MutationTarget, snapName string) (string, error) {
+	return fmt.Sprintf("UPID:pve:%s:fake:snapshot:%d:%s:", target.Node, target.VMID, snapName), nil
+}
+
+func (f *FakeProxmoxClient) GetTaskStatus(ctx context.Context, node string, taskID string) (*TaskStatus, error) {
+	return &TaskStatus{Status: "stopped", ExitCode: "OK"}, nil
 }
 
 // Handler for Proxmox integration

@@ -25,6 +25,21 @@ func (f *testClient) ListNodes(_ context.Context) ([]ProxmoxNode, error) {
 func (f *testClient) ListVMs(_ context.Context, _ string) ([]ProxmoxVM, error) {
 	return []ProxmoxVM{{VMID: 100, Name: "test-vm", Status: "running", CPU: 0.1, Mem: 2e9, MaxMem: 4e9}}, nil
 }
+func (f *testClient) StartVM(_ context.Context, _ MutationTarget) (string, error) {
+	return "UPID:pve:test:start:100:", nil
+}
+func (f *testClient) ShutdownVM(_ context.Context, _ MutationTarget) (string, error) {
+	return "UPID:pve:test:shutdown:100:", nil
+}
+func (f *testClient) StopVM(_ context.Context, _ MutationTarget) (string, error) {
+	return "UPID:pve:test:stop:100:", nil
+}
+func (f *testClient) SnapshotVM(_ context.Context, _ MutationTarget, _ string) (string, error) {
+	return "UPID:pve:test:snapshot:100:", nil
+}
+func (f *testClient) GetTaskStatus(_ context.Context, _, _ string) (*TaskStatus, error) {
+	return &TaskStatus{Status: "stopped", ExitCode: "OK"}, nil
+}
 
 func testSetup(t *testing.T) (*chi.Mux, *pgxpool.Pool) {
 	t.Helper()
