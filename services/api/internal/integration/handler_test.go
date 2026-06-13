@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -31,7 +32,7 @@ func testSetup(t *testing.T) (*chi.Mux, *pgxpool.Pool) {
 	}
 	t.Cleanup(func() { pool.Close() })
 
-	h := NewHandler(pool)
+	h := NewHandler(pool, cfg.HMACKey)
 	r := chi.NewRouter()
 	r.Use(middleware.ResolveAuth(cfg.JWTSecret))
 	r.Post("/api/auth/login", iam.NewHandler(pool, cfg).Login)
@@ -135,9 +136,10 @@ func TestKeyHashStoredNotRaw(t *testing.T) {
 	token, tid := loginGetTeam(t, r)
 	rawKey, _ := createTestKey(t, r, token, tid, "Hash Test", []string{"*"}, []string{"*"})
 
-	// Compute hash
-	h := sha256.Sum256([]byte(rawKey))
-	hash := hex.EncodeToString(h[:])
+	// Compute HMAC hash
+	mac := hmac.New(sha256.New, []byte("test-hmac-key"))
+	mac.Write([]byte(rawKey))
+	hash := hex.EncodeToString(mac.Sum(nil))
 
 	// Verify hash exists in DB
 	var count int

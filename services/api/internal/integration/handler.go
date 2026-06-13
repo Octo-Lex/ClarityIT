@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -20,27 +21,39 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Handler struct{ pool *pgxpool.Pool }
+type Handler struct {
+	pool   *pgxpool.Pool
+	hmacKey string
+}
 
-func NewHandler(pool *pgxpool.Pool) *Handler { return &Handler{pool: pool} }
+func NewHandler(pool *pgxpool.Pool, hmacKey string) *Handler {
+	return &Handler{pool: pool, hmacKey: hmacKey}
+}
 
 func claims(r *http.Request) (*iam.TokenClaims, bool) { return iam.GetClaims(r) }
 
-// generateKey creates a random API key with prefix
-func generateKey() (raw, prefix, hash string) {
+// generateKey creates a random API key with prefix and HMAC hash
+func generateKey(hmacKey string) (raw, prefix, hash string) {
 	b := make([]byte, 32)
 	rand.Read(b)
 	raw = "clarity_" + hex.EncodeToString(b)
 	prefix = raw[:12]
-	h := sha256.Sum256([]byte(raw))
-	hash = hex.EncodeToString(h[:])
+	mac := hmac.New(sha256.New, []byte(hmacKey))
+	mac.Write([]byte(raw))
+	hash = hex.EncodeToString(mac.Sum(nil))
 	return
 }
 
 // ResolveIntegrationKey looks up an integration key by hash, returns (teamID, keyID, allowedSources, allowedScopes, error)
-func ResolveIntegrationKey(ctx context.Context, pool *pgxpool.Pool, rawKey string) (teamID, keyID string, sources, scopes []string, err error) {
-	h := sha256.Sum256([]byte(rawKey))
-	hash := hex.EncodeToString(h[:])
+// hashKey computes HMAC-SHA256 of a raw key using the server HMAC key
+func hashKey(hmacKey, rawKey string) string {
+	mac := hmac.New(sha256.New, []byte(hmacKey))
+	mac.Write([]byte(rawKey))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func ResolveIntegrationKey(ctx context.Context, pool *pgxpool.Pool, hmacKey, rawKey string) (teamID, keyID string, sources, scopes []string, err error) {
+	hash := hashKey(hmacKey, rawKey)
 	err = pool.QueryRow(ctx, `SELECT id::text, team_id::text, allowed_sources, allowed_scopes FROM integration_api_keys WHERE key_hash=$1 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`, hash).Scan(&keyID, &teamID, &sources, &scopes)
 	return
 }
@@ -77,7 +90,7 @@ func (h *Handler) CreateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	raw, prefix, hash := generateKey()
+	raw, prefix, hash := generateKey(h.hmacKey)
 	var id string
 
 	err := database.WithTx(ctx, h.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -139,7 +152,7 @@ func (h *Handler) ReceiveWebhook(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 401, "Missing integration key"); return
 	}
 
-	teamID, _, sources, scopes, err := ResolveIntegrationKey(ctx, h.pool, rawKey)
+	teamID, _, sources, scopes, err := ResolveIntegrationKey(ctx, h.pool, h.hmacKey, rawKey)
 	if err != nil { writeErr(w, 401, "Invalid integration key"); return }
 
 	// Verify source

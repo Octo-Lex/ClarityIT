@@ -122,8 +122,10 @@ func main() {
 
 	// ─── Team Management ───
 	// Phase 8: Webhook receiver (integration key auth, no JWT)
-	integrationHandler := integration.NewHandler(pool)
-	r.Post("/api/webhooks/{source}", integrationHandler.ReceiveWebhook)
+	integrationHandler := integration.NewHandler(pool, cfg.HMACKey)
+	// Phase 8: Webhook rate limiter (outside JWT auth)
+	webhookRL := middleware.NewRateLimiter(middleware.RateLimiterConfig{HMACKey: cfg.HMACKey, MaxRequests: 60, Window: 1 * time.Minute})
+	r.Post("/api/webhooks/{source}", webhookRL.Middleware(http.HandlerFunc(integrationHandler.ReceiveWebhook)).ServeHTTP)
 	r.Route("/api/teams/{teamId}", func(r chi.Router) {
 		r.Use(middleware.RequireAuth)
 		r.With(middleware.RequirePermission(pool, "team.settings.read")).Get("/settings", teamHandler.GetSettings)

@@ -94,8 +94,8 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 		// Audit — metadata only, no bytes
 		meta, _ := json.Marshal(map[string]any{"object_id": objectID, "storage_object_id": storageObjID, "sha256": sha, "size": len(data), "content_type": contentType})
-		_ = audit.Write(ctx, tx, audit.Event{TeamID: &tid, ActorID: actorID, Action: "object.attachment.created", EntityType: "object_storage_ref", EntityID: soid, NewValue: meta})
-		_ = outbox.Write(ctx, tx, &teamID, outbox.Event{EventType: "clarity.v1.object.attachment.created", AggregateType: "object_storage_ref", AggregateID: refID, Payload: meta})
+		if err := audit.Write(ctx, tx, audit.Event{TeamID: &tid, ActorID: actorID, Action: "object.attachment.created", EntityType: "object_storage_ref", EntityID: soid, NewValue: meta}); err != nil { return fmt.Errorf("audit: %w", err) }
+		if err := outbox.Write(ctx, tx, &teamID, outbox.Event{EventType: "clarity.v1.object.attachment.created", AggregateType: "object_storage_ref", AggregateID: refID, Payload: meta}); err != nil { return fmt.Errorf("outbox: %w", err) }
 		return nil
 	})
 	if err != nil { writeErr(w, 500, "Failed to store attachment"); return }
