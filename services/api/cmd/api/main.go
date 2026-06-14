@@ -65,6 +65,7 @@ func main() {
 	teamHandler := team.NewHandler(pool, cfg)
 	adminHandler := admin.NewHandler(pool, cfg)
 	domainHandler := domain.NewHandler(pool, cfg)
+	patternsHandler := domain.NewPatternsHandler(pool)
 
 	wsHub := wsx.NewHub()
 
@@ -246,6 +247,8 @@ func main() {
 			With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 			Post("/incidents", domainHandler.CreateIncident)
 		r.With(middleware.RequirePermission(pool, "incidents.read")).Get("/incidents", domainHandler.ListIncidents)
+		// v1.2 Track 2: Incident Pattern Detection — must be before {objectId}
+		r.With(middleware.RequirePermission(pool, "incidents.read")).Get("/incidents/patterns", patternsHandler.GetPatterns)
 		r.With(middleware.RequirePermission(pool, "incidents.read")).Get("/incidents/{objectId}", domainHandler.GetIncident)
 		r.With(middleware.RequirePermission(pool, "incidents.update")).
 			With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).

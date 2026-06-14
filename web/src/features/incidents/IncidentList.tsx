@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Incident } from '../../api/client';
 import { useAuth } from '../../auth/context';
+import PatternCards from './PatternCards';
 
 export default function IncidentList() {
   const { activeTeamId, hasPermission } = useAuth();
@@ -51,6 +52,10 @@ export default function IncidentList() {
       )}
 
       {loading && !incidents.length ? <p className="text-[var(--text-muted)]">Loading...</p> : (
+        <>
+        {/* v1.2 Track 2: Incident Pattern Cards */}
+        <PatternCards />
+
         <div className="card">
           <table className="w-full text-sm">
             <thead><tr className="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
@@ -69,6 +74,7 @@ export default function IncidentList() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

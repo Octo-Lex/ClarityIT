@@ -232,6 +232,13 @@ export const api = {
   createIncident: (data: Record<string, unknown>) =>
     mutation<{ id: string }>('POST', teamPath('/incidents'), data),
   listIncidents: () => request<Incident[]>(teamPath('/incidents')),
+  // v1.2 Track 2: Incident Pattern Detection
+  getIncidentPatterns: (params?: { window_days?: number; min_occurrences?: number }) => {
+    let qs = '';
+    if (params?.window_days) qs += `?window_days=${params.window_days}`;
+    if (params?.min_occurrences) qs += `${qs ? '&' : '?'}min_occurrences=${params.min_occurrences}`;
+    return request<{ patterns: any[] }>(teamPath(`/incidents/patterns${qs}`));
+  },
   getIncident: (id: string) => request<Incident>(teamPath(`/incidents/${id}`)),
   updateIncident: (id: string, data: Record<string, unknown>) =>
     mutation<{ message: string }>('PATCH', teamPath(`/incidents/${id}`), data),
