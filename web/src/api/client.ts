@@ -306,6 +306,7 @@ export const api = {
   opsWorkers: () => request<{ name: string; status: string; last_seen?: string }[]>('/admin/ops/workers'),
   opsWebhookRejections: () => request<any[]>('/admin/ops/webhooks/rejections'),
   opsAgentBlocks: () => request<any[]>('/admin/ops/agent-blocks'),
+  backupStatus: () => request<any>('/admin/backup-status'),
   deepHealth: () => request<any>('/health/deep'),
 
   // Integration keys (direct, no team-scoping helper needed)

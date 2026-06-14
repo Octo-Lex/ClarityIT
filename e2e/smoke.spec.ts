@@ -282,7 +282,7 @@ test('10. View ops dashboard', async ({ page }) => {
 
   await expect(page.locator('main h1')).toContainText('Operations Dashboard');
   await expect(page.locator('h2:has-text("System Health")')).toBeVisible();
-  await expect(page.locator('text=postgres')).toBeVisible();
+  await expect(page.locator('.capitalize:has-text("postgres")')).toBeVisible();
   await expect(page.locator('h2:has-text("Summary")')).toBeVisible();
   await expect(page.locator('text=Outbox Pending')).toBeVisible();
   await expect(page.locator('h2:has-text("Worker Status")')).toBeVisible();

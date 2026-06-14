@@ -440,6 +440,10 @@ func main() {
 			r.Get("/webhooks/rejections", opsHandler.WebhookRejections)
 			r.Get("/agent-blocks", opsHandler.AgentBlocks)
 		})
+
+		// v1.1 Track 3: Backup Status (read-only)
+		backupStatusHandler := admin.NewBackupStatusHandler(pool)
+		r.Get("/backup-status", backupStatusHandler.GetBackupStatus)
 	})
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", cfg.Port), Handler: r}

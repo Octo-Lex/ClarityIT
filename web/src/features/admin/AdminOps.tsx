@@ -69,6 +69,20 @@ function StatCard({ label, value, warning }: { label: string; value: number | st
   );
 }
 
+function BackupBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    green: 'bg-[var(--success)]/20 text-[var(--success)]',
+    yellow: 'bg-[var(--warning)]/20 text-[var(--warning)]',
+    red: 'bg-[var(--danger)]/20 text-[var(--danger)]',
+    missing: 'bg-[var(--danger)]/20 text-[var(--danger)]',
+  };
+  return (
+    <span className={`inline-block text-xs font-bold px-2 py-1 rounded mt-1 ${colors[status] || colors.missing}`}>
+      {status}
+    </span>
+  );
+}
+
 export default function AdminOps() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [health, setHealth] = useState<HealthData | null>(null);
@@ -76,18 +90,20 @@ export default function AdminOps() {
   const [deadLetters, setDeadLetters] = useState<any[]>([]);
   const [webhookEvents, setWebhookEvents] = useState<any[]>([]);
   const [agentBlocks, setAgentBlocks] = useState<any[]>([]);
+  const [backupStatus, setBackupStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const [s, h, w, dl, we, ab] = await Promise.all([
+      const [s, h, w, dl, we, ab, bs] = await Promise.all([
         api.opsSummary(),
         api.deepHealth().catch(() => null),
         api.opsWorkers().catch(() => []),
         api.opsDeadLetters().catch(() => []),
         api.opsWebhookRejections().catch(() => []),
         api.opsAgentBlocks().catch(() => []),
+        api.backupStatus().catch(() => null),
       ]);
       setSummary(s as Summary);
       setHealth(h as HealthData);
@@ -95,6 +111,7 @@ export default function AdminOps() {
       setDeadLetters(dl);
       setWebhookEvents(we);
       setAgentBlocks(ab);
+      setBackupStatus(bs);
       setError('');
     } catch (e: any) {
       setError(e.message);
@@ -139,6 +156,65 @@ export default function AdminOps() {
             })}
           </div>
           {health.uptime && <div className="text-xs text-[var(--text-muted)] mt-2">Uptime: {health.uptime}</div>}
+        </div>
+      )}
+
+      {/* Backup Status */}
+      {backupStatus && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Backup Status</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* PostgreSQL */}
+            <div className="card p-4">
+              <div className="text-sm font-medium">PostgreSQL</div>
+              <BackupBadge status={backupStatus.postgres?.age_status || 'missing'} />
+              {backupStatus.postgres?.path ? (
+                <>
+                  <div className="text-xs text-[var(--text-muted)] mt-1">
+                    {new Date(backupStatus.postgres.last_backup_at).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {(backupStatus.postgres.size_bytes / 1024).toFixed(1)} KB
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-[var(--danger)] mt-1">No backup found</div>
+              )}
+            </div>
+            {/* MinIO */}
+            <div className="card p-4">
+              <div className="text-sm font-medium">MinIO</div>
+              <BackupBadge status={backupStatus.minio?.age_status || 'missing'} />
+              {backupStatus.minio?.path ? (
+                <>
+                  <div className="text-xs text-[var(--text-muted)] mt-1">
+                    {new Date(backupStatus.minio.last_backup_at).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {(backupStatus.minio.size_bytes / 1024).toFixed(1)} KB
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-[var(--danger)] mt-1">No backup found</div>
+              )}
+            </div>
+            {/* Restore Drill */}
+            <div className="card p-4">
+              <div className="text-sm font-medium">Restore Drill</div>
+              <span className={`inline-block text-xs font-bold px-2 py-1 rounded mt-1 ${
+                backupStatus.restore_drill?.status === 'passed' ? 'bg-[var(--success)]/20 text-[var(--success)]' :
+                backupStatus.restore_drill?.status === 'failed' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' :
+                'bg-[var(--text-muted)]/20 text-[var(--text-muted)]'
+              }`}>
+                {backupStatus.restore_drill?.status || 'unknown'}
+              </span>
+              {backupStatus.restore_drill?.last_verified_at && !isNaN(new Date(backupStatus.restore_drill.last_verified_at).getTime()) && (
+                <div className="text-xs text-[var(--text-muted)] mt-1">
+                  {new Date(backupStatus.restore_drill.last_verified_at).toLocaleString()}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
