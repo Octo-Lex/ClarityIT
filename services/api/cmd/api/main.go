@@ -417,6 +417,13 @@ func main() {
 				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 				Post("/{remediationId}/cancel", remediationHandler.Cancel)
 		})
+
+		// v1.2 Track 1: Recommendation Evidence Packs
+		evidenceHandler := remediation.NewEvidenceHandler(pool)
+		r.Route("/recommendations", func(r chi.Router) {
+			r.With(middleware.RequirePermission(pool, "remediations.read")).
+				Get("/{recommendationId}/evidence", evidenceHandler.GetEvidence)
+		})
 	})
 
 	// ─── Platform Admin ───

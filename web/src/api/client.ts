@@ -416,6 +416,8 @@ export const api = {
   cancelRemediation: (id: string) =>
     mutation<any>('POST', teamPath(`/remediations/${id}/cancel`)),
 
-  // ─── Operational Metrics (v1.1 Track 7) ───
+  // ─── Recommendation Evidence (v1.2 Track 1) ───
+  getEvidence: (recommendationId: string) =>
+    request<any>(teamPath(`/recommendations/${recommendationId}/evidence`)),
   getMetrics: () => request<any>('/api/admin/metrics'),
 };

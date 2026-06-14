@@ -34,6 +34,7 @@ vi.mock('../api/client', () => ({
     approveRemediation: vi.fn().mockResolvedValue({ status: 'approved' }),
     executeRemediation: vi.fn().mockResolvedValue({ status: 'completed' }),
     cancelRemediation: vi.fn().mockResolvedValue({ status: 'cancelled' }),
+    getEvidence: vi.fn().mockResolvedValue({ available: false, message: 'Evidence unavailable' }),
   },
   setAccessToken: vi.fn(),
   getStoredTeamId: vi.fn().mockReturnValue('t1'),

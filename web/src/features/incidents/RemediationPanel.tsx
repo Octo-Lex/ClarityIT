@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api/client';
 import { usePermissions } from '../../hooks/usePermissions';
+import EvidencePanel from '../remediation/EvidencePanel';
 
 interface RemediationPanelProps {
   incidentId?: string;
@@ -98,6 +99,9 @@ export default function RemediationPanel({ incidentId }: RemediationPanelProps) 
             {expanded === p.id && (
               <div className="mt-3 space-y-2" data-testid={`remediation-detail-${p.id}`}>
                 <p className="text-xs text-[var(--text-muted)]">{p.description}</p>
+
+                {/* v1.2 Track 1: Evidence Panel */}
+                <EvidencePanel recommendationId={p.id} />
 
                 {/* Steps */}
                 <div className="space-y-1" data-testid={`remediation-steps-${p.id}`}>
