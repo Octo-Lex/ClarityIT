@@ -390,6 +390,9 @@ export const api = {
   createAssetAction: (assetId: string, action: string, snapshotName?: string) =>
     mutation<any>('POST', teamPath(`/assets/${assetId}/actions/proxmox/${action}`),
       snapshotName ? { snapshot_name: snapshotName } : {}),
+  dryRunAssetAction: (assetId: string, action: string, snapshotName?: string) =>
+    mutation<any>('POST', teamPath(`/assets/${assetId}/actions/proxmox/${action}`),
+      { dry_run: true, ...(snapshotName ? { snapshot_name: snapshotName } : {}) }),
   listAssetActions: (status?: string) => {
     const qs = status ? `?status=${status}` : '';
     return request<any[]>(teamPath(`/assets/asset-actions${qs}`));
