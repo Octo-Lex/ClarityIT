@@ -147,6 +147,15 @@ func main() {
 
 		// MFA routes (Track 1: Real MFA)
 		r.Mount("/api/auth/mfa", mfaHandler.Routes())
+
+		// WebAuthn routes (v1.1 Track 5)
+		webAuthnHandler, err := mfa.NewWebAuthnHandler(pool, cfg)
+		if err != nil {
+			log.Printf("WebAuthn init error: %v", err)
+		}
+		if webAuthnHandler != nil && webAuthnHandler.IsWebAuthnEnabled() {
+			r.Mount("/api/auth/mfa", webAuthnHandler.Routes())
+		}
 	})
 
 	// ─── Team Management ───

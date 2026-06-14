@@ -50,6 +50,12 @@ type Config struct {
 	ApprovalMonitorIntervalSeconds  int
 	ApprovalExpiringThresholdPercent int
 
+	// WebAuthn
+	WebAuthnEnabled       bool
+	WebAuthnRPID          string
+	WebAuthnRPOrigin      string
+	WebAuthnRPDisplayName string
+
 	// SMTP (optional)
 	SMTPHost     string
 	SMTPPort     int
@@ -105,6 +111,11 @@ func Load() (*Config, error) {
 		ApprovalMonitorEnabled:           getEnvBoolDefault("APPROVAL_MONITOR_ENABLED", env == EnvProduction),
 		ApprovalMonitorIntervalSeconds:   getEnvIntClamped("APPROVAL_MONITOR_INTERVAL_SECONDS", 60, 5, 3600),
 		ApprovalExpiringThresholdPercent: getEnvIntClamped("APPROVAL_EXPIRING_THRESHOLD_PERCENT", 25, 1, 90),
+
+		WebAuthnEnabled:       getEnvBoolDefault("WEBAUTHN_ENABLED", false),
+		WebAuthnRPID:          getEnv("WEBAUTHN_RP_ID", ""),
+		WebAuthnRPOrigin:      getEnv("WEBAUTHN_RP_ORIGIN", ""),
+		WebAuthnRPDisplayName: getEnv("WEBAUTHN_RP_DISPLAY_NAME", "ClarityIT"),
 
 		Version:   getEnv("CLARITY_VERSION", "dev"),
 		GitCommit: getEnv("CLARITY_GIT_COMMIT", ""),
@@ -227,6 +238,28 @@ func (c *Config) Validate() error {
 	}
 	if c.EmailMode == "smtp" && c.SMTPHost == "" {
 		errs = append(errs, "SMTP_HOST is required when EMAIL_MODE=smtp")
+	}
+
+	// WebAuthn validation
+	if c.WebAuthnEnabled {
+		if c.WebAuthnRPID == "" {
+			errs = append(errs, "WEBAUTHN_RP_ID is required when WEBAUTHN_ENABLED=true")
+		}
+		if c.WebAuthnRPOrigin == "" {
+			errs = append(errs, "WEBAUTHN_RP_ORIGIN is required when WEBAUTHN_ENABLED=true")
+		}
+		// Production requires HTTPS origin
+		if c.IsProd() {
+			if !strings.HasPrefix(c.WebAuthnRPOrigin, "https://") {
+				errs = append(errs, "WEBAUTHN_RP_ORIGIN must use https:// in production")
+			}
+		}
+		// Dev allows localhost http
+		if c.IsDev() {
+			if !strings.HasPrefix(c.WebAuthnRPOrigin, "http://") && !strings.HasPrefix(c.WebAuthnRPOrigin, "https://") {
+				errs = append(errs, "WEBAUTHN_RP_ORIGIN must start with http:// or https://")
+			}
+		}
 	}
 
 	if len(errs) > 0 {

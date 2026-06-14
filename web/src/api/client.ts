@@ -339,6 +339,38 @@ export const api = {
   mfaStatus: () =>
     request<{ enabled: boolean; verified_factors: number; pending_factors: number }>('/auth/mfa/status'),
 
+  // ─── WebAuthn (v1.1 Track 5) ───
+  webauthnRegisterStart: (label: string) =>
+    mutation<any>('POST', '/auth/mfa/webauthn/register/start', { label }),
+  webauthnRegisterFinish: async (label: string, credential: any) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    const res = await fetch(`${BASE}/auth/mfa/webauthn/register/finish?label=${encodeURIComponent(label)}`, {
+      method: 'POST', headers, body: JSON.stringify(credential), credentials: 'include',
+    });
+    const j = await res.json(); if (!res.ok) throw new ApiError(res.status, j.detail || 'Failed'); return j;
+  },
+  webauthnAuthStart: () =>
+    mutation<any>('POST', '/auth/mfa/webauthn/authenticate/start', {}),
+  webauthnAuthFinish: async (credential: any) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    const res = await fetch(`${BASE}/auth/mfa/webauthn/authenticate/finish`, {
+      method: 'POST', headers, body: JSON.stringify(credential), credentials: 'include',
+    });
+    const j = await res.json(); if (!res.ok) throw new ApiError(res.status, j.detail || 'Failed'); return j;
+  },
+  webauthnListCredentials: () =>
+    request<any[]>('/auth/mfa/webauthn/credentials'),
+  webauthnDisableCredential: async (credentialId: string) => {
+    const headers: Record<string, string> = { 'Idempotency-Key': uuid() };
+    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    const res = await fetch(`${BASE}/auth/mfa/webauthn/credentials/${credentialId}`, {
+      method: 'DELETE', headers, credentials: 'include',
+    });
+    const j = await res.json(); if (!res.ok) throw new ApiError(res.status, j.detail || 'Failed'); return j;
+  },
+
   // ─── Approvals (v1.0 Track 2) ───
   listApprovals: (status?: string) => {
     const qs = status ? `?status=${status}` : '';

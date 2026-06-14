@@ -1,6 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api/client';
 
+// Check if WebAuthn is available in the browser
+function isWebAuthnAvailable(): boolean {
+  return typeof window !== 'undefined' &&
+    typeof window.PublicKeyCredential !== 'undefined' &&
+    typeof navigator.credentials !== 'undefined';
+}
+
+// Base64URL decode to ArrayBuffer
+function base64urlToBuffer(base64url: string): ArrayBuffer {
+  const padding = '='.repeat((4 - base64url.length % 4) % 4);
+  const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const buffer = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) buffer[i] = rawData.charCodeAt(i);
+  return buffer.buffer;
+}
+
+// ArrayBuffer to Base64URL string
+function bufferToBase64url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 export default function SecurityPage() {
   const [status, setStatus] = useState<{ enabled: boolean; verified_factors: number; pending_factors: number } | null>(null);
   const [factors, setFactors] = useState<{ id: string; type: string; verified: boolean; created_at: string }[]>([]);
@@ -11,10 +36,21 @@ export default function SecurityPage() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [error, setError] = useState('');
 
+  // WebAuthn state
+  const [waCredentials, setWaCredentials] = useState<{ id: string; label: string; status: string; created_at: string; last_used_at?: string }[]>([]);
+  const [waLabel, setWaLabel] = useState('');
+  const [waBusy, setWaBusy] = useState(false);
+  const [waMessage, setWaMessage] = useState('');
+
   const load = useCallback(async () => {
     try {
       const [s, f] = await Promise.all([api.mfaStatus(), api.mfaListFactors()]);
       setStatus(s); setFactors(f || []);
+      // Load WebAuthn credentials (ignore errors if not enabled)
+      try {
+        const waCreds = await api.webauthnListCredentials();
+        setWaCredentials(waCreds || []);
+      } catch { /* WebAuthn may not be enabled */ }
     } catch (e) { /* ignore */ }
     setLoading(false);
   }, []);
@@ -51,6 +87,114 @@ export default function SecurityPage() {
     setError('');
     try {
       await api.mfaDisableFactor(factorId);
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Disable failed (recent MFA may be required)');
+    }
+  };
+
+  // ─── WebAuthn handlers ───
+  const handleWaRegister = async () => {
+    setWaBusy(true); setWaMessage(''); setError('');
+    try {
+      if (!isWebAuthnAvailable()) {
+        setError('WebAuthn is not supported in this browser or context. HTTPS or localhost is required.');
+        setWaBusy(false);
+        return;
+      }
+      const label = waLabel || 'Security Key';
+      const startResp = await api.webauthnRegisterStart(label);
+      const opts = startResp.options;
+
+      const publicKey: PublicKeyCredentialCreationOptions = {
+        challenge: base64urlToBuffer(opts.challenge),
+        rp: opts.rp,
+        user: {
+          ...opts.user,
+          id: base64urlToBuffer(opts.user.id as unknown as string),
+        },
+        pubKeyCredParams: opts.pubKeyCredParams,
+        timeout: opts.timeout,
+        excludeCredentials: opts.excludeCredentials || [],
+        authenticatorSelection: opts.authenticatorSelection,
+        attestation: opts.attestation || 'none',
+      };
+
+      const credential = await navigator.credentials.create({ publicKey }) as PublicKeyCredential;
+      if (!credential) throw new Error('Credential creation failed');
+
+      const response = credential.response as AuthenticatorAttestationResponse;
+      const finishBody = {
+        id: credential.id,
+        rawId: bufferToBase64url(credential.rawId),
+        type: credential.type,
+        response: {
+          attestationObject: bufferToBase64url(response.attestationObject),
+          clientDataJSON: bufferToBase64url(response.clientDataJSON),
+        },
+      };
+
+      await api.webauthnRegisterFinish(label, finishBody);
+      setWaLabel('');
+      setWaMessage('Security key registered successfully.');
+      await load();
+    } catch (e: any) {
+      setError(e instanceof ApiError ? e.message : (e.message || 'WebAuthn registration failed'));
+    }
+    setWaBusy(false);
+  };
+
+  const handleWaAuthenticate = async () => {
+    setWaBusy(true); setWaMessage(''); setError('');
+    try {
+      if (!isWebAuthnAvailable()) {
+        setError('WebAuthn is not supported in this browser or context.');
+        setWaBusy(false);
+        return;
+      }
+      const startResp = await api.webauthnAuthStart();
+      const opts = startResp.options;
+
+      const publicKey: PublicKeyCredentialRequestOptions = {
+        challenge: base64urlToBuffer(opts.challenge),
+        rpId: opts.rpId,
+        timeout: opts.timeout,
+        allowCredentials: (opts.allowCredentials || []).map((c: any) => ({
+          type: c.type,
+          id: base64urlToBuffer(c.id),
+          transports: c.transports || [],
+        })),
+        userVerification: opts.userVerification || 'preferred',
+      };
+
+      const assertion = await navigator.credentials.get({ publicKey }) as PublicKeyCredential;
+      if (!assertion) throw new Error('Authentication cancelled');
+
+      const response = assertion.response as AuthenticatorAssertionResponse;
+      const finishBody = {
+        id: assertion.id,
+        rawId: bufferToBase64url(assertion.rawId),
+        type: assertion.type,
+        response: {
+          authenticatorData: bufferToBase64url(response.authenticatorData),
+          clientDataJSON: bufferToBase64url(response.clientDataJSON),
+          signature: bufferToBase64url(response.signature),
+          userHandle: response.userHandle ? bufferToBase64url(response.userHandle) : null,
+        },
+      };
+
+      await api.webauthnAuthFinish(finishBody);
+      setWaMessage('WebAuthn verification successful. MFA is now active for 5 minutes.');
+    } catch (e: any) {
+      setError(e instanceof ApiError ? e.message : (e.message || 'WebAuthn authentication failed'));
+    }
+    setWaBusy(false);
+  };
+
+  const handleWaDisable = async (credentialId: string) => {
+    setError('');
+    try {
+      await api.webauthnDisableCredential(credentialId);
       await load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Disable failed (recent MFA may be required)');
@@ -160,6 +304,80 @@ export default function SecurityPage() {
           </button>
         </section>
       )}
+
+      {/* WebAuthn / Security Keys */}
+      <section className="p-4 bg-[var(--card)] border border-[var(--border)] rounded-lg" data-testid="webauthn-section">
+        <h2 className="text-lg font-semibold mb-2">Security Keys (WebAuthn)</h2>
+        {!isWebAuthnAvailable() ? (
+          <p className="text-sm text-yellow-500" data-testid="webauthn-unavailable">
+            ⚠ WebAuthn is not available in this browser or context. A secure context (HTTPS or localhost) is required.
+          </p>
+        ) : (
+          <>
+            {waCredentials.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {waCredentials.map(c => (
+                  <div key={c.id} className="flex items-center justify-between p-2 bg-[var(--bg)] rounded text-sm">
+                    <div data-testid={`wa-cred-${c.id}`}>
+                      <span className="font-medium">{c.label}</span>
+                      <span className={`ml-2 text-xs ${c.status === 'active' ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}`}>
+                        {c.status}
+                      </span>
+                      {c.last_used_at && (
+                        <span className="ml-2 text-xs text-[var(--text-muted)]">
+                          Last used: {new Date(c.last_used_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    {c.status === 'active' && (
+                      <button
+                        onClick={() => handleWaDisable(c.id)}
+                        data-testid={`wa-disable-${c.id}`}
+                        className="text-xs px-2 py-1 bg-red-900/30 border border-red-700 rounded hover:bg-red-900/50"
+                      >
+                        Disable
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Label (e.g. YubiKey, Touch ID)"
+                  value={waLabel}
+                  onChange={e => setWaLabel(e.target.value)}
+                  data-testid="wa-label-input"
+                  className="flex-1 px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-sm"
+                  maxLength={100}
+                />
+                <button
+                  onClick={handleWaRegister}
+                  disabled={waBusy}
+                  data-testid="wa-register-btn"
+                  className="px-4 py-1.5 bg-[var(--primary)] text-white rounded text-sm hover:opacity-90"
+                >
+                  {waBusy ? '...' : 'Add Security Key'}
+                </button>
+              </div>
+              <button
+                onClick={handleWaAuthenticate}
+                disabled={waBusy || waCredentials.length === 0}
+                data-testid="wa-auth-btn"
+                className="px-4 py-1.5 bg-[var(--success)] text-white rounded text-sm hover:opacity-90 disabled:opacity-50"
+              >
+                Verify with Security Key
+              </button>
+            </div>
+            {waMessage && (
+              <p className="text-sm text-[var(--success)] mt-2" data-testid="wa-message">{waMessage}</p>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }
