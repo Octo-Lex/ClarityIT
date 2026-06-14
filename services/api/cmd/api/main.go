@@ -467,6 +467,10 @@ func main() {
 		// v1.1 Track 7: Operational Metrics (read-only)
 		metricsHandler := admin.NewMetricsHandler(pool)
 		r.Get("/metrics", metricsHandler.Metrics)
+
+		// v1.2 Track 3: Approval Policy Simulation
+		simHandler := approval.NewSimulationHandler(pool)
+		r.Post("/approval-policy/simulate", simHandler.Simulate)
 	})
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", cfg.Port), Handler: r}

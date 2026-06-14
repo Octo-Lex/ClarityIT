@@ -423,6 +423,10 @@ export const api = {
   cancelRemediation: (id: string) =>
     mutation<any>('POST', teamPath(`/remediations/${id}/cancel`)),
 
+  // v1.2 Track 3: Approval Policy Simulation
+  simulateApprovalPolicy: (data: any) =>
+    mutation<any>('POST', `/api/admin/approval-policy/simulate`, data),
+
   // ─── Recommendation Evidence (v1.2 Track 1) ───
   getEvidence: (recommendationId: string) =>
     request<any>(teamPath(`/recommendations/${recommendationId}/evidence`)),

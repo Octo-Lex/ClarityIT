@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useWebSocketInvalidation } from '../../hooks/useWebSocket';
 import { useRefetch } from '../../hooks/useRefetch';
+import PolicySimulationPanel from './PolicySimulationPanel';
 
 function formatRemaining(seconds: number): string {
   if (seconds <= 0) return 'expired';
@@ -34,7 +35,7 @@ export default function AdminApprovals() {
   const [reason, setReason] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState('pending');
   const [toast, setToast] = useState<string | null>(null);
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isPlatformOwner } = usePermissions();
   const { lastEvent: wsEvent } = useWebSocketInvalidation();
   const { bump } = useRefetch();
 
@@ -199,6 +200,9 @@ export default function AdminApprovals() {
           ))}
         </div>
       )}
+
+      {/* v1.2 Track 3: Approval Policy Simulation */}
+      <PolicySimulationPanel isPlatformOwner={isPlatformOwner} />
     </div>
   );
 }
