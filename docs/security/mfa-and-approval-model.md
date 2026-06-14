@@ -1,13 +1,21 @@
-# ClarityIT v1.0 MFA and Approval Model
+# ClarityIT v1.1 MFA and Approval Model
 
 ## Document Status
-- **Version**: 1.0.0
+- **Version**: 1.1.0
 - **Date**: 2026-06-14
-- **Scope**: TOTP MFA implementation, approval workflow, and their interaction
-
----
+- **Scope**: TOTP MFA, WebAuthn/FIDO2 MFA, approval workflow, and their interaction
 
 ## 1. MFA Implementation
+
+### 1.0 WebAuthn Scope
+
+WebAuthn/FIDO2 is an **MFA step-up verification only** (v1.1 Track 5).
+
+- WebAuthn is used to refresh `recent_mfa_at` after an authenticated session exists.
+- WebAuthn is **not** integrated into the primary login flow.
+- WebAuthn does **not** replace password-based authentication.
+- WebAuthn does **not** change approval, Tool Gateway, Proxmox mutation, or autonomy semantics.
+- `RequireRecentMFA` accepts any MFA verification (TOTP, recovery code, or WebAuthn) because all three set `recent_mfa_at` on the user's session.
 
 ### 1.1 TOTP Enrollment
 
