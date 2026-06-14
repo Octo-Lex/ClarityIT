@@ -447,6 +447,11 @@ func main() {
 	})
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", cfg.Port), Handler: r}
+
+	// Start approval expiry monitor
+	approvalMonitor := approval.NewMonitor(pool, cfg)
+	go approvalMonitor.Start(context.Background())
+
 	go func() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

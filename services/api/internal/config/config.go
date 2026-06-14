@@ -45,6 +45,11 @@ type Config struct {
 	MinioBucket     string
 	MinioUseSSL     bool
 
+	// Approval monitor
+	ApprovalMonitorEnabled          bool
+	ApprovalMonitorIntervalSeconds  int
+	ApprovalExpiringThresholdPercent int
+
 	// SMTP (optional)
 	SMTPHost     string
 	SMTPPort     int
@@ -96,6 +101,10 @@ func Load() (*Config, error) {
 		SMTPFrom:     getEnv("SMTP_FROM", ""),
 		SMTPTLSMode:  getEnv("SMTP_TLS_MODE", "starttls"),
 		EmailMode:    getEnv("EMAIL_MODE", "dev"),
+
+		ApprovalMonitorEnabled:           getEnvBoolDefault("APPROVAL_MONITOR_ENABLED", env == EnvProduction),
+		ApprovalMonitorIntervalSeconds:   getEnvIntClamped("APPROVAL_MONITOR_INTERVAL_SECONDS", 60, 5, 3600),
+		ApprovalExpiringThresholdPercent: getEnvIntClamped("APPROVAL_EXPIRING_THRESHOLD_PERCENT", 25, 1, 90),
 
 		Version:   getEnv("CLARITY_VERSION", "dev"),
 		GitCommit: getEnv("CLARITY_GIT_COMMIT", ""),
@@ -291,4 +300,26 @@ func getEnvBool(key string, fallback bool) bool {
 	}
 	b, _ := strconv.ParseBool(v)
 	return b
+}
+
+func getEnvBoolDefault(key string, fallback bool) bool {
+	return getEnvBool(key, fallback)
+}
+
+func getEnvIntClamped(key string, fallback, min, max int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	if n < min {
+		return min
+	}
+	if n > max {
+		return max
+	}
+	return n
 }

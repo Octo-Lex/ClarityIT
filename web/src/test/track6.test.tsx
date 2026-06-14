@@ -43,6 +43,16 @@ vi.mock('../api/client', () => ({
 
 import { api } from '../api/client';
 
+// Mock useRefetch
+vi.mock('../hooks/useRefetch', () => ({
+  useRefetch: () => ({ bump: vi.fn(), version: 0 }),
+}));
+
+// Mock useWebSocket
+vi.mock('../hooks/useWebSocket', () => ({
+  useWebSocketInvalidation: () => ({ lastEvent: null, connected: true }),
+}));
+
 function renderWithProviders(ui: React.ReactElement) {
   return render(
     <MemoryRouter>

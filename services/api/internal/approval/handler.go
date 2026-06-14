@@ -188,7 +188,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	statusFilter := r.URL.Query().Get("status")
 
 	query := `SELECT id::text, action_type, risk_level, description, status, requested_by::text,
-	                  expires_at, created_at, updated_at
+	                  expires_at, created_at, updated_at,
+	                  CASE WHEN status='pending' AND expires_at > NOW()
+	                       THEN EXTRACT(EPOCH FROM (expires_at - NOW()))::int
+	                       ELSE 0 END as remaining_seconds,
+	                  (expiring_notified_at IS NOT NULL AND status='pending') as is_expiring
 	           FROM approval_requests WHERE team_id=$1`
 	args := []any{teamID}
 	if statusFilter != "" {
@@ -208,17 +212,21 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var id, actionType, riskLevel, description, status, requestedBy string
 		var expiresAt, createdAt, updatedAt time.Time
-		rows.Scan(&id, &actionType, &riskLevel, &description, &status, &requestedBy, &expiresAt, &createdAt, &updatedAt)
+		var remainingSeconds int
+		var isExpiring bool
+		rows.Scan(&id, &actionType, &riskLevel, &description, &status, &requestedBy, &expiresAt, &createdAt, &updatedAt, &remainingSeconds, &isExpiring)
 		items = append(items, map[string]any{
-			"id":           id,
-			"action_type":  actionType,
-			"risk_level":   riskLevel,
-			"description":  description,
-			"status":       status,
-			"requested_by": requestedBy,
-			"expires_at":   expiresAt,
-			"created_at":   createdAt,
-			"updated_at":   updatedAt,
+			"id":               id,
+			"action_type":      actionType,
+			"risk_level":       riskLevel,
+			"description":      description,
+			"status":           status,
+			"requested_by":     requestedBy,
+			"expires_at":       expiresAt,
+			"created_at":       createdAt,
+			"updated_at":       updatedAt,
+			"remaining_seconds": remainingSeconds,
+			"is_expiring":      isExpiring,
 		})
 	}
 
