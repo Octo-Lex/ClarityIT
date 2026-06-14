@@ -415,4 +415,7 @@ export const api = {
     mutation<any>('POST', teamPath(`/remediations/${id}/execute`)),
   cancelRemediation: (id: string) =>
     mutation<any>('POST', teamPath(`/remediations/${id}/cancel`)),
+
+  // ─── Operational Metrics (v1.1 Track 7) ───
+  getMetrics: () => request<any>('/api/admin/metrics'),
 };

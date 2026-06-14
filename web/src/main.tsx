@@ -22,6 +22,7 @@ import AdminUsers from './features/admin/AdminUsers';
 import AdminTeams from './features/admin/AdminTeams';
 import AdminAudit from './features/admin/AdminAudit';
 import AdminOps from './features/admin/AdminOps';
+import AdminMetrics from './features/admin/AdminMetrics';
 import AdminIntegrations from './features/admin/AdminIntegrations';
 import AdminSetup from './features/admin/AdminSetup';
 import SecurityPage from './features/account/SecurityPage';
@@ -85,6 +86,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/admin/teams" element={<OwnerRoute><AdminTeams /></OwnerRoute>} />
             <Route path="/admin/audit" element={<OwnerRoute><AdminAudit /></OwnerRoute>} />
             <Route path="/admin/ops" element={<OwnerRoute><AdminOps /></OwnerRoute>} />
+            <Route path="/admin/metrics" element={<OwnerRoute><AdminMetrics /></OwnerRoute>} />
             <Route path="/admin/integrations" element={<OwnerRoute><AdminIntegrations /></OwnerRoute>} />
             <Route path="/admin/setup" element={<OwnerRoute><AdminSetup /></OwnerRoute>} />
           </Route>

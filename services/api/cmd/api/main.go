@@ -453,6 +453,10 @@ func main() {
 		// v1.1 Track 3: Backup Status (read-only)
 		backupStatusHandler := admin.NewBackupStatusHandler(pool)
 		r.Get("/backup-status", backupStatusHandler.GetBackupStatus)
+
+		// v1.1 Track 7: Operational Metrics (read-only)
+		metricsHandler := admin.NewMetricsHandler(pool)
+		r.Get("/metrics", metricsHandler.Metrics)
 	})
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", cfg.Port), Handler: r}

@@ -28,6 +28,7 @@ export default function AppLayout() {
     { path: '/admin/integrations', label: 'Integrations', icon: '🔌' },
     { path: '/admin/setup', label: 'Setup', icon: '✅' },
     { path: '/admin/ops', label: 'Ops', icon: '⚙️' },
+    { path: '/admin/metrics', label: 'Metrics', icon: '📊' },
   ] : [];
 
   const allLinks = [...links, ...adminLinks];
