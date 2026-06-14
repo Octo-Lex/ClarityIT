@@ -387,6 +387,11 @@ func main() {
 				Post("/{assetId}/actions/proxmox/stop", actionHandler.CreateAction)
 			r.With(middleware.RequirePermission(pool, "assets.actions.create")).
 				Post("/{assetId}/actions/proxmox/snapshot", actionHandler.CreateAction)
+			// v1.2 Track 4: Change-Risk Scoring
+			riskScoreHandler := proxmox.NewRiskScoreHandler(pool, cfg)
+			r.With(middleware.RequirePermission(pool, "assets.read")).
+				Get("/{assetId}/risk-score", riskScoreHandler.GetRiskScore)
+
 			r.With(middleware.RequirePermission(pool, "assets.actions.read")).Get("/asset-actions", actionHandler.ListActions)
 			r.With(middleware.RequirePermission(pool, "assets.actions.read")).Get("/asset-actions/{actionId}", actionHandler.GetAction)
 			r.With(middleware.RequirePermission(pool, "assets.actions.execute")).

@@ -423,6 +423,10 @@ export const api = {
   cancelRemediation: (id: string) =>
     mutation<any>('POST', teamPath(`/remediations/${id}/cancel`)),
 
+  // v1.2 Track 4: Change-Risk Scoring
+  getAssetRiskScore: (assetId: string, action: string) =>
+    request<any>(teamPath(`/assets/${assetId}/risk-score?action=${action}`)),
+
   // v1.2 Track 3: Approval Policy Simulation
   simulateApprovalPolicy: (data: any) =>
     mutation<any>('POST', `/api/admin/approval-policy/simulate`, data),

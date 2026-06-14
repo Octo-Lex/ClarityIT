@@ -2,6 +2,60 @@ import { useState } from 'react';
 import { api, ApiError } from '../../api/client';
 import { usePermissions } from '../../hooks/usePermissions';
 
+// v1.2 Track 4: Risk Score Display Component
+function RiskScoreDisplay({ riskScore }: { riskScore: any }) {
+  const score = riskScore.score ?? 0;
+  const level = riskScore.level ?? 'unknown';
+  const topFactors = riskScore.top_factors ?? [];
+
+  const levelColor: Record<string, string> = {
+    low: 'text-green-400',
+    medium: 'text-yellow-400',
+    high: 'text-orange-400',
+    critical: 'text-red-400',
+    unknown: 'text-gray-400',
+  };
+
+  const levelBg: Record<string, string> = {
+    low: 'bg-green-900/20 border-green-700',
+    medium: 'bg-yellow-900/20 border-yellow-700',
+    high: 'bg-orange-900/20 border-orange-700',
+    critical: 'bg-red-900/20 border-red-700',
+    unknown: 'bg-gray-900/20 border-gray-700',
+  };
+
+  return (
+    <div className="mt-4 pt-3 border-t border-[var(--border)]" data-testid="risk-score-section">
+      <div className="flex items-center gap-3 mb-2">
+        <h4 className="text-sm font-semibold">Change-Risk Score</h4>
+        <span
+          className={`px-3 py-1 rounded border text-sm font-bold ${levelBg[level] || levelBg.unknown} ${levelColor[level] || levelColor.unknown}`}
+          data-testid="risk-score-badge"
+        >
+          {score} · {level.toUpperCase()}
+        </span>
+      </div>
+
+      {/* Advisory-only warning */}
+      <div className="mb-2 text-xs text-[var(--text-muted)]" data-testid="risk-score-advisory">
+        ⚠ Risk score is advisory only. Approval, MFA, policy, and mutation-window controls still apply.
+      </div>
+
+      {/* Top factors */}
+      {topFactors.length > 0 && (
+        <div className="mb-2" data-testid="risk-score-top-factors">
+          <span className="text-xs text-[var(--text-muted)]">Top factors: </span>
+          {topFactors.map((f: string, i: number) => (
+            <span key={f} className="text-xs badge badge-gray mr-1" data-testid={`risk-score-factor-${f}`}>
+              {f.replace(/_/g, ' ')}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface AssetActionsProps {
   assetId: string;
   hostname?: string;
@@ -291,6 +345,11 @@ export default function AssetActions({ assetId, hostname }: AssetActionsProps) {
             {preview.validation.snapshot_name_valid ? '✓' : '✗'} snapshot{' '}
             {preview.validation.policy_valid ? '✓' : '✗'} policy
           </div>
+
+          {/* v1.2 Track 4: Risk Score */}
+          {preview.risk_score && (
+            <RiskScoreDisplay riskScore={preview.risk_score} />
+          )}
         </div>
       )}
 

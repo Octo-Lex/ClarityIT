@@ -278,6 +278,7 @@ func (h *ActionHandler) handleDryRun(
 			"vm_type":   target.VMType,
 		},
 		"risk_level":               req.riskLevel,
+		"risk_score":               computeRiskScoreSummary(ctx, h.pool, h.cfg, teamID, assetID, actionType),
 		"requires_approval":        true,
 		"requires_mfa":             req.requiresMFA,
 		"min_approvers":            req.minApprovers,
