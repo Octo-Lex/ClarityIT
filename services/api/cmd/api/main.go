@@ -425,6 +425,12 @@ func main() {
 		r.With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 			Patch("/settings", adminHandler.UpdateSettings)
 
+		// v1.1 Track 2: Proxmox Mutation Change-Window
+		mwHandler := proxmox.NewMutationWindowHandler(pool, cfg)
+		r.Post("/proxmox/mutation-window", mwHandler.OpenWindow)
+		r.Get("/proxmox/mutation-window", mwHandler.GetActiveWindow)
+		r.Post("/proxmox/mutation-window/{windowId}/close", mwHandler.CloseWindow)
+
 		// Ops dashboard (read-only)
 		r.Route("/ops", func(r chi.Router) {
 			r.Get("/summary", opsHandler.Summary)

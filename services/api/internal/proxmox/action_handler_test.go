@@ -115,6 +115,18 @@ func setupActionTest(t *testing.T, mutationEnabled bool) *actionTestEnv {
 	// Ensure permissions exist for action execution
 	pool.Exec(t.Context(), "UPDATE user_sessions SET recent_mfa_at=NULL WHERE revoked_at IS NULL")
 
+	// If mutation is enabled, create a mutation window for tests that need it
+	if mutationEnabled {
+		pool.Exec(t.Context(), `UPDATE proxmox_mutation_windows SET status='closed' WHERE status='open'`)
+		var userID string
+		pool.QueryRow(t.Context(), "SELECT id::text FROM users WHERE email='owner@test.dev'").Scan(&userID)
+		uid, _ := uuid.Parse(userID)
+		pool.Exec(t.Context(), `
+			INSERT INTO proxmox_mutation_windows (id, status, reason, opened_by, opened_at, expires_at)
+			VALUES ($1, 'open', 'test window', $2, now(), now() + interval '1 hour')
+		`, uuid.New(), uid)
+	}
+
 	return &actionTestEnv{
 		r: r, pool: pool, token: token, teamID: teamID,
 		memberTok: memberToken, assetID: assetID, client: client,

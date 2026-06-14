@@ -346,6 +346,13 @@ func (h *ActionHandler) ExecuteAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Guardrail 7b: Active mutation window required (v1.1 Track 2)
+	if !HasActiveMutationWindow(ctx, h.pool) {
+		h.recordActionBlock(ctx, teamIDStr, teamID, userID, actionID, "no_active_mutation_window")
+		writeErr(w, 403, "No active Proxmox mutation window. Open a change window first.")
+		return
+	}
+
 	// Load asset_action
 	var actionType, status, assetIDStr string
 	var approvalID *uuid.UUID
