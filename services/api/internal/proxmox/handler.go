@@ -182,7 +182,7 @@ func (h *Handler) Sync(w http.ResponseWriter, r *http.Request) {
 					// Create new
 										if err := tx.QueryRow(ctx, `INSERT INTO objects (team_id, object_type, title, status) VALUES ($1,'asset',$2,'active') RETURNING id::text`, tid, vm.Name).Scan(&objID); err != nil { continue }
 					oid, _ := uuid.Parse(objID)
-					tx.Exec(ctx, `INSERT INTO assets (object_id, asset_type, provider, external_id, hostname) VALUES ($1,'vm','proxmox',$2,$3)`, oid, extID, vm.Name)
+					tx.Exec(ctx, `INSERT INTO assets (object_id, asset_type, provider, external_id, hostname) VALUES ($1,$4,'proxmox',$2,$3)`, oid, extID, vm.Name, vm.Type)
 
 					evMeta, _ := json.Marshal(map[string]any{"hostname": vm.Name, "type": vm.Type, "provider": "proxmox"})
 					_ = audit.Write(ctx, tx, audit.Event{TeamID: &tid, ActorID: actorID, Action: "asset.discovered", EntityType: "asset", EntityID: oid, NewValue: evMeta})
@@ -190,7 +190,7 @@ func (h *Handler) Sync(w http.ResponseWriter, r *http.Request) {
 				} else {
 					// Update existing
 					oid, _ := uuid.Parse(objID)
-					tx.Exec(ctx, `UPDATE assets SET hostname=$1 WHERE object_id=$2`, vm.Name, oid)
+					tx.Exec(ctx, `UPDATE assets SET hostname=$1, asset_type=$3 WHERE object_id=$2`, vm.Name, oid, vm.Type)
 					evMeta, _ := json.Marshal(map[string]any{"hostname": vm.Name, "object_id": objID})
 					_ = outbox.Write(ctx, tx, &teamID, outbox.Event{EventType: "clarity.v1.asset.updated", AggregateType: "asset", AggregateID: objID, Payload: evMeta})
 				}
