@@ -34,10 +34,13 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      BACKUP_DIR: /var/lib/clarityit/backups
       PORT: "8765"
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - /opt/clarityit/backups:/var/lib/clarityit/backups:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8765/health"]
       interval: 30s

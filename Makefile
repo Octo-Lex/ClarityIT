@@ -102,6 +102,8 @@ verify-deployment:
 	@echo "NATS:" && (curl -sf --max-time 2 http://192.168.3.20:4222 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
 	@echo "Redis:" && (curl -sf --max-time 2 http://192.168.3.20:6379 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
 	@echo "MinIO:" && (curl -sf --max-time 2 http://192.168.3.20:9000 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
+	@echo "=== Backup Status ==="
+	@TOKEN=$$(curl -sf -X POST http://192.168.3.20:8765/api/auth/login -H 'Content-Type: application/json' -d '{"email":"owner@test.dev","password":"password12"}' | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])') && curl -sf http://192.168.3.20:8765/api/admin/backup-status -H "Authorization: Bearer $$TOKEN" | python3 -m json.tool || echo "FAIL"
 
 # Playwright E2E smoke tests
 test-e2e:
