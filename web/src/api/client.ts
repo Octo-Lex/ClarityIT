@@ -423,6 +423,16 @@ export const api = {
   cancelRemediation: (id: string) =>
     mutation<any>('POST', teamPath(`/remediations/${id}/cancel`)),
 
+  // v1.2 Track 5: Post-Action Outcome Tracking
+  getAssetActionOutcome: (actionId: string) =>
+    request<any>(teamPath(`/asset-actions/${actionId}/outcome`)),
+  saveAssetActionOutcome: (actionId: string, data: any) =>
+    mutation<any>('POST', teamPath(`/asset-actions/${actionId}/outcome`), data),
+  getRemediationOutcome: (proposalId: string) =>
+    request<any>(teamPath(`/remediations/${proposalId}/outcome`)),
+  saveRemediationOutcome: (proposalId: string, data: any) =>
+    mutation<any>('POST', teamPath(`/remediations/${proposalId}/outcome`), data),
+
   // v1.2 Track 4: Change-Risk Scoring
   getAssetRiskScore: (assetId: string, action: string) =>
     request<any>(teamPath(`/assets/${assetId}/risk-score?action=${action}`)),

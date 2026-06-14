@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api/client';
 import { usePermissions } from '../../hooks/usePermissions';
 import EvidencePanel from '../remediation/EvidencePanel';
+import OutcomePanel from '../shared/OutcomePanel';
 
 interface RemediationPanelProps {
   incidentId?: string;
@@ -102,6 +103,9 @@ export default function RemediationPanel({ incidentId }: RemediationPanelProps) 
 
                 {/* v1.2 Track 1: Evidence Panel */}
                 <EvidencePanel recommendationId={p.id} />
+
+                {/* v1.2 Track 5: Outcome Panel */}
+                <OutcomePanel sourceType="remediation" sourceId={p.id} sourceStatus={p.status} />
 
                 {/* Steps */}
                 <div className="space-y-1" data-testid={`remediation-steps-${p.id}`}>

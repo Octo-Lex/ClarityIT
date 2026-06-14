@@ -392,6 +392,13 @@ func main() {
 			r.With(middleware.RequirePermission(pool, "assets.read")).
 				Get("/{assetId}/risk-score", riskScoreHandler.GetRiskScore)
 
+			// v1.2 Track 5: Post-Action Outcome Tracking
+			outcomeHandler := proxmox.NewOutcomeHandler(pool, cfg)
+			r.With(middleware.RequirePermission(pool, "assets.actions.read")).
+				Post("/asset-actions/{actionId}/outcome", outcomeHandler.CreateOrUpdateAssetActionOutcome)
+			r.With(middleware.RequirePermission(pool, "assets.actions.read")).
+				Get("/asset-actions/{actionId}/outcome", outcomeHandler.GetAssetActionOutcome)
+
 			r.With(middleware.RequirePermission(pool, "assets.actions.read")).Get("/asset-actions", actionHandler.ListActions)
 			r.With(middleware.RequirePermission(pool, "assets.actions.read")).Get("/asset-actions/{actionId}", actionHandler.GetAction)
 			r.With(middleware.RequirePermission(pool, "assets.actions.execute")).
@@ -424,6 +431,13 @@ func main() {
 			r.With(middleware.RequirePermission(pool, "remediations.cancel")).
 				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 				Post("/{remediationId}/cancel", remediationHandler.Cancel)
+
+			// v1.2 Track 5: Post-Action Outcome Tracking (remediation)
+			remOutcomeHandler := proxmox.NewOutcomeHandler(pool, cfg)
+			r.With(middleware.RequirePermission(pool, "remediations.read")).
+				Post("/{remediationId}/outcome", remOutcomeHandler.CreateOrUpdateRemediationOutcome)
+			r.With(middleware.RequirePermission(pool, "remediations.read")).
+				Get("/{remediationId}/outcome", remOutcomeHandler.GetRemediationOutcome)
 		})
 
 		// v1.2 Track 1: Recommendation Evidence Packs

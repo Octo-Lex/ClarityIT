@@ -352,6 +352,38 @@ func computeRiskScore(
 		Explanation: mwExplanation,
 	})
 
+	// ─── Factor 7: Past Outcomes (v1.2 Track 5 feedback signal) ───
+	var pastOutcomeCount int
+	var failedOutcomeCount int
+	pool.QueryRow(ctx, `
+		SELECT COUNT(*), COUNT(CASE WHEN outcome_status IN ('failed', 'partially_successful') THEN 1 END)
+		FROM action_outcomes ao
+		JOIN asset_actions aa ON aa.id = ao.asset_action_id
+		WHERE ao.team_id = $1 AND aa.asset_id = $2::uuid
+	`, teamID, assetID).Scan(&pastOutcomeCount, &failedOutcomeCount)
+
+	pastOutcomeScore := 0
+	pastOutcomeExplanation := "No past action outcomes for this asset."
+	if pastOutcomeCount > 0 {
+		pastOutcomeScore = pastOutcomeCount * 3
+		if pastOutcomeScore > 10 {
+			pastOutcomeScore = 10
+		}
+		pastOutcomeExplanation = fmt.Sprintf("%d past action outcome(s) recorded for this asset", pastOutcomeCount)
+		if failedOutcomeCount > 0 {
+			pastOutcomeExplanation += fmt.Sprintf(" (%d failed/partial)", failedOutcomeCount)
+			pastOutcomeScore += 5
+		}
+	}
+
+	totalScore += pastOutcomeScore
+	factors = append(factors, RiskFactor{
+		Factor:      "past_outcomes",
+		Label:       "Past outcomes",
+		Score:       pastOutcomeScore,
+		Explanation: pastOutcomeExplanation,
+	})
+
 	// ─── Mitigation Notes ───
 	if actionType == "proxmox.shutdown" || actionType == "proxmox.stop" {
 		mitigations = append(mitigations, "Confirm service owner before shutdown/stop.")

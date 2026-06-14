@@ -124,6 +124,9 @@ func (h *PatternsHandler) GetPatterns(w http.ResponseWriter, r *http.Request) {
 	patterns = append(patterns, detectCluster(incidents, minOccurrences)...)
 	patterns = append(patterns, detectNoisyAsset(incidents, teamID, minOccurrences)...)
 
+	// v1.2 Track 5: Repeated failed outcomes signal
+	patterns = append(patterns, detectRepeatedFailedOutcomes(ctx, h.pool, teamID, incidents, minOccurrences)...)
+
 	// Deduplicate: the same set of incidents could trigger multiple pattern types
 	// That's fine — each pattern type provides a different lens
 
@@ -656,4 +659,63 @@ var sensitiveWordRegex = regexp.MustCompile(`(?i)(password|secret|token|key|cred
 // sanitizeSymptomDisplay removes sensitive-looking keywords from symptom text
 func sanitizeSymptomDisplay(s string) string {
 	return sensitiveWordRegex.ReplaceAllString(s, "[filtered]")
+}
+
+// detectRepeatedFailedOutcomes finds assets with repeated failed/partial outcomes (v1.2 Track 5)
+func detectRepeatedFailedOutcomes(ctx context.Context, pool *pgxpool.Pool, teamID uuid.UUID, incidents []incidentRow, minOccurrences int) []Pattern {
+	// Query for assets with repeated failed outcomes
+	rows, err := pool.Query(ctx, `
+		SELECT aa.asset_id::text, COUNT(*) as fail_count
+		FROM action_outcomes ao
+		JOIN asset_actions aa ON aa.id = ao.asset_action_id
+		WHERE ao.team_id = $1
+		  AND ao.outcome_status IN ('failed', 'partially_successful')
+		GROUP BY aa.asset_id
+		HAVING COUNT(*) >= $2
+	`, teamID, minOccurrences)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	var patterns []Pattern
+	for rows.Next() {
+		var assetID string
+		var failCount int
+		if err := rows.Scan(&assetID, &failCount); err != nil {
+			continue
+		}
+
+		// Get the incident IDs from the window that are linked to this asset
+		var incIDs []string
+		for _, inc := range incidents {
+			for _, aid := range inc.LinkedAssetIDs {
+				if aid == assetID {
+					incIDs = append(incIDs, inc.ObjectID)
+					break
+				}
+			}
+		}
+		if len(incIDs) == 0 {
+			incIDs = []string{}
+		}
+
+		confidence := computeConfidence(failCount, minOccurrences) * 0.85 // slightly lower for outcomes-based
+		first, last := timeRange(incidents)
+
+		patterns = append(patterns, Pattern{
+			PatternID:          stablePatternID("repeated_failed_outcomes", assetID, incIDs),
+			PatternType:        "repeated_failed_outcomes",
+			PatternDescription: fmt.Sprintf("Asset %s has %d failed or partially successful action outcomes.", assetID, failCount),
+			Confidence:         confidence,
+			IncidentIDs:        incIDs,
+			AssetIDs:           []string{assetID},
+			FirstSeen:          first.Format(time.RFC3339),
+			LastSeen:           last.Format(time.RFC3339),
+			OccurrenceCount:    failCount,
+			AdvisoryOnly:       true,
+		})
+	}
+
+	return patterns
 }
