@@ -7,7 +7,9 @@
 - **Status**: CLOSED — Remediated in v1.1.0
 - **Target Remediation Release**: ~~v1.1.0~~ → **COMPLETED**
 
-> **v1.2.0 Update**: No new open high-risk items. The original vulnerability was fully remediated in v1.1.0. v1.2.0 adds no new dependencies that introduce vulnerabilities. `npm audit --audit-level=high` and `npm audit --omit=dev --audit-level=high` both report 0 vulnerabilities. No new risk acceptance items are required.
+> **v1.2.0 Update**: No new open high-risk items. v1.2.0 is accepted with **zero carried-forward security debt**. The original vulnerability was fully remediated in v1.1.0. v1.2.0 adds no new dependencies that introduce vulnerabilities. `npm audit --audit-level=high` and `npm audit --omit=dev --audit-level=high` both report 0 vulnerabilities. No new risk acceptance items are required.
+>
+> **Presenton**: Remains explicitly **backlog-only** — not part of v1.2.0 core scope, absent from the v1.2.0 runtime. No Presenton code, dependencies, or runtime components ship in this release.
 
 ---
 

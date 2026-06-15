@@ -1,37 +1,39 @@
-.PHONY: build test test-iam test-team deploy audit
+.PHONY: build test test-iam test-team deploy audit audit-prod verify-deployment
+
+# Docker run helper for Go commands
+GO_TEST = docker run --rm -v /opt/clarityit/services/api:/app -w /app --network clarityit_clarityit-net golang:1.25-alpine
 
 # Build the Go binary
 build:
-	cd services/api && go build ./cmd/api
+	$(GO_TEST) go build ./cmd/api
 
 # Run all tests sequentially (shared DB requires -p 1)
-# TODO: implement per-package test DB isolation to remove -p 1 requirement
 test:
-	cd services/api && go test -p 1 -count=1 -timeout 180s ./...
+	$(GO_TEST) go test -p 1 -count=1 -timeout 300s ./...
 
 # Run only IAM tests
 test-iam:
-	cd services/api && go test -v -count=1 -timeout 60s ./internal/iam/
+	$(GO_TEST) go test -v -count=1 -timeout 60s ./internal/iam/
 
 # Run only team tests
 test-team:
-	cd services/api && go test -v -count=1 -timeout 60s ./internal/team/
+	$(GO_TEST) go test -v -count=1 -timeout 60s ./internal/team/
 
 # Run only domain tests
 test-domain:
-	cd services/api && go test -v -count=1 -timeout 60s ./internal/domain/
+	$(GO_TEST) go test -v -count=1 -timeout 60s ./internal/domain/
 
 # Run only outbox worker tests
 test-outbox:
-	cd services/api && go test -v -count=1 -timeout 60s ./cmd/outbox-worker/
+	$(GO_TEST) go test -v -count=1 -timeout 60s ./cmd/outbox-worker/
 
 # Run only context tests
 test-context:
-	cd services/api && go test -v -count=1 -timeout 60s ./internal/contextx/
+	$(GO_TEST) go test -v -count=1 -timeout 60s ./internal/contextx/
 
 # Run only WebSocket tests
 test-ws:
-	cd services/api && go test -v -count=1 -timeout 30s ./internal/wsx/
+	$(GO_TEST) go test -v -count=1 -timeout 30s ./internal/wsx/
 
 # Build and deploy via Docker Compose
 deploy:
@@ -53,8 +55,8 @@ migrate:
 
 # Live pipeline integration test
 verify-pipeline:
-	cd services/api && go test -v -count=1 -run TestPhase5_LivePipeline ./cmd/context-worker/ -timeout 60s
-	cd services/api && go test -v -count=1 -run TestPhase5_OutboxWorker ./cmd/outbox-worker/ -timeout 60s
+	$(GO_TEST) go test -v -count=1 -run TestPhase5_LivePipeline ./cmd/context-worker/ -timeout 60s
+	$(GO_TEST) go test -v -count=1 -run TestPhase5_OutboxWorker ./cmd/outbox-worker/ -timeout 60s
 
 # Verify docker compose deployment
 verify-deploy:
@@ -65,15 +67,15 @@ verify-deploy:
 # Security and dependency audit
 audit:
 	@echo "=== Go Vet ==="
-	cd services/api && go vet ./...
+	$(GO_TEST) go vet ./...
 	@echo "=== Go Tests ==="
-	cd services/api && go test -p 1 -count=1 -timeout 180s ./...
+	$(GO_TEST) go test -p 1 -count=1 -timeout 300s ./...
 	@echo "=== Production Dependency Audit (runtime only) ==="
 	cd web && npm audit --omit=dev --audit-level=high
 	@echo "=== Dev Dependency Audit (informational) ==="
 	cd web && npm audit --audit-level=high 2>&1 || echo "  (dev-only findings — see docs/security/risk-acceptance-v1.md)"
 	@echo "=== Python Check ==="
-	cd services/workers/reasoning && python -m pip check 2>&1 || true
+	cd services/workers/reasoning && python3 -m pip check 2>&1 || true
 	@echo "=== Audit Complete ==="
 
 # Production-only dependency audit (must be clean)
@@ -81,9 +83,9 @@ audit-prod:
 	@echo "=== Production Runtime Dependencies ==="
 	cd web && npm audit --omit=dev --audit-level=high
 	@echo "=== Python Runtime Dependencies ==="
-	cd services/workers/reasoning && python -m pip check
+	cd services/workers/reasoning && python3 -m pip check
 	@echo "=== Go Module Check ==="
-	cd services/api && go vet ./...
+	$(GO_TEST) go vet ./...
 	@echo "=== Production audit clean ==="
 
 # Full deployment verification
