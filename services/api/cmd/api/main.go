@@ -505,6 +505,16 @@ func main() {
 				Get("/presenton/status", presentonHandler.Status)
 			r.With(middleware.RequirePermission(pool, "artifacts.create")).
 				Post("/generate-presentation", presentonHandler.Generate)
+
+			// v1.3 Track 3: Meeting Summaries
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/meeting-summaries", artifactHandler.CreateMeetingSummary)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/meeting-summaries", artifactHandler.ListMeetingSummaries)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/meeting-summaries/{id}", artifactHandler.GetMeetingSummary)
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Patch("/meeting-summaries/{id}", artifactHandler.PatchMeetingSummary)
 		})
 	})
 

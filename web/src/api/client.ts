@@ -484,6 +484,16 @@ export const api = {
   archiveArtifact: (artifactId: string) =>
     mutation<any>('DELETE', teamPath(`/artifacts/${artifactId}`), {}),
 
+  // v1.3 Track 3: Meeting Summaries
+  listMeetingSummaries: () =>
+    request<any[]>(teamPath('/artifacts/meeting-summaries')),
+  getMeetingSummary: (id: string) =>
+    request<any>(teamPath(`/artifacts/meeting-summaries/${id}`)),
+  createMeetingSummary: (data: any) =>
+    mutation<any>('POST', teamPath('/artifacts/meeting-summaries'), data),
+  updateMeetingSummary: (id: string, data: any) =>
+    mutation<any>('PATCH', teamPath(`/artifacts/meeting-summaries/${id}`), data),
+
   // v1.3 Track 2: Presenton
   getPresentonStatus: () =>
     request<any>(teamPath('/artifacts/presenton/status')),

@@ -49,6 +49,11 @@ func setupArtifactTest(t *testing.T) *artifactTestEnv {
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}", artH.Get)
 		r.With(middleware.RequirePermission(pool, "artifacts.update")).Patch("/artifacts/{artifactId}", artH.Patch)
 		r.With(middleware.RequirePermission(pool, "artifacts.delete")).Delete("/artifacts/{artifactId}", artH.Delete)
+		// Meeting summaries (Track 3) — under /artifacts path
+		r.With(middleware.RequirePermission(pool, "artifacts.create")).Post("/artifacts/meeting-summaries", artH.CreateMeetingSummary)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/meeting-summaries", artH.ListMeetingSummaries)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/meeting-summaries/{id}", artH.GetMeetingSummary)
+		r.With(middleware.RequirePermission(pool, "artifacts.update")).Patch("/artifacts/meeting-summaries/{id}", artH.PatchMeetingSummary)
 	})
 
 	token := loginArtifact(t, r, "owner@test.dev", "password12")
