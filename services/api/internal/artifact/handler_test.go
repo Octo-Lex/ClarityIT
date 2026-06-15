@@ -54,6 +54,8 @@ func setupArtifactTest(t *testing.T) *artifactTestEnv {
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/meeting-summaries", artH.ListMeetingSummaries)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/meeting-summaries/{id}", artH.GetMeetingSummary)
 		r.With(middleware.RequirePermission(pool, "artifacts.update")).Patch("/artifacts/meeting-summaries/{id}", artH.PatchMeetingSummary)
+		// Status reports (Track 4)
+		r.With(middleware.RequirePermission(pool, "artifacts.create")).Post("/status-reports/generate", artH.GenerateStatusReport)
 	})
 
 	token := loginArtifact(t, r, "owner@test.dev", "password12")

@@ -494,6 +494,10 @@ export const api = {
   updateMeetingSummary: (id: string, data: any) =>
     mutation<any>('PATCH', teamPath(`/artifacts/meeting-summaries/${id}`), data),
 
+  // v1.3 Track 4: Status Reports
+  generateStatusReport: (data: { title: string; project_id?: string; period_start: string; period_end: string; include_sections: string[] }) =>
+    mutation<any>('POST', teamPath('/status-reports/generate'), data),
+
   // v1.3 Track 2: Presenton
   getPresentonStatus: () =>
     request<any>(teamPath('/artifacts/presenton/status')),

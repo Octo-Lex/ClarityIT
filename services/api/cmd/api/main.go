@@ -515,6 +515,10 @@ func main() {
 				Get("/meeting-summaries/{id}", artifactHandler.GetMeetingSummary)
 			r.With(middleware.RequirePermission(pool, "artifacts.update")).
 				Patch("/meeting-summaries/{id}", artifactHandler.PatchMeetingSummary)
+
+			// v1.3 Track 4: Status Report Generator
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/status-reports/generate", artifactHandler.GenerateStatusReport)
 		})
 	})
 
