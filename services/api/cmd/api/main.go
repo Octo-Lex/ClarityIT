@@ -519,6 +519,14 @@ func main() {
 			// v1.3 Track 4: Status Report Generator
 			r.With(middleware.RequirePermission(pool, "artifacts.create")).
 				Post("/status-reports/generate", artifactHandler.GenerateStatusReport)
+
+			// v1.3 Track 5: Template Library
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/artifact-templates", artifactHandler.ListTemplates)
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/artifact-templates", artifactHandler.CreateTemplate)
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/artifact-templates/{templateId}/instantiate", artifactHandler.InstantiateTemplate)
 		})
 	})
 

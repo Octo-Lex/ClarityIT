@@ -1,0 +1,319 @@
+package artifact
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func TestTemplate_SystemTemplatesSeeded(t *testing.T) {
+	e := setupArtifactTest(t)
+	var count int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM artifact_templates WHERE is_system = true").Scan(&count)
+	if count < 6 {
+		t.Errorf("expected at least 6 system templates, got %d", count)
+	}
+}
+
+func TestTemplate_ListReturnsSystemTemplates(t *testing.T) {
+	e := setupArtifactTest(t)
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), nil)
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var list []map[string]any
+	json.Unmarshal(w.Body.Bytes(), &list)
+	found := false
+	for _, tmpl := range list {
+		if tmpl["is_system"] == true {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected at least one system template in list")
+	}
+}
+
+func TestTemplate_ListReturnsTeamTemplates(t *testing.T) {
+	e := setupArtifactTest(t)
+	// Create a team template first
+	body := `{"template_type":"document","name":"Team Template","content_markdown":"# Hello"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Fatalf("expected 201 creating team template, got %d", w.Code)
+	}
+
+	// List
+	req2 := httptest.NewRequest("GET", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), nil)
+	req2.Header.Set("Authorization", "Bearer "+e.token)
+	w2 := httptest.NewRecorder()
+	e.r.ServeHTTP(w2, req2)
+	var list []map[string]any
+	json.Unmarshal(w2.Body.Bytes(), &list)
+	found := false
+	for _, tmpl := range list {
+		if tmpl["name"] == "Team Template" {
+			found = true
+			if tmpl["is_system"] != false {
+				t.Error("team template should not be system")
+			}
+		}
+	}
+	if !found {
+		t.Error("team template not found in list")
+	}
+}
+
+func TestTemplate_TypeFilterWorks(t *testing.T) {
+	e := setupArtifactTest(t)
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/teams/%s/artifact-templates?type=status_report", e.teamID), nil)
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var list []map[string]any
+	json.Unmarshal(w.Body.Bytes(), &list)
+	for _, tmpl := range list {
+		if tmpl["template_type"] != "status_report" {
+			t.Errorf("filter failed: got type %v", tmpl["template_type"])
+		}
+	}
+}
+
+func TestTemplate_CreateCustomTeamTemplate(t *testing.T) {
+	e := setupArtifactTest(t)
+	body := `{"template_type":"decision_memo","name":"Custom Decision","description":"My template","content_markdown":"# Decision: [Title]"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["is_system"] != false {
+		t.Error("custom template must not be system")
+	}
+}
+
+func TestTemplate_RejectsInvalidType(t *testing.T) {
+	e := setupArtifactTest(t)
+	body := `{"template_type":"invalid_type","name":"Bad Type","content_markdown":"content"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 400 {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestTemplate_RejectsScalarMetadata(t *testing.T) {
+	e := setupArtifactTest(t)
+	body := `{"template_type":"document","name":"Bad Meta","content_markdown":"content","metadata":"scalar-string"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	// metadata is decoded into map[string]any — string scalar will fail decode
+	if w.Code != 400 && w.Code != 500 {
+		t.Errorf("expected 400 or 500 for scalar metadata, got %d", w.Code)
+	}
+}
+
+func TestTemplate_InstantiateSystemTemplate(t *testing.T) {
+	e := setupArtifactTest(t)
+	body := `{"title":"My Status Report"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates/a0000000-0000-0000-0000-000000000001/instantiate", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["artifact_type"] != "status_report" {
+		t.Errorf("expected status_report, got %v", resp["artifact_type"])
+	}
+	if resp["title"] != "My Status Report" {
+		t.Errorf("expected custom title, got %v", resp["title"])
+	}
+}
+
+func TestTemplate_InstantiateTeamTemplate(t *testing.T) {
+	e := setupArtifactTest(t)
+	// Create team template
+	body := `{"template_type":"report","name":"Quarterly Report Template","content_markdown":"# Quarterly Report\n\n## Q[Q] [Year]"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	var createResp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &createResp)
+	templateID := createResp["id"].(string)
+
+	// Instantiate it
+	body2 := `{"title":"Q2 2026 Report"}`
+	req2 := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates/%s/instantiate", e.teamID, templateID), strings.NewReader(body2))
+	req2.Header.Set("Authorization", "Bearer "+e.token)
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	e.r.ServeHTTP(w2, req2)
+	if w2.Code != 201 {
+		t.Fatalf("expected 201, got %d", w2.Code)
+	}
+	var resp map[string]any
+	json.Unmarshal(w2.Body.Bytes(), &resp)
+	if resp["artifact_type"] != "report" {
+		t.Errorf("expected report type, got %v", resp["artifact_type"])
+	}
+}
+
+func TestTemplate_InstantiatePreservesType(t *testing.T) {
+	e := setupArtifactTest(t)
+	// Instantiate decision_memo template
+	body := `{}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates/a0000000-0000-0000-0000-000000000003/instantiate", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["artifact_type"] != "decision_memo" {
+		t.Errorf("expected decision_memo, got %v", resp["artifact_type"])
+	}
+}
+
+func TestTemplate_InstantiateAllowsTitleOverride(t *testing.T) {
+	e := setupArtifactTest(t)
+	body := `{"title":"My Custom Title"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates/a0000000-0000-0000-0000-000000000002/instantiate", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["title"] != "My Custom Title" {
+		t.Errorf("expected overridden title, got %v", resp["title"])
+	}
+}
+
+func TestTemplate_InstantiateDefaultsToTemplateName(t *testing.T) {
+	e := setupArtifactTest(t)
+	body := `{}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates/a0000000-0000-0000-0000-000000000005/instantiate", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["title"] != "Architecture Walkthrough" {
+		t.Errorf("expected template name as title, got %v", resp["title"])
+	}
+}
+
+func TestTemplate_CrossTeamAccess404(t *testing.T) {
+	e := setupArtifactTest(t)
+	// Create team template
+	body := `{"template_type":"document","name":"Team Secret Template","content_markdown":"# Secret"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	var createResp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &createResp)
+	templateID := createResp["id"].(string)
+
+	// Try to instantiate from a different team
+	body2 := `{}`
+	req2 := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/00000000-0000-0000-0000-000000000000/artifact-templates/%s/instantiate", templateID), strings.NewReader(body2))
+	req2.Header.Set("Authorization", "Bearer "+e.token)
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	e.r.ServeHTTP(w2, req2)
+	if w2.Code != 404 {
+		t.Errorf("expected 404 for cross-team template access, got %d", w2.Code)
+	}
+}
+
+func TestTemplate_UnauthorizedDenied(t *testing.T) {
+	e := setupArtifactTest(t)
+	req := httptest.NewRequest("GET", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), nil)
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 401 && w.Code != 403 {
+		t.Errorf("expected 401 or 403, got %d", w.Code)
+	}
+}
+
+func TestTemplate_NoOperationalSideEffects(t *testing.T) {
+	e := setupArtifactTest(t)
+	var beforeApprovals, beforeActions int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM approval_requests").Scan(&beforeApprovals)
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM asset_actions").Scan(&beforeActions)
+
+	body := `{"title":"Side Effects Test"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates/a0000000-0000-0000-0000-000000000001/instantiate", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+
+	var afterApprovals, afterActions int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM approval_requests").Scan(&afterApprovals)
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM asset_actions").Scan(&afterActions)
+	if afterApprovals != beforeApprovals {
+		t.Errorf("approval_requests changed")
+	}
+	if afterActions != beforeActions {
+		t.Errorf("asset_actions changed")
+	}
+}
+
+func TestTemplate_NameRequired(t *testing.T) {
+	e := setupArtifactTest(t)
+	body := `{"template_type":"document","name":"","content_markdown":"content"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifact-templates", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 400 {
+		t.Errorf("expected 400 for empty name, got %d", w.Code)
+	}
+}

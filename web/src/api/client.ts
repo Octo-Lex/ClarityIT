@@ -498,6 +498,17 @@ export const api = {
   generateStatusReport: (data: { title: string; project_id?: string; period_start: string; period_end: string; include_sections: string[] }) =>
     mutation<any>('POST', teamPath('/status-reports/generate'), data),
 
+  // v1.3 Track 5: Template Library
+  listTemplates: (typeFilter?: string) => {
+    let qs = '';
+    if (typeFilter) qs += `?type=${typeFilter}`;
+    return request<any[]>(teamPath(`/artifact-templates${qs}`));
+  },
+  createTemplate: (data: { template_type: string; name: string; content_markdown: string; description?: string; metadata?: any }) =>
+    mutation<any>('POST', teamPath('/artifact-templates'), data),
+  instantiateTemplate: (templateId: string, data: { title?: string; description?: string; status?: string }) =>
+    mutation<any>('POST', teamPath(`/artifact-templates/${templateId}/instantiate`), data),
+
   // v1.3 Track 2: Presenton
   getPresentonStatus: () =>
     request<any>(teamPath('/artifacts/presenton/status')),

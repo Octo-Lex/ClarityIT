@@ -4,6 +4,7 @@ import ArtifactEditor from './ArtifactEditor';
 import PresentationModal from './PresentationModal';
 import MeetingSummaryEditor from './MeetingSummaryEditor';
 import StatusReportModal from './StatusReportModal';
+import TemplateGallery from './TemplateGallery';
 
 const ARTIFACT_TYPES = [
   { value: '', label: 'All Types' },
@@ -42,6 +43,7 @@ export default function ArtifactsPage() {
   const [showPresentation, setShowPresentation] = useState(false);
   const [showMeeting, setShowMeeting] = useState(false);
   const [showStatusReport, setShowStatusReport] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchArtifacts = () => {
@@ -94,6 +96,13 @@ export default function ArtifactsPage() {
             data-testid="artifacts-status-report-btn"
           >
             📊 Status Report
+          </button>
+          <button
+            onClick={() => setShowTemplates(true)}
+            className="px-3 py-1.5 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
+            data-testid="artifacts-templates-btn"
+          >
+            📁 Templates
           </button>
           <button
             onClick={() => setShowCreate(true)}
@@ -208,6 +217,14 @@ export default function ArtifactsPage() {
         <StatusReportModal
           onClose={() => setShowStatusReport(false)}
           onGenerated={() => fetchArtifacts()}
+        />
+      )}
+
+      {/* Template gallery */}
+      {showTemplates && (
+        <TemplateGallery
+          onClose={() => setShowTemplates(false)}
+          onInstantiated={() => fetchArtifacts()}
         />
       )}
 
