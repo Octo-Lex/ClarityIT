@@ -527,6 +527,14 @@ func main() {
 				Post("/artifact-templates", artifactHandler.CreateTemplate)
 			r.With(middleware.RequirePermission(pool, "artifacts.create")).
 				Post("/artifact-templates/{templateId}/instantiate", artifactHandler.InstantiateTemplate)
+
+			// v1.3 Track 6: Artifact Storage and Recent Files
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/recent", artifactHandler.Recent)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/search", artifactHandler.Search)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/storage-summary", artifactHandler.StorageSummary)
 		})
 	})
 

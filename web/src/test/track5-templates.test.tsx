@@ -19,6 +19,9 @@ vi.mock('../api/client', () => ({
     listTemplates: vi.fn(),
     createTemplate: vi.fn(),
     instantiateTemplate: vi.fn(),
+    getRecentArtifacts: vi.fn().mockResolvedValue([]),
+    searchArtifacts: vi.fn().mockResolvedValue([]),
+    getStorageSummary: vi.fn().mockResolvedValue(null),
   },
   ApiError: class extends Error { constructor(public status: number, msg: string) { super(msg); } },
 }));

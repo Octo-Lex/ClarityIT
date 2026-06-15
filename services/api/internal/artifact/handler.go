@@ -201,6 +201,13 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	search := r.URL.Query().Get("q")
 	includeArchived := r.URL.Query().Get("include_archived") == "true"
+	includeFiles := r.URL.Query().Get("include_files") == "true"
+
+	// If include_files, use the file-metadata join path
+	if includeFiles {
+		h.listWithFiles(ctx, w, teamID, teamIDStr, artifactType, status, search, includeArchived)
+		return
+	}
 
 	// Build query
 	qb := strings.Builder{}

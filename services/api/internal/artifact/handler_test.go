@@ -22,6 +22,8 @@ type artifactTestEnv struct {
 	pool        *pgxpool.Pool
 	token       string
 	teamID      string
+	teamUUID    uuid.UUID
+	actorUUID   uuid.UUID
 	memberToken string
 }
 
@@ -60,6 +62,10 @@ func setupArtifactTest(t *testing.T) *artifactTestEnv {
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifact-templates", artH.ListTemplates)
 		r.With(middleware.RequirePermission(pool, "artifacts.create")).Post("/artifact-templates", artH.CreateTemplate)
 		r.With(middleware.RequirePermission(pool, "artifacts.create")).Post("/artifact-templates/{templateId}/instantiate", artH.InstantiateTemplate)
+		// Storage endpoints (Track 6)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/recent", artH.Recent)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/search", artH.Search)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/storage-summary", artH.StorageSummary)
 	})
 
 	token := loginArtifact(t, r, "owner@test.dev", "password12")
@@ -67,8 +73,12 @@ func setupArtifactTest(t *testing.T) *artifactTestEnv {
 
 	var teamID string
 	pool.QueryRow(t.Context(), "SELECT id::text FROM teams LIMIT 1").Scan(&teamID)
+	teamUUID, _ := uuid.Parse(teamID)
+	var actorID string
+	pool.QueryRow(t.Context(), "SELECT id::text FROM users WHERE email='owner@test.dev'").Scan(&actorID)
+	actorUUID, _ := uuid.Parse(actorID)
 
-	return &artifactTestEnv{r: r, pool: pool, token: token, teamID: teamID, memberToken: memberToken}
+	return &artifactTestEnv{r: r, pool: pool, token: token, teamID: teamID, teamUUID: teamUUID, actorUUID: actorUUID, memberToken: memberToken}
 }
 
 func loginArtifact(t *testing.T, r *chi.Mux, email, pw string) string {

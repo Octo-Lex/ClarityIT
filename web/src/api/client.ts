@@ -509,6 +509,22 @@ export const api = {
   instantiateTemplate: (templateId: string, data: { title?: string; description?: string; status?: string }) =>
     mutation<any>('POST', teamPath(`/artifact-templates/${templateId}/instantiate`), data),
 
+  // v1.3 Track 6: Storage and Recent Files
+  listArtifactsWithFiles: (typeFilter?: string) => {
+    let qs = 'include_files=true';
+    if (typeFilter) qs += `&type=${typeFilter}`;
+    return request<any[]>(teamPath(`/artifacts?${qs}`));
+  },
+  getRecentArtifacts: (includeArchived?: boolean) => {
+    let qs = '';
+    if (includeArchived) qs = '?include_archived=true';
+    return request<any[]>(teamPath(`/artifacts/recent${qs}`));
+  },
+  searchArtifacts: (query: string) =>
+    request<any[]>(teamPath(`/artifacts/search?q=${encodeURIComponent(query)}`)),
+  getStorageSummary: () =>
+    request<any>(teamPath('/artifacts/storage-summary')),
+
   // v1.3 Track 2: Presenton
   getPresentonStatus: () =>
     request<any>(teamPath('/artifacts/presenton/status')),

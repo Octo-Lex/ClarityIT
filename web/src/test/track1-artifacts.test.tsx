@@ -10,6 +10,19 @@ vi.mock('../api/client', () => ({
     createArtifact: vi.fn(),
     updateArtifact: vi.fn(),
     archiveArtifact: vi.fn(),
+    getRecentArtifacts: vi.fn().mockResolvedValue([]),
+    searchArtifacts: vi.fn().mockResolvedValue([]),
+    getStorageSummary: vi.fn().mockResolvedValue(null),
+    getPresentonStatus: vi.fn(),
+    generatePresentation: vi.fn(),
+    listMeetingSummaries: vi.fn(),
+    getMeetingSummary: vi.fn(),
+    createMeetingSummary: vi.fn(),
+    updateMeetingSummary: vi.fn(),
+    generateStatusReport: vi.fn(),
+    listTemplates: vi.fn(),
+    createTemplate: vi.fn(),
+    instantiateTemplate: vi.fn(),
   },
   ApiError: class extends Error { constructor(public status: number, msg: string) { super(msg); } },
 }));
@@ -85,14 +98,15 @@ describe('ArtifactsPage — Internal Document/Report Workspace', () => {
     expect(api.listArtifacts).toHaveBeenCalledWith({ type: 'report', q: undefined });
   });
 
-  // Test 5: search input calls list/filter path
+  // Test 5: search input calls search API path
   it('calls listArtifacts on search', async () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
+    vi.mocked(api.searchArtifacts).mockResolvedValue(mockArtifacts);
     renderPage();
-    await waitFor(() => expect(screen.getByTestId('artifacts-search')).toBeInTheDocument());
-    fireEvent.change(screen.getByTestId('artifacts-search'), { target: { value: 'weekly' } });
+    await waitFor(() => expect(screen.getByTestId('artifacts-search-input')).toBeInTheDocument());
+    fireEvent.change(screen.getByTestId('artifacts-search-input'), { target: { value: 'weekly' } });
     fireEvent.click(screen.getByTestId('artifacts-search-btn'));
-    expect(api.listArtifacts).toHaveBeenCalledWith(expect.objectContaining({ q: 'weekly' }));
+    await waitFor(() => expect(api.searchArtifacts).toHaveBeenCalledWith('weekly'));
   });
 
   // Test 6: create artifact form renders
