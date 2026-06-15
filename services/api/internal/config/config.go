@@ -67,6 +67,14 @@ type Config struct {
 	// Email
 	EmailMode string // "dev", "smtp", "disabled"
 
+	// Presenton (optional)
+	PresentonEnabled           bool
+	PresentonURL               string
+	PresentonAdminUser         string
+	PresentonAdminPass         string
+	PresentonGenerationTimeout time.Duration
+	PresentonMaxFileBytes      int64
+
 	// Build info (set via ldflags)
 	Version   string
 	GitCommit string
@@ -116,6 +124,13 @@ func Load() (*Config, error) {
 		WebAuthnRPID:          getEnv("WEBAUTHN_RP_ID", ""),
 		WebAuthnRPOrigin:      getEnv("WEBAUTHN_RP_ORIGIN", ""),
 		WebAuthnRPDisplayName: getEnv("WEBAUTHN_RP_DISPLAY_NAME", "ClarityIT"),
+
+		PresentonEnabled:           getEnvBool("PRESENTON_ENABLED", false),
+		PresentonURL:               getEnv("PRESENTON_URL", "http://presenton:80"),
+		PresentonAdminUser:         getEnv("PRESENTON_ADMIN_USER", "clarityit"),
+		PresentonAdminPass:         getEnv("PRESENTON_ADMIN_PASS", ""),
+		PresentonGenerationTimeout: time.Duration(getEnvIntClamped("PRESENTON_GENERATION_TIMEOUT_SECONDS", 120, 10, 600)) * time.Second,
+		PresentonMaxFileBytes:      int64(getEnvIntClamped("PRESENTON_MAX_FILE_BYTES", 52428800, 1048576, 104857600)), // 1MB-100MB, default 50MB
 
 		Version:   getEnv("CLARITY_VERSION", "dev"),
 		GitCommit: getEnv("CLARITY_GIT_COMMIT", ""),
@@ -259,6 +274,19 @@ func (c *Config) Validate() error {
 			if !strings.HasPrefix(c.WebAuthnRPOrigin, "http://") && !strings.HasPrefix(c.WebAuthnRPOrigin, "https://") {
 				errs = append(errs, "WEBAUTHN_RP_ORIGIN must start with http:// or https://")
 			}
+		}
+	}
+
+	// Presenton validation (optional, but if enabled must have valid config)
+	if c.PresentonEnabled {
+		if c.PresentonAdminPass == "" {
+			errs = append(errs, "PRESENTON_ADMIN_PASS is required when PRESENTON_ENABLED=true")
+		}
+		if c.PresentonAdminPass == "changeme" {
+			errs = append(errs, "PRESENTON_ADMIN_PASS must not be the default 'changeme'")
+		}
+		if c.PresentonURL == "" || (!strings.HasPrefix(c.PresentonURL, "http://") && !strings.HasPrefix(c.PresentonURL, "https://")) {
+			errs = append(errs, "PRESENTON_URL must be a valid http:// or https:// URL")
 		}
 	}
 

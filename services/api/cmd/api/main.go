@@ -21,6 +21,7 @@ import (
 	"github.com/clarityit/api/internal/domain"
 	"github.com/clarityit/api/internal/iam"
 	"github.com/clarityit/api/internal/middleware"
+	"github.com/clarityit/api/internal/presenton"
 	"github.com/clarityit/api/internal/health"
 	"github.com/clarityit/api/internal/mfa"
 	"github.com/clarityit/api/internal/integration"
@@ -462,6 +463,17 @@ func main() {
 
 		// v1.3 Track 1: Artifacts
 		artifactHandler := artifact.NewHandler(pool)
+		// v1.3 Track 2: Presenton handler
+		presentonClient := presenton.NewClient(cfg.PresentonURL, cfg.PresentonAdminUser, cfg.PresentonAdminPass, cfg.PresentonGenerationTimeout)
+		presentonCfg := presenton.Config{
+			Enabled:      cfg.PresentonEnabled,
+			URL:          cfg.PresentonURL,
+			AdminUser:    cfg.PresentonAdminUser,
+			AdminPass:    cfg.PresentonAdminPass,
+			Timeout:      cfg.PresentonGenerationTimeout,
+			MaxFileBytes: cfg.PresentonMaxFileBytes,
+		}
+		presentonHandler := presenton.NewHandler(pool, presentonClient, nil, cfg.MinioBucket, presentonCfg)
 		r.Route("/artifacts", func(r chi.Router) {
 			r.With(middleware.RequirePermission(pool, "artifacts.create")).
 				Post("/", artifactHandler.Create)
@@ -473,6 +485,12 @@ func main() {
 				Patch("/{artifactId}", artifactHandler.Patch)
 			r.With(middleware.RequirePermission(pool, "artifacts.delete")).
 				Delete("/{artifactId}", artifactHandler.Delete)
+
+			// v1.3 Track 2: Presenton
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/presenton/status", presentonHandler.Status)
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/generate-presentation", presentonHandler.Generate)
 		})
 	})
 

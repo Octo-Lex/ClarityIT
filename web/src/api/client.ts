@@ -483,4 +483,10 @@ export const api = {
     mutation<any>('PATCH', teamPath(`/artifacts/${artifactId}`), data),
   archiveArtifact: (artifactId: string) =>
     mutation<any>('DELETE', teamPath(`/artifacts/${artifactId}`), {}),
+
+  // v1.3 Track 2: Presenton
+  getPresentonStatus: () =>
+    request<any>(teamPath('/artifacts/presenton/status')),
+  generatePresentation: (data: { title: string; content: string; num_slides: number; template?: string; tone?: string; language?: string; export_as: string; instructions?: string }) =>
+    mutation<any>('POST', teamPath('/artifacts/generate-presentation'), data),
 };

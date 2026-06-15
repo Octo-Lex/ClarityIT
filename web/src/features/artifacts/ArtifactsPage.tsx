@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api, ApiError } from '../../api/client';
 import ArtifactEditor from './ArtifactEditor';
+import PresentationModal from './PresentationModal';
 
 const ARTIFACT_TYPES = [
   { value: '', label: 'All Types' },
@@ -36,6 +37,7 @@ export default function ArtifactsPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [showPresentation, setShowPresentation] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchArtifacts = () => {
@@ -67,13 +69,22 @@ export default function ArtifactsPage() {
     <div className="space-y-4" data-testid="artifacts-page">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Artifacts</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-          data-testid="artifacts-create-btn"
-        >
-          + New Artifact
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowPresentation(true)}
+            className="px-3 py-1.5 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+            data-testid="artifacts-generate-presentation-btn"
+          >
+            ⮤ Generate Presentation
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+            data-testid="artifacts-create-btn"
+          >
+            + New Artifact
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -154,6 +165,14 @@ export default function ArtifactsPage() {
         <ArtifactEditor
           mode="create"
           onClose={() => { setShowCreate(false); fetchArtifacts(); }}
+        />
+      )}
+
+      {/* Presentation modal */}
+      {showPresentation && (
+        <PresentationModal
+          onClose={() => setShowPresentation(false)}
+          onGenerated={() => fetchArtifacts()}
         />
       )}
 
