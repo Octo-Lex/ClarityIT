@@ -465,4 +465,22 @@ export const api = {
   getEvidence: (recommendationId: string) =>
     request<any>(teamPath(`/recommendations/${recommendationId}/evidence`)),
   getMetrics: () => request<any>('/api/admin/metrics'),
+
+  // v1.3 Track 1: Artifacts
+  listArtifacts: (params?: { type?: string; status?: string; q?: string; include_archived?: boolean }) => {
+    let qs = '';
+    if (params?.type) qs += `?type=${params.type}`;
+    if (params?.status) qs += `${qs ? '&' : '?'}status=${params.status}`;
+    if (params?.q) qs += `${qs ? '&' : '?'}q=${encodeURIComponent(params.q)}`;
+    if (params?.include_archived) qs += `${qs ? '&' : '?'}include_archived=true`;
+    return request<any[]>(teamPath(`/artifacts${qs}`));
+  },
+  getArtifact: (artifactId: string) =>
+    request<any>(teamPath(`/artifacts/${artifactId}`)),
+  createArtifact: (data: { artifact_type: string; title: string; content_markdown?: string; description?: string; source_data?: any }) =>
+    mutation<any>('POST', teamPath('/artifacts'), data),
+  updateArtifact: (artifactId: string, data: any) =>
+    mutation<any>('PATCH', teamPath(`/artifacts/${artifactId}`), data),
+  archiveArtifact: (artifactId: string) =>
+    mutation<any>('DELETE', teamPath(`/artifacts/${artifactId}`), {}),
 };

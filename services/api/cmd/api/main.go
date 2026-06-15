@@ -14,6 +14,7 @@ import (
 	"github.com/clarityit/api/internal/admin"
 	"github.com/clarityit/api/internal/agent"
 	"github.com/clarityit/api/internal/approval"
+	"github.com/clarityit/api/internal/artifact"
 	"github.com/clarityit/api/internal/config"
 	"github.com/clarityit/api/internal/contextx"
 	"github.com/clarityit/api/internal/database"
@@ -457,6 +458,21 @@ func main() {
 				Post("/relations/{relationId}/confirm", qualityHandler.ConfirmRelation)
 			r.With(middleware.RequirePermission(pool, "assets.read")).
 				Post("/relations/{relationId}/dismiss", qualityHandler.DismissRelation)
+		})
+
+		// v1.3 Track 1: Artifacts
+		artifactHandler := artifact.NewHandler(pool)
+		r.Route("/artifacts", func(r chi.Router) {
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/", artifactHandler.Create)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/", artifactHandler.List)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/{artifactId}", artifactHandler.Get)
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Patch("/{artifactId}", artifactHandler.Patch)
+			r.With(middleware.RequirePermission(pool, "artifacts.delete")).
+				Delete("/{artifactId}", artifactHandler.Delete)
 		})
 	})
 
