@@ -53,27 +53,36 @@ INSERT INTO permissions (name, description, resource, action, risk_level) VALUES
     ('artifacts.delete', 'Archive/delete team artifacts', 'artifacts', 'delete', 'low')
 ON CONFLICT DO NOTHING;
 
--- Assign to roles: member, manager, admin, owner get all artifact permissions
--- viewer gets read only
+-- Assign permissions per binding plan:
+-- viewer+: read
+-- member+: create, read, update
+-- manager+: create, read, update, delete
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r
 CROSS JOIN permissions p
-WHERE p.resource = 'artifacts'
+WHERE p.resource = 'artifacts' AND p.action IN ('read')
+  AND r.name IN ('viewer', 'member', 'manager', 'admin', 'owner')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r
+CROSS JOIN permissions p
+WHERE p.resource = 'artifacts' AND p.action IN ('create', 'update')
   AND r.name IN ('member', 'manager', 'admin', 'owner')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r
 CROSS JOIN permissions p
-WHERE p.resource = 'artifacts' AND p.action = 'read'
-  AND r.name = 'viewer'
+WHERE p.resource = 'artifacts' AND p.action IN ('delete')
+  AND r.name IN ('manager', 'admin', 'owner')
 ON CONFLICT DO NOTHING;
 
--- Platform roles also get artifact access
+-- Platform roles get read-only access to artifacts
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r
 CROSS JOIN permissions p
-WHERE p.resource = 'artifacts'
+WHERE p.resource = 'artifacts' AND p.action = 'read'
   AND r.name IN ('on_call_engineer', 'infrastructure_engineer', 'security_admin', 'auditor', 'automation_operator')
 ON CONFLICT DO NOTHING;
 

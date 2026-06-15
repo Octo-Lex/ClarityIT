@@ -427,3 +427,117 @@ func TestArtifact_NoOperationalSideEffects(t *testing.T) {
 		t.Errorf("asset_actions changed: %d -> %d", beforeActions, afterActions)
 	}
 }
+
+// ─── Permission Gating Tests (Closure Patch) ───
+
+// Test 19: member can create artifact
+func TestArtifact_MemberCanCreate(t *testing.T) {
+	e := setupArtifactTest(t)
+	body := `{"artifact_type":"report","title":"Member Created","content_markdown":"x"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifacts", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.memberToken)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Errorf("member should be able to create, got %d", w.Code)
+	}
+}
+
+// Test 20: member can update artifact
+func TestArtifact_MemberCanUpdate(t *testing.T) {
+	e := setupArtifactTest(t)
+	id := e.createArtifact(t, "report", "To Update", "content")
+	body := `{"title":"Updated by Member"}`
+	req := httptest.NewRequest("PATCH", fmt.Sprintf("/api/teams/%s/artifacts/%s", e.teamID, id), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.memberToken)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Errorf("member should be able to update, got %d", w.Code)
+	}
+}
+
+// Test 21: member cannot delete/archive artifact
+func TestArtifact_MemberCannotDelete(t *testing.T) {
+	e := setupArtifactTest(t)
+	id := e.createArtifact(t, "report", "To Archive", "content")
+	req := httptest.NewRequest("DELETE", fmt.Sprintf("/api/teams/%s/artifacts/%s", e.teamID, id), nil)
+	req.Header.Set("Authorization", "Bearer "+e.memberToken)
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 403 {
+		t.Errorf("member should NOT be able to delete, expected 403, got %d", w.Code)
+	}
+}
+
+// Test 22: manager can delete/archive artifact
+func TestArtifact_ManagerCanDelete(t *testing.T) {
+	e := setupArtifactTest(t)
+	id := e.createArtifact(t, "report", "Manager Archive", "content")
+	req := httptest.NewRequest("DELETE", fmt.Sprintf("/api/teams/%s/artifacts/%s", e.teamID, id), nil)
+	req.Header.Set("Authorization", "Bearer "+e.token) // owner has manager+ equivalent
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Errorf("manager+ should be able to delete, got %d", w.Code)
+	}
+}
+
+// Test 23: viewer can read but cannot create/update/delete
+func TestArtifact_ViewerPermissions(t *testing.T) {
+	e := setupArtifactTest(t)
+
+	// Viewer can read (list)
+	// We need a viewer token — member is the closest non-viewer test user
+	// Structural: viewer has read only, confirmed by DB permission table
+	// This test verifies via DB query
+	var viewerActions []string
+	rows, _ := e.pool.Query(t.Context(), `
+		SELECT p.action FROM role_permissions rp
+		JOIN roles r ON r.id=rp.role_id
+		JOIN permissions p ON p.id=rp.permission_id
+		WHERE p.resource='artifacts' AND r.name='viewer'
+	`)
+	for rows.Next() {
+		var a string
+		rows.Scan(&a)
+		viewerActions = append(viewerActions, a)
+	}
+	rows.Close()
+
+	if len(viewerActions) != 1 || viewerActions[0] != "read" {
+		t.Errorf("viewer should have read-only artifact access, got %v", viewerActions)
+	}
+}
+
+// Test 24: member has create+read+update but NOT delete
+func TestArtifact_MemberPermissionSet(t *testing.T) {
+	e := setupArtifactTest(t)
+	var memberActions []string
+	rows, _ := e.pool.Query(t.Context(), `
+		SELECT p.action FROM role_permissions rp
+		JOIN roles r ON r.id=rp.role_id
+		JOIN permissions p ON p.id=rp.permission_id
+		WHERE p.resource='artifacts' AND r.name='member'
+		ORDER BY p.action
+	`)
+	for rows.Next() {
+		var a string
+		rows.Scan(&a)
+		memberActions = append(memberActions, a)
+	}
+	rows.Close()
+
+	expected := []string{"create", "read", "update"}
+	if len(memberActions) != len(expected) {
+		t.Errorf("member should have %v, got %v", expected, memberActions)
+		return
+	}
+	for i, a := range expected {
+		if memberActions[i] != a {
+			t.Errorf("member action[%d]: expected %s, got %s", i, a, memberActions[i])
+		}
+	}
+}
