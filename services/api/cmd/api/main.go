@@ -15,6 +15,7 @@ import (
 	"github.com/clarityit/api/internal/agent"
 	"github.com/clarityit/api/internal/approval"
 	"github.com/clarityit/api/internal/config"
+	"github.com/clarityit/api/internal/contextx"
 	"github.com/clarityit/api/internal/database"
 	"github.com/clarityit/api/internal/domain"
 	"github.com/clarityit/api/internal/iam"
@@ -445,6 +446,17 @@ func main() {
 		r.Route("/recommendations", func(r chi.Router) {
 			r.With(middleware.RequirePermission(pool, "remediations.read")).
 				Get("/{recommendationId}/evidence", evidenceHandler.GetEvidence)
+		})
+
+		// v1.2 Track 6: Context Graph Quality Controls
+		qualityHandler := contextx.NewQualityHandler(pool)
+		r.Route("/context", func(r chi.Router) {
+			r.With(middleware.RequirePermission(pool, "assets.read")).
+				Get("/quality", qualityHandler.GetQuality)
+			r.With(middleware.RequirePermission(pool, "assets.read")).
+				Post("/relations/{relationId}/confirm", qualityHandler.ConfirmRelation)
+			r.With(middleware.RequirePermission(pool, "assets.read")).
+				Post("/relations/{relationId}/dismiss", qualityHandler.DismissRelation)
 		})
 	})
 

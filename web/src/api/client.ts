@@ -423,6 +423,18 @@ export const api = {
   cancelRemediation: (id: string) =>
     mutation<any>('POST', teamPath(`/remediations/${id}/cancel`)),
 
+  // v1.2 Track 6: Context Graph Quality Controls
+  getContextQuality: (params?: { stale_days?: number; confidence_threshold?: number }) => {
+    let qs = '';
+    if (params?.stale_days) qs += `?stale_days=${params.stale_days}`;
+    if (params?.confidence_threshold) qs += `${qs ? '&' : '?'}confidence_threshold=${params.confidence_threshold}`;
+    return request<any>(teamPath(`/context/quality${qs}`));
+  },
+  confirmRelation: (relationId: string, reason: string) =>
+    mutation<any>('POST', teamPath(`/context/relations/${relationId}/confirm`), { reason }),
+  dismissRelation: (relationId: string, reason: string) =>
+    mutation<any>('POST', teamPath(`/context/relations/${relationId}/dismiss`), { reason }),
+
   // v1.2 Track 5: Post-Action Outcome Tracking
   getAssetActionOutcome: (actionId: string) =>
     request<any>(teamPath(`/asset-actions/${actionId}/outcome`)),
