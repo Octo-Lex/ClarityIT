@@ -226,3 +226,48 @@ Even denied/blocked actions produce audit + outbox records — full traceability
 5. ❌ No "act now review later" — approval before execution
 6. ❌ Python workers never mutate directly
 7. ✅ A5 disabled (hardcoded, fails before DB lookup)
+
+## 9. v1.2 Additions — Evaluation Mode and Advisory Intelligence
+
+v1.2.0 adds operational intelligence capabilities that are explicitly **non-executing**:
+
+### 9.1 Agent Recommendation Evaluation Harness (Track 7)
+
+- Evaluation runs use **controlled golden scenario fixtures only** — never live incident/action/remediation records
+- Evaluation mode is non-executing:
+  - ❌ Does not call Tool Gateway
+  - ❌ Does not call Proxmox mutation client
+  - ❌ Does not create approval_requests
+  - ❌ Does not create asset_actions
+  - ❌ Does not create remediation_proposals
+  - ❌ Does not create action_outcomes
+  - ❌ Does not mutate incidents/assets/context graph
+  - ❌ Does not emit operational execution events
+  - ❌ Does not expose chain_of_thought
+- The single event `clarity.v1.agent.evaluation.run` is evaluation-domain telemetry, not an execution event
+- Go control plane persists results — Python worker has no DB write path
+- Sensitive fields (password, secret, token, action_target, tool_parameters) are redacted
+- Results are deterministic for fixture scenarios
+
+### 9.2 Advisory-Only Intelligence Features
+
+The following v1.2 features do NOT expand autonomous execution authority:
+
+| Feature | Track | What it does | What it does NOT do |
+|---------|-------|-------------|-------------------|
+| Risk scoring | 4 | Computes advisory 0–100 score | Does not bypass approval/MFA/policy/mutation-window |
+| Policy simulation | 3 | Computes what-if policy outcomes | Does not mutate live policies or create approvals |
+| Pattern detection | 2 | Surfaces incident patterns from DB | Does not auto-remediate or auto-link |
+| Outcome tracking | 5 | Captures post-action results | Does not trigger retries or follow-up execution |
+| Context quality | 6 | Surfaces stale/weak/conflicting relations | Does not delete or rewrite graph data |
+| Evidence packs | 1 | Persists recommendation evidence | Does not change remediation execution semantics |
+
+### 9.3 v1.2 Constraint Summary
+
+1. ❌ No A5 (unchanged)
+2. ❌ No new mutation classes (unchanged)
+3. ❌ No autonomous remediation expansion (unchanged)
+4. ❌ No execution without MFA + approval + policy + Tool Gateway (unchanged)
+5. ✅ Advisory intelligence features are non-executing
+6. ✅ Evaluation mode is non-executing
+7. ✅ All new endpoints are read-only or advisory
