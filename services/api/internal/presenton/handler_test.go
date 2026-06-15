@@ -567,5 +567,158 @@ func TestPresenton_ConfigRejectsChangemePassword(t *testing.T) {
 	t.Error("should reject changeme password when enabled")
 }
 
+// ─── Storage Wiring Tests (Closure Patch) ───
+
+// Test 21: S3 PutObject is called during generation
+func TestPresenton_S3PutObjectCalled(t *testing.T) {
+	e := setupPresentonTest(t, true)
+	e.injectSuccessMock("pptx")
+
+	body := `{"title":"Presenton Test S3 Called","content":"hello","num_slides":3,"export_as":"pptx"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifacts/generate-presentation", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+
+	if w.Code != 201 {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if !e.s3.uploaded {
+		t.Error("S3 PutObject was not called")
+	}
+	if len(e.s3.lastData) == 0 {
+		t.Error("S3 PutObject was called with empty data")
+	}
+}
+
+// Test 22: upload failure fails safely (no artifact created)
+func TestPresenton_UploadFailureFailsSafely(t *testing.T) {
+	e := setupPresentonTest(t, true)
+	e.injectSuccessMock("pptx")
+
+	// Inject S3 mock that fails
+	e.s3.uploadErr = fmt.Errorf("minio connection refused")
+
+	body := `{"title":"Presenton Test Upload Fail","content":"hello","num_slides":3,"export_as":"pptx"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifacts/generate-presentation", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+
+	if w.Code != 500 {
+		t.Errorf("expected 500 on upload failure, got %d", w.Code)
+	}
+}
+
+// Test 23: upload failure does not create downloadable artifact
+func TestPresenton_UploadFailureNoOrphanArtifact(t *testing.T) {
+	e := setupPresentonTest(t, true)
+	e.injectSuccessMock("pptx")
+	e.s3.uploadErr = fmt.Errorf("minio connection refused")
+
+	var beforeArtifacts int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM artifacts WHERE title='Presenton Test Orphan'").Scan(&beforeArtifacts)
+
+	body := `{"title":"Presenton Test Orphan","content":"hello","num_slides":3,"export_as":"pptx"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifacts/generate-presentation", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+
+	if w.Code == 201 {
+		t.Error("should not return 201 on upload failure")
+	}
+
+	var afterArtifacts int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM artifacts WHERE title='Presenton Test Orphan'").Scan(&afterArtifacts)
+
+	if afterArtifacts != beforeArtifacts {
+		t.Errorf("artifact was created despite upload failure: %d -> %d", beforeArtifacts, afterArtifacts)
+	}
+}
+
+// Test 24: nil S3 client returns 503
+func TestPresenton_NilS3Client503(t *testing.T) {
+	e := setupPresentonTest(t, true)
+	e.injectSuccessMock("pptx")
+
+	// Create handler with nil S3
+	nilHandler := presenton.NewHandler(e.pool, e.mock, nil, "clarityit", presenton.Config{
+		Enabled:      true,
+		URL:          "http://mock",
+		AdminUser:    "u",
+		AdminPass:    "p",
+		Timeout:      5 * time.Second,
+		MaxFileBytes: 52428800,
+	})
+
+	// Re-mount routes with nil-s3 handler
+	r := chi.NewRouter()
+	r.Use(middleware.ResolveAuth("test-secret"))
+	iamH := iam.NewHandler(e.pool, &config.Config{JWTSecret: "test-secret", HMACKey: "test-hmac-key"})
+	r.Post("/api/auth/login", iamH.Login)
+	r.Route("/api/teams/{teamId}", func(r chi.Router) {
+		r.Use(middleware.RequireAuth)
+		r.With(middleware.RequirePermission(e.pool, "artifacts.create")).
+			Post("/artifacts/generate-presentation", nilHandler.Generate)
+	})
+
+	body := `{"title":"Presenton Test Nil S3","content":"hello","num_slides":3,"export_as":"pptx"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifacts/generate-presentation", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != 503 {
+		t.Errorf("expected 503 for nil S3 client, got %d", w.Code)
+	}
+}
+
+// Test 25: upload success creates storage_object + artifact with correct linkage
+func TestPresenton_StorageObjectLinked(t *testing.T) {
+	e := setupPresentonTest(t, true)
+	e.injectSuccessMock("pptx")
+
+	body := `{"title":"Presenton Test Linked","content":"link test","num_slides":3,"export_as":"pptx"}`
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/artifacts/generate-presentation", e.teamID), strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	artID := resp["artifact_id"].(string)
+
+	// Verify storage_object exists and is linked
+	var storageObjID, bucket, objectKey string
+	var sizeBytes int
+	err := e.pool.QueryRow(t.Context(), `
+		SELECT s.id::text, s.bucket, s.object_key, s.size_bytes
+		FROM artifacts a
+		JOIN storage_objects s ON a.storage_object_id = s.id
+		WHERE a.id::text = $1
+	`, artID).Scan(&storageObjID, &bucket, &objectKey, &sizeBytes)
+	if err != nil {
+		t.Fatalf("failed to find linked storage_object: %v", err)
+	}
+	if bucket != "clarityit" {
+		t.Errorf("expected bucket 'clarityit', got '%s'", bucket)
+	}
+	if sizeBytes != len(e.s3.lastData) {
+		t.Errorf("size mismatch: DB=%d, actual=%d", sizeBytes, len(e.s3.lastData))
+	}
+	if !strings.Contains(objectKey, ".pptx") {
+		t.Errorf("expected .pptx in object key, got %s", objectKey)
+	}
+}
+
 // Compile-time assertion that mockS3 satisfies storage.S3Client
 var _ storage.S3Client = (*mockS3)(nil)

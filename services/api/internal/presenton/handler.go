@@ -209,13 +209,15 @@ func (h *Handler) Generate(w http.ResponseWriter, r *http.Request) {
 	hash := sha256.Sum256(fileBytes)
 	sha := hex.EncodeToString(hash[:])
 
-	// Store file in MinIO
+	// Store file in MinIO — must succeed before creating artifact
+	if h.s3 == nil {
+		writeErr(w, 503, "Storage service unavailable")
+		return
+	}
 	storageKey := fmt.Sprintf("teams/%s/artifacts/%s.%s", teamIDStr, uuid.New().String(), req.ExportAs)
-	if h.s3 != nil {
-		if err := h.s3.PutObject(ctx, h.bucket, storageKey, fileBytes, contentType); err != nil {
-			writeErr(w, 500, "Failed to store presentation file")
-			return
-		}
+	if err := h.s3.PutObject(ctx, h.bucket, storageKey, fileBytes, contentType); err != nil {
+		writeErr(w, 500, "Failed to store presentation file")
+		return
 	}
 
 	// Create storage_object + artifact in a transaction

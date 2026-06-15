@@ -81,10 +81,24 @@ func main() {
 		log.Printf("NATS not available: %v", err)
 	}
 
-	// MinIO health checker
+	// MinIO health checker + real S3 client
 	var minioChecker health.S3BucketChecker
+	var s3Client storage.S3Client // nil unless MinIO configured
 	if cfg.MinioEndpoint != "" {
 		minioChecker = health.NewMinIOHealthChecker(cfg.MinioEndpoint, cfg.MinioUseSSL)
+		// Create real MinIO S3 client
+		mc, s3err := storage.NewMinIOClient(cfg.MinioEndpoint, cfg.MinioAccessKey, cfg.MinioSecretKey, cfg.MinioUseSSL)
+		if s3err != nil {
+			config.Warn("failed to create MinIO S3 client", map[string]any{"error": s3err.Error()})
+		} else {
+			// Ensure bucket exists
+			if berr := mc.EnsureBucket(ctx, cfg.MinioBucket); berr != nil {
+				config.Warn("failed to ensure MinIO bucket", map[string]any{"bucket": cfg.MinioBucket, "error": berr.Error()})
+			} else {
+				config.Info("MinIO S3 client connected", map[string]any{"endpoint": cfg.MinioEndpoint, "bucket": cfg.MinioBucket})
+				s3Client = mc
+			}
+		}
 	}
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		log.Printf("Redis not available, WebSocket fanout disabled: %v", err)
@@ -410,7 +424,7 @@ func main() {
 		})
 
 		// ─── Phase 8: Object Attachments ───
-		storageHandler := storage.NewHandler(pool, nil, cfg.MinioBucket) // S3 client nil until MinIO wired
+		storageHandler := storage.NewHandler(pool, s3Client, cfg.MinioBucket)
 		r.Route("/objects/{objectId}/attachments", func(r chi.Router) {
 			r.With(middleware.RequirePermission(pool, "objects.attachments.create")).Post("/", storageHandler.Upload)
 			r.With(middleware.RequirePermission(pool, "objects.attachments.read")).Get("/", storageHandler.List)
@@ -473,7 +487,7 @@ func main() {
 			Timeout:      cfg.PresentonGenerationTimeout,
 			MaxFileBytes: cfg.PresentonMaxFileBytes,
 		}
-		presentonHandler := presenton.NewHandler(pool, presentonClient, nil, cfg.MinioBucket, presentonCfg)
+		presentonHandler := presenton.NewHandler(pool, presentonClient, s3Client, cfg.MinioBucket, presentonCfg)
 		r.Route("/artifacts", func(r chi.Router) {
 			r.With(middleware.RequirePermission(pool, "artifacts.create")).
 				Post("/", artifactHandler.Create)
