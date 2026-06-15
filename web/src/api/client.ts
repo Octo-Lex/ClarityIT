@@ -453,6 +453,14 @@ export const api = {
   simulateApprovalPolicy: (data: any) =>
     mutation<any>('POST', `/api/admin/approval-policy/simulate`, data),
 
+  // v1.2 Track 7: Agent Recommendation Evaluation Harness
+  runEvaluation: () =>
+    mutation<any>('POST', `/api/admin/agent-evaluation/run`, {}),
+  getEvaluationResults: () =>
+    request<any>(`/api/admin/agent-evaluation/results`),
+  getEvaluationRun: (runId: string) =>
+    request<any>(`/api/admin/agent-evaluation/runs/${runId}`),
+
   // ─── Recommendation Evidence (v1.2 Track 1) ───
   getEvidence: (recommendationId: string) =>
     request<any>(teamPath(`/recommendations/${recommendationId}/evidence`)),

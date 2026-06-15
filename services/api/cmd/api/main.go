@@ -502,6 +502,14 @@ func main() {
 		// v1.2 Track 3: Approval Policy Simulation
 		simHandler := approval.NewSimulationHandler(pool)
 		r.Post("/approval-policy/simulate", simHandler.Simulate)
+
+		// v1.2 Track 7: Agent Recommendation Evaluation Harness
+		evalHandler := agent.NewEvalHandler(pool)
+		r.Route("/agent-evaluation", func(r chi.Router) {
+			r.Post("/run", evalHandler.RunEvaluation)
+			r.Get("/results", evalHandler.GetLatestResults)
+			r.Get("/runs/{runId}", evalHandler.GetRunDetail)
+		})
 	})
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", cfg.Port), Handler: r}
