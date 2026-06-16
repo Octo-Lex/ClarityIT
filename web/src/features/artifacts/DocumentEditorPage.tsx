@@ -5,6 +5,7 @@ import DocumentBlockEditor, { Block, genId } from './DocumentBlockEditor';
 import DocumentOutline from './DocumentOutline';
 import DocumentToolbar, { BlockType } from './DocumentToolbar';
 import DocumentSaveStatus from './DocumentSaveStatus';
+import AgentAssistPanel from './AgentAssistPanel';
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   general_document: 'General Document',
@@ -35,6 +36,9 @@ export default function DocumentEditorPage() {
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [showAssist, setShowAssist] = useState(false);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectedBlockText, setSelectedBlockText] = useState('');
 
   // ─── Load document ───
   useEffect(() => {
@@ -75,6 +79,35 @@ export default function DocumentEditorPage() {
   const updateBlock = (index: number, updated: Block) => {
     setBlocks(prev => { const next = [...prev]; next[index] = updated; return next; });
     markDirty();
+  };
+
+  // ─── Assist handlers ───
+  const handleInsertBelow = (blockIndex: number, suggestedBlocks: any[]) => {
+    const newBlocks = suggestedBlocks.map(b => ({ ...b, id: genId() }));
+    setBlocks(prev => {
+      const next = [...prev];
+      next.splice(blockIndex + 1, 0, ...newBlocks);
+      return next;
+    });
+    markDirty();
+  };
+
+  const handleReplaceBlock = (blockIndex: number, suggestedBlocks: any[]) => {
+    const newBlocks = suggestedBlocks.map(b => ({ ...b, id: genId() }));
+    setBlocks(prev => {
+      const next = [...prev];
+      next.splice(blockIndex, 1, ...newBlocks);
+      return next;
+    });
+    markDirty();
+  };
+
+  const handleBlockFocus = (index: number) => {
+    const blk = blocks[index];
+    if (blk) {
+      setSelectedBlockId(blk.id);
+      setSelectedBlockText(blk.text || '');
+    }
   };
 
   const deleteBlock = (index: number) => {
@@ -170,6 +203,11 @@ export default function DocumentEditorPage() {
           {DOCUMENT_TYPE_LABELS[docType] || docType}
         </span>
         <DocumentSaveStatus status={saveState} lastSaved={lastSaved} />
+        <button
+          data-testid="toggle-assist"
+          onClick={() => setShowAssist(!showAssist)}
+          className={`px-2 py-0.5 text-xs rounded ${showAssist ? 'bg-[var(--primary)] text-white' : 'bg-[var(--card)] border border-[var(--border)]'}`}
+        >🤖 Assist</button>
       </div>
 
       {/* Toolbar */}
@@ -232,6 +270,18 @@ export default function DocumentEditorPage() {
           )}
         </div>
       </div>
+
+      {/* Agent Assist Panel */}
+      {!previewMode && showAssist && (
+        <AgentAssistPanel
+          artifactId={artifactId || ''}
+          selectedBlockId={selectedBlockId}
+          selectedBlockText={selectedBlockText}
+          documentType={docType}
+          onInsertBelow={handleInsertBelow}
+          onReplaceBlock={handleReplaceBlock}
+        />
+      )}
     </div>
   );
 }

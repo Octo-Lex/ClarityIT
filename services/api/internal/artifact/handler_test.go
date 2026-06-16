@@ -78,6 +78,8 @@ func setupArtifactTest(t *testing.T) *artifactTestEnv {
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/documents", artH.ListDocuments)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/documents/{artifactId}", artH.GetDocument)
 		r.With(middleware.RequirePermission(pool, "artifacts.update")).Patch("/artifacts/documents/{artifactId}", artH.PatchDocument)
+		// v1.4 Track 3: Document Assist
+		r.With(middleware.RequirePermission(pool, "artifacts.update")).Post("/artifacts/documents/{artifactId}/document-assist", artH.DocumentAssist)
 	})
 
 	token := loginArtifact(t, r, "owner@test.dev", "password12")

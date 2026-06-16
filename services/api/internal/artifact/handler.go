@@ -87,6 +87,7 @@ type Handler struct {
 	pool   *pgxpool.Pool
 	s3     storage.S3Client
 	bucket string
+	workerAssist *WorkerAssistConfig
 }
 
 func NewHandler(pool *pgxpool.Pool) *Handler {

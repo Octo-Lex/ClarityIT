@@ -481,6 +481,14 @@ func main() {
 		if s3Client != nil {
 			artifactHandler.SetStorage(s3Client, cfg.MinioBucket)
 		}
+		// v1.4 Track 3: Wire worker assist for document-assist
+		workerAssistURL := os.Getenv("WORKER_ASSIST_URL")
+		if workerAssistURL != "" {
+			artifactHandler.SetWorkerAssist(artifact.WorkerAssistConfig{
+				URL:   workerAssistURL,
+				Token: os.Getenv("WORKER_TOKEN"),
+			})
+		}
 		// v1.3 Track 2: Presenton handler
 		presentonClient := presenton.NewClient(cfg.PresentonURL, cfg.PresentonAdminUser, cfg.PresentonAdminPass, cfg.PresentonGenerationTimeout)
 		presentonCfg := presenton.Config{
@@ -557,6 +565,9 @@ func main() {
 				Get("/documents/{artifactId}", artifactHandler.GetDocument)
 			r.With(middleware.RequirePermission(pool, "artifacts.update")).
 				Patch("/documents/{artifactId}", artifactHandler.PatchDocument)
+			// v1.4 Track 3: Agent Assist
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Post("/documents/{artifactId}/document-assist", artifactHandler.DocumentAssist)
 		})
 	})
 

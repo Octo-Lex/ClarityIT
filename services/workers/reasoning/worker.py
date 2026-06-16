@@ -28,6 +28,12 @@ from model_gateway import (
     IntentionShape,
     validate_model_output,
 )
+from document_assist import (
+    StubDocumentAssistGateway,
+    validate_assist_mode,
+    validate_assist_response,
+    ASSIST_MODES,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -173,10 +179,153 @@ class ReasoningWorker:
             log.warning("Failed to create intention for run %s", run_id[:8])
 
 
+# ─── Document Assist HTTP Server ───
+
+class DocumentAssistServer:
+    """
+    Lightweight HTTP server for document assist requests.
+
+    - Internal network only (port 9100, not exposed)
+    - Requires WORKER_TOKEN in Authorization header
+    - No DB/MinIO/NATS/Redis access
+    - No logging of raw content
+    """
+
+    MAX_BODY_SIZE = 100_000  # 100KB max request body
+
+    def __init__(self, port: int, token: str, gateway: StubDocumentAssistGateway):
+        self._port = port
+        self._token = token
+        self._gateway = gateway
+        self._server: ThreadingHTTPServer | None = None
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        handler = self._make_handler()
+        self._server = ThreadingHTTPServer(("0.0.0.0", self._port), handler)
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+        log.info("Document assist server listening on port %d", self._port)
+
+    def stop(self) -> None:
+        if self._server:
+            self._server.shutdown()
+            self._server.server_close()
+            log.info("Document assist server stopped")
+
+    def _make_handler(self):
+        token = self._token
+        gateway = self._gateway
+        max_body = self.MAX_BODY_SIZE
+
+        class Handler(BaseHTTPRequestHandler):
+            def _check_auth(self) -> bool:
+                auth = self.headers.get("Authorization", "")
+                if not auth.startswith("Bearer "):
+                    return False
+                return auth[7:] == token
+
+            def _send_json(self, status: int, body: dict) -> None:
+                data = json.dumps(body).encode()
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_POST(self) -> None:
+                if self.path != "/document-assist":
+                    self._send_json(404, {"error": "Not found"})
+                    return
+
+                if not self._check_auth():
+                    self._send_json(401, {"error": "Unauthorized"})
+                    return
+
+                # Check body size
+                content_length = int(self.headers.get("Content-Length", 0))
+                if content_length > max_body:
+                    self._send_json(413, {"error": "Request body too large"})
+                    return
+
+                try:
+                    raw = self.rfile.read(content_length)
+                    payload = json.loads(raw)
+                except (json.JSONDecodeError, Exception):
+                    self._send_json(400, {"error": "Invalid JSON"})
+                    return
+
+                # Validate required fields
+                mode = payload.get("mode", "")
+                mode_errors = validate_assist_mode(mode)
+                if mode_errors:
+                    self._send_json(400, {"error": mode_errors[0]})
+                    return
+
+                selected_text = payload.get("selected_text", "")
+                instruction = payload.get("instruction", "")
+                document_type = payload.get("document_type", "general_document")
+                max_words = payload.get("max_words", 300)
+
+                # Bounds validation
+                if len(selected_text) > 20_000:
+                    self._send_json(400, {"error": "selected_text exceeds 20000 chars"})
+                    return
+                if len(instruction) > 2_000:
+                    self._send_json(400, {"error": "instruction exceeds 2000 chars"})
+                    return
+                if not (20 <= max_words <= 2_000):
+                    self._send_json(400, {"error": "max_words must be 20-2000"})
+                    return
+
+                # Generate suggestions
+                try:
+                    result = gateway.generate_assist(
+                        mode=mode,
+                        selected_text=selected_text,
+                        instruction=instruction,
+                        document_type=document_type,
+                        max_words=max_words,
+                    )
+                except Exception:
+                    # Do NOT log raw content
+                    log.error("Document assist gateway error for mode=%s", mode)
+                    self._send_json(500, {"error": "Generation failed"})
+                    return
+
+                # Validate no forbidden fields
+                forbidden = validate_assist_response(result)
+                if forbidden:
+                    self._send_json(500, {"error": "Invalid response"})
+                    return
+
+                # Do NOT log suggested text or raw content
+                log.info("Document assist completed: mode=%s", mode)
+                self._send_json(200, result)
+
+            def do_GET(self) -> None:
+                if self.path == "/health":
+                    self._send_json(200, {"status": "ok"})
+                else:
+                    self._send_json(404, {"error": "Not found"})
+
+            def log_message(self, format: str, *args: Any) -> None:
+                # Suppress default access logs to prevent content leakage
+                pass
+
+        return Handler
+
+
+# ─── Imports for HTTP server ───
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+
 def main() -> None:
     base_url = os.environ.get("API_BASE_URL", "http://clarityit-api:8765")
     token = os.environ.get("WORKER_TOKEN", "")
     poll_interval = float(os.environ.get("POLL_INTERVAL", "5"))
+    assist_port = int(os.environ.get("ASSIST_PORT", "9100"))
 
     if not token:
         log.error("WORKER_TOKEN environment variable is required")
@@ -192,10 +341,16 @@ def main() -> None:
     gateway = StubModelGateway()
     worker = ReasoningWorker(api, gateway, poll_interval)
 
+    # Start document assist HTTP server in background thread
+    assist_gateway = StubDocumentAssistGateway()
+    assist_server = DocumentAssistServer(assist_port, token, assist_gateway)
+    assist_server.start()
+
     # Graceful shutdown
     def handle_signal(signum: int, frame: Any) -> None:
         log.info("Received signal %d, shutting down", signum)
         worker.stop()
+        assist_server.stop()
 
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)

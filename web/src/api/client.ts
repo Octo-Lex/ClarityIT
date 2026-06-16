@@ -541,7 +541,15 @@ export const api = {
   getDocument: (artifactId: string) =>
     request<any>(teamPath(`/artifacts/documents/${artifactId}`)),
   updateDocument: (artifactId: string, data: { title?: string; description?: string; document_type?: string; document_json?: any }) =>
-    mutation<any>('PATCH', teamPath(`/artifacts/documents/${artifactId}`), data), 
+    mutation<any>('PATCH', teamPath(`/artifacts/documents/${artifactId}`), data),
+
+  // v1.4 Track 3: Document Agent Assist
+  documentAssist: (artifactId: string, data: { mode: string; block_id?: string; selected_text?: string; instruction?: string; document_type?: string; max_words?: number }) =>
+    request<any>(teamPath(`/artifacts/documents/${artifactId}/document-assist`), {
+      method: 'POST',
+      headers: { 'Idempotency-Key': uuid() },
+      body: JSON.stringify(data),
+    }), 
 
   // v1.3 Track 2: Presenton
   getPresentonStatus: () =>
