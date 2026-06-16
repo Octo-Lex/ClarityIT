@@ -94,7 +94,7 @@ func (h *Handler) ListTemplates(w http.ResponseWriter, r *http.Request) {
 	var out []map[string]any
 	for rows.Next() {
 		var id, templateType, name, createdAt string
-		var description string
+		var description *string
 		var content *string
 		var teamIDVal, createdBy *string
 		var isSystem bool
@@ -117,17 +117,19 @@ func (h *Handler) ListTemplates(w http.ResponseWriter, r *http.Request) {
 			"team_id":          teamIDVal,
 			"template_type":    templateType,
 			"name":             name,
-			"description":      description,
+			"description":      "",
 			"metadata":         meta,
 			"is_system":        isSystem,
 			"created_by":       createdBy,
-			"created_at":       createdAt,
 			"template_format":  templateFormat,
 		}
 		if content != nil {
 			entry["content_markdown"] = *content
 		} else {
 			entry["content_markdown"] = ""
+		}
+		if description != nil {
+			entry["description"] = *description
 		}
 		if docJSON != nil {
 			var docData any

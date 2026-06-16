@@ -40,6 +40,20 @@ ALTER TABLE artifact_templates
     template_format != 'document_json' OR jsonb_typeof(document_json) = 'object'
   );
 
+-- schema_version is constrained by template_format:
+--   markdown templates must have NULL schema_version
+--   document_json templates must have schema_version = 1
+-- Note: IS NOT NULL is required to avoid SQL three-valued logic NULL trap
+--   (NULL = 1 → NULL, TRUE AND NULL → NULL, FALSE OR NULL → NULL which passes CHECK)
+ALTER TABLE artifact_templates
+  DROP CONSTRAINT IF EXISTS atpl_schema_version_by_format;
+ALTER TABLE artifact_templates
+  ADD CONSTRAINT atpl_schema_version_by_format CHECK (
+    (template_format = 'markdown' AND schema_version IS NULL)
+    OR
+    (template_format = 'document_json' AND schema_version IS NOT NULL AND schema_version = 1)
+  );
+
 -- ─── Seed 7 System Document Templates ───
 -- All use template_type='document', template_format='document_json', schema_version=1
 

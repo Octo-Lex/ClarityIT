@@ -376,6 +376,59 @@ func TestDocTemplate_UnauthorizedDenied(t *testing.T) {
 	}
 }
 
+// ─── Track 5 Closure: DB-level schema_version constraint tests ───
+
+func TestDocTemplate_DBRejectsDocJSONWithNullSchemaVersion(t *testing.T) {
+	e := setupArtifactTest(t)
+	_, err := e.pool.Exec(t.Context(), `
+		INSERT INTO artifact_templates (team_id, template_type, name, content_markdown, template_format, document_json, schema_version, is_system)
+		VALUES (NULL, 'document', 'Bad SV Null', NULL, 'document_json',
+		  '{"schema_version":1,"title":"T","document_type":"general_document","blocks":[{"id":"b1","type":"paragraph","text":"x"}]}'::jsonb,
+		  NULL, true)
+	`)
+	if err == nil {
+		t.Error("expected DB to reject document_json template with NULL schema_version")
+	}
+}
+
+func TestDocTemplate_DBRejectsDocJSONWithSchemaVersion2(t *testing.T) {
+	e := setupArtifactTest(t)
+	_, err := e.pool.Exec(t.Context(), `
+		INSERT INTO artifact_templates (team_id, template_type, name, content_markdown, template_format, document_json, schema_version, is_system)
+		VALUES (NULL, 'document', 'Bad SV 2', NULL, 'document_json',
+		  '{"schema_version":1,"title":"T","document_type":"general_document","blocks":[{"id":"b1","type":"paragraph","text":"x"}]}'::jsonb,
+		  2, true)
+	`)
+	if err == nil {
+		t.Error("expected DB to reject document_json template with schema_version=2")
+	}
+}
+
+func TestDocTemplate_DBAcceptsDocJSONWithSchemaVersion1(t *testing.T) {
+	e := setupArtifactTest(t)
+	_, err := e.pool.Exec(t.Context(), `
+		INSERT INTO artifact_templates (team_id, template_type, name, content_markdown, template_format, document_json, schema_version, is_system)
+		VALUES (NULL, 'document', 'Good SV 1', NULL, 'document_json',
+		  '{"schema_version":1,"title":"T","document_type":"general_document","blocks":[{"id":"b1","type":"paragraph","text":"x"}]}'::jsonb,
+		  1, true)
+	`)
+	if err != nil {
+		t.Errorf("expected DB to accept document_json template with schema_version=1, got error: %v", err)
+	}
+}
+
+func TestDocTemplate_MarkdownTemplatesHaveNullSchemaVersion(t *testing.T) {
+	e := setupArtifactTest(t)
+	var badCount int
+	e.pool.QueryRow(t.Context(), `
+		SELECT COUNT(*) FROM artifact_templates
+		WHERE template_format = 'markdown' AND schema_version IS NOT NULL
+	`).Scan(&badCount)
+	if badCount != 0 {
+		t.Errorf("expected 0 markdown templates with non-NULL schema_version, got %d", badCount)
+	}
+}
+
 func TestDocTemplate_NoOperationalSideEffects(t *testing.T) {
 	e := setupArtifactTest(t)
 	var apprBefore, actionBefore, remBefore int
