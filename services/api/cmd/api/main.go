@@ -183,6 +183,10 @@ func main() {
 	// Phase 8: Webhook rate limiter (outside JWT auth)
 	webhookRL := middleware.NewRateLimiter(middleware.RateLimiterConfig{HMACKey: cfg.HMACKey, MaxRequests: 60, Window: 1 * time.Minute})
 	r.Post("/api/webhooks/{source}", webhookRL.Middleware(http.HandlerFunc(integrationHandler.ReceiveWebhook)).ServeHTTP)
+
+	// v1.5 Knowledge handler (outer scope — used in both team and admin routes)
+	knowledgeHandler := knowledge.NewHandler(pool)
+
 	r.Route("/api/teams/{teamId}", func(r chi.Router) {
 		r.Use(middleware.RequireAuth)
 		r.With(middleware.RequirePermission(pool, "team.settings.read")).Get("/settings", teamHandler.GetSettings)
@@ -476,7 +480,7 @@ func main() {
 				Post("/relations/{relationId}/dismiss", qualityHandler.DismissRelation)
 		})
 
-		// v1.3 Track 1: Artifacts
+		// v1.5 Knowledge (handler declared in outer scope)
 		artifactHandler := artifact.NewHandler(pool)
 		// Wire S3 storage for download/export endpoints (Track 7)
 		if s3Client != nil {
@@ -585,7 +589,6 @@ func main() {
 		})
 
 		// v1.5 Knowledge
-		knowledgeHandler := knowledge.NewHandler(pool)
 		r.With(middleware.RequirePermission(pool, "knowledge.search")).
 			Get("/knowledge/search", knowledgeHandler.SearchHTTP)
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
@@ -608,6 +611,10 @@ func main() {
 		r.Get("/setup-status", adminHandler.SetupStatus)
 		r.With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 			Patch("/settings", adminHandler.UpdateSettings)
+
+		// v1.5 Knowledge admin
+		r.Post("/knowledge/reindex", knowledgeHandler.AdminReindexHTTP)
+		r.Get("/knowledge/index-status", knowledgeHandler.AdminIndexStatusAllHTTP)
 
 		// v1.1 Track 2: Proxmox Mutation Change-Window
 		mwHandler := proxmox.NewMutationWindowHandler(pool, cfg)
