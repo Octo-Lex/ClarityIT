@@ -477,6 +477,10 @@ func main() {
 
 		// v1.3 Track 1: Artifacts
 		artifactHandler := artifact.NewHandler(pool)
+		// Wire S3 storage for download/export endpoints (Track 7)
+		if s3Client != nil {
+			artifactHandler.SetStorage(s3Client, cfg.MinioBucket)
+		}
 		// v1.3 Track 2: Presenton handler
 		presentonClient := presenton.NewClient(cfg.PresentonURL, cfg.PresentonAdminUser, cfg.PresentonAdminPass, cfg.PresentonGenerationTimeout)
 		presentonCfg := presenton.Config{
@@ -535,6 +539,14 @@ func main() {
 				Get("/search", artifactHandler.Search)
 			r.With(middleware.RequirePermission(pool, "artifacts.read")).
 				Get("/storage-summary", artifactHandler.StorageSummary)
+
+			// v1.3 Track 7: Download and Export
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/{artifactId}/download", artifactHandler.Download)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/{artifactId}/export/markdown", artifactHandler.ExportMarkdown)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/{artifactId}/export/pdf", artifactHandler.ExportPDF)
 		})
 	})
 

@@ -29,9 +29,12 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
   const [description, setDescription] = useState('');
   const [contentMarkdown, setContentMarkdown] = useState('');
   const [status, setStatus] = useState('draft');
+  const [storageObjectId, setStorageObjectId] = useState<string | null>(null);
   const [loading, setLoading] = useState(mode === 'edit');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [downloadUrl, setDownloadUrl] = useState('');
+  const [downloadError, setDownloadError] = useState('');
 
   useEffect(() => {
     if (mode === 'edit' && artifactId) {
@@ -42,6 +45,7 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
           setDescription(art.description || '');
           setContentMarkdown(art.content_markdown || '');
           setStatus(art.status);
+          setStorageObjectId(art.storage_object_id || null);
           setLoading(false);
         })
         .catch(() => { setError('Failed to load artifact'); setLoading(false); });
@@ -90,6 +94,25 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
         else setError('Failed to archive artifact');
         setSaving(false);
       });
+  };
+
+  const handleDownload = () => {
+    if (!artifactId) return;
+    setDownloadError('');
+    api.downloadArtifact(artifactId)
+      .then((resp: any) => {
+        setDownloadUrl(resp.download_url || '');
+      })
+      .catch((e: unknown) => {
+        if (e instanceof ApiError) setDownloadError(e.message);
+        else setDownloadError('Failed to generate download link');
+      });
+  };
+
+  const handleCopyMarkdown = () => {
+    if (contentMarkdown) {
+      navigator.clipboard?.writeText(contentMarkdown);
+    }
   };
 
   if (loading) return null;
@@ -166,6 +189,61 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
               data-testid="editor-content"
             />
           </div>
+
+          {/* Track 7: Download/Export actions */}
+          {mode === 'edit' && (
+            <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-[var(--border)]" data-testid="editor-actions">
+              {/* Download — only for file-backed artifacts */}
+              {storageObjectId && (
+                <button
+                  onClick={handleDownload}
+                  className="px-3 py-1 bg-indigo-600 text-white rounded text-sm"
+                  data-testid="editor-download"
+                >
+                  ⬇ Download
+                </button>
+              )}
+              {/* Export Markdown — only for inline content */}
+              {contentMarkdown && !storageObjectId && (
+                <a
+                  href={api.exportArtifactUrl(artifactId!, 'markdown')}
+                  className="px-3 py-1 bg-gray-700 text-white rounded text-sm no-underline"
+                  data-testid="editor-export-md"
+                >
+                  📄 Export MD
+                </a>
+              )}
+              {/* Export PDF — only for inline content */}
+              {contentMarkdown && !storageObjectId && (
+                <a
+                  href={api.exportArtifactUrl(artifactId!, 'pdf')}
+                  className="px-3 py-1 bg-gray-700 text-white rounded text-sm no-underline"
+                  data-testid="editor-export-pdf"
+                >
+                  📕 Export PDF
+                </a>
+              )}
+              {/* Copy Markdown */}
+              {contentMarkdown && (
+                <button
+                  onClick={handleCopyMarkdown}
+                  className="px-3 py-1 bg-gray-700 text-white rounded text-sm"
+                  data-testid="editor-copy-md"
+                >
+                  📋 Copy MD
+                </button>
+              )}
+              {/* Download URL + expiry note */}
+              {downloadUrl && (
+                <div className="text-xs text-[var(--text-muted)]" data-testid="editor-download-note">
+                  Link valid for 15 minutes
+                </div>
+              )}
+              {downloadError && (
+                <div className="text-xs text-red-400" data-testid="editor-download-error">{downloadError}</div>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2 justify-end">
             {mode === 'edit' && (

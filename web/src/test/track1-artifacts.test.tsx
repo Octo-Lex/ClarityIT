@@ -23,6 +23,8 @@ vi.mock('../api/client', () => ({
     listTemplates: vi.fn(),
     createTemplate: vi.fn(),
     instantiateTemplate: vi.fn(),
+    downloadArtifact: vi.fn(),
+    exportArtifactUrl: vi.fn((id: string, fmt: string) => `/api/teams/t/artifacts/${id}/export/${fmt}`),
   },
   ApiError: class extends Error { constructor(public status: number, msg: string) { super(msg); } },
 }));

@@ -525,6 +525,12 @@ export const api = {
   getStorageSummary: () =>
     request<any>(teamPath('/artifacts/storage-summary')),
 
+  // v1.3 Track 7: Download and Export
+  downloadArtifact: (artifactId: string) =>
+    request<any>(teamPath(`/artifacts/${artifactId}/download`)),
+  exportArtifactUrl: (artifactId: string, format: 'markdown' | 'pdf') =>
+    `${teamPath(`/artifacts/${artifactId}/export/${format}`)}`, 
+
   // v1.3 Track 2: Presenton
   getPresentonStatus: () =>
     request<any>(teamPath('/artifacts/presenton/status')),

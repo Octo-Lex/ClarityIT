@@ -66,6 +66,10 @@ func setupArtifactTest(t *testing.T) *artifactTestEnv {
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/recent", artH.Recent)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/search", artH.Search)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/storage-summary", artH.StorageSummary)
+		// Download/Export (Track 7)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/download", artH.Download)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/markdown", artH.ExportMarkdown)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/pdf", artH.ExportPDF)
 	})
 
 	token := loginArtifact(t, r, "owner@test.dev", "password12")

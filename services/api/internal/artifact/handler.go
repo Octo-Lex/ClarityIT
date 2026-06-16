@@ -13,6 +13,7 @@ import (
 	"github.com/clarityit/api/internal/database"
 	"github.com/clarityit/api/internal/iam"
 	"github.com/clarityit/api/internal/outbox"
+	"github.com/clarityit/api/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -83,11 +84,19 @@ var sensitiveKeys = map[string]bool{
 // ─── Handler ───
 
 type Handler struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	s3     storage.S3Client
+	bucket string
 }
 
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{pool: pool}
+}
+
+// SetStorage configures the S3 client and bucket for download/export endpoints.
+func (h *Handler) SetStorage(s3 storage.S3Client, bucket string) {
+	h.s3 = s3
+	h.bucket = bucket
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
