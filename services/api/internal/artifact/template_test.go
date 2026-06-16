@@ -21,7 +21,7 @@ func ensureSystemTemplates(t *testing.T, pool *pgxpool.Pool) {
 	if count >= 13 {
 		return
 	}
-	// Re-seed all 6 system templates
+	// Re-seed all 6 markdown system templates
 	templates := []struct {
 		id, ttype, name, desc, content string
 	}{
@@ -34,10 +34,38 @@ func ensureSystemTemplates(t *testing.T, pool *pgxpool.Pool) {
 	}
 	for _, tmpl := range templates {
 		pool.Exec(context.Background(), `
-			INSERT INTO artifact_templates (id, team_id, template_type, name, description, content_markdown, metadata, is_system)
-			VALUES ($1, NULL, $2, $3, $4, $5, '{}'::jsonb, true)
+			INSERT INTO artifact_templates (id, team_id, template_type, name, description, content_markdown, template_format, schema_version, metadata, is_system)
+			VALUES ($1, NULL, $2, $3, $4, $5, 'markdown', NULL, '{}'::jsonb, true)
 			ON CONFLICT (id) DO NOTHING
 		`, tmpl.id, tmpl.ttype, tmpl.name, tmpl.desc, tmpl.content)
+	}
+	// Re-seed 7 document_json system templates
+	docTemplates := []struct {
+		id, name, desc, docType, docJSON string
+	}{
+		{"a0000000-0000-0000-0000-000000000010", "Decision Memo (Structured)", "Structured decision memo.", "decision_memo",
+			`{"schema_version":1,"title":"Decision Memo","document_type":"decision_memo","blocks":[{"id":"b1","type":"heading","level":1,"text":"Decision"},{"id":"b2","type":"paragraph","text":"Context"}]}`},
+		{"a0000000-0000-0000-0000-000000000011", "Implementation Plan (Structured)", "Structured implementation plan.", "implementation_plan",
+			`{"schema_version":1,"title":"Implementation Plan","document_type":"implementation_plan","blocks":[{"id":"b1","type":"heading","level":1,"text":"Plan"},{"id":"b2","type":"paragraph","text":"Overview"}]}`},
+		{"a0000000-0000-0000-0000-000000000012", "Incident Summary (Structured)", "Structured post-incident summary.", "incident_summary",
+			`{"schema_version":1,"title":"Incident Summary","document_type":"incident_summary","blocks":[{"id":"b1","type":"heading","level":1,"text":"Incident"},{"id":"b2","type":"paragraph","text":"Summary"}]}`},
+		{"a0000000-0000-0000-0000-000000000013", "Architecture Document (Structured)", "Structured architecture document.", "architecture_doc",
+			`{"schema_version":1,"title":"Architecture Document","document_type":"architecture_doc","blocks":[{"id":"b1","type":"heading","level":1,"text":"Architecture"},{"id":"b2","type":"paragraph","text":"Overview"}]}`},
+		{"a0000000-0000-0000-0000-000000000014", "Training Document (Structured)", "Structured training document.", "training_doc",
+			`{"schema_version":1,"title":"Training Document","document_type":"training_doc","blocks":[{"id":"b1","type":"heading","level":1,"text":"Training"},{"id":"b2","type":"paragraph","text":"Introduction"}]}`},
+		{"a0000000-0000-0000-0000-000000000015", "Project Report (Structured)", "Structured project report.", "project_report",
+			`{"schema_version":1,"title":"Project Report","document_type":"project_report","blocks":[{"id":"b1","type":"heading","level":1,"text":"Report"},{"id":"b2","type":"paragraph","text":"Summary"}]}`},
+		{"a0000000-0000-0000-0000-000000000016", "Executive Brief (Structured)", "Structured executive brief.", "executive_brief",
+			`{"schema_version":1,"title":"Executive Brief","document_type":"executive_brief","blocks":[{"id":"b1","type":"heading","level":1,"text":"Brief"},{"id":"b2","type":"paragraph","text":"Summary"}]}`},
+	}
+	for _, dt := range docTemplates {
+		if ct, err := pool.Exec(context.Background(), `
+			INSERT INTO artifact_templates (id, team_id, template_type, name, description, content_markdown, document_json, schema_version, template_format, metadata, is_system)
+			VALUES ($1, NULL, 'document', $2, $3, NULL, $4::jsonb, 1, 'document_json', jsonb_build_object('doc_type', $5::text), true)
+			ON CONFLICT (id) DO NOTHING
+		`, dt.id, dt.name, dt.desc, dt.docJSON, dt.docType); err != nil {
+			t.Logf("WARNING: failed to seed document_json template %s: %v (rows=%s)", dt.id, err, ct.String())
+		}
 	}
 }
 
