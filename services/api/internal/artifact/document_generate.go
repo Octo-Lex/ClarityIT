@@ -348,4 +348,7 @@ func (h *Handler) GenerateDocument(w http.ResponseWriter, r *http.Request) {
 		WordCount:     wordCount,
 		DocumentJSON:  docJSON,
 	})
+
+	// v1.5 Knowledge index hook
+	h.fireIndexHook(ctx, teamIDStr, "clarity_document", createdArtID)
 }

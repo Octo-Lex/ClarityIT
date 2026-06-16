@@ -88,7 +88,12 @@ type Handler struct {
 	s3     storage.S3Client
 	bucket string
 	workerAssist *WorkerAssistConfig
+	indexHook IndexHookFunc
 }
+
+// IndexHookFunc is called after artifact/document mutations to update the knowledge index.
+// It receives teamID, sourceType, sourceID so the knowledge indexer can upsert the item.
+type IndexHookFunc func(ctx context.Context, teamID, sourceType, sourceID string)
 
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{pool: pool}
@@ -98,6 +103,18 @@ func NewHandler(pool *pgxpool.Pool) *Handler {
 func (h *Handler) SetStorage(s3 storage.S3Client, bucket string) {
 	h.s3 = s3
 	h.bucket = bucket
+}
+
+// SetIndexHook configures the knowledge index hook for automatic indexing on mutations.
+func (h *Handler) SetIndexHook(fn IndexHookFunc) {
+	h.indexHook = fn
+}
+
+// fireIndexHook safely calls the index hook if configured.
+func (h *Handler) fireIndexHook(ctx context.Context, teamID, sourceType, sourceID string) {
+	if h.indexHook != nil {
+		h.indexHook(ctx, teamID, sourceType, sourceID)
+	}
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -195,6 +212,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, 201, art)
+
+	// v1.5 Knowledge index hook
+	h.fireIndexHook(ctx, teamIDStr, "artifact", art.ID)
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
@@ -434,6 +454,9 @@ func (h *Handler) Patch(w http.ResponseWriter, r *http.Request) {
 
 	art, _ = h.getArtifact(ctx, teamID, artifactID)
 	writeJSON(w, 200, art)
+
+	// v1.5 Knowledge index hook
+	h.fireIndexHook(ctx, teamIDStr, "artifact", artifactID.String())
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {

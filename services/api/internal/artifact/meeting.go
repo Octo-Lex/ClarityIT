@@ -189,6 +189,9 @@ func (h *Handler) CreateMeetingSummary(w http.ResponseWriter, r *http.Request) {
 		ActionItems:     actionItems,
 	}
 	writeJSON(w, 201, ms)
+
+	// v1.5 Knowledge index hook
+	h.fireIndexHook(ctx, teamIDStr, "meeting_summary", ms.Artifact.ID)
 }
 
 func (h *Handler) ListMeetingSummaries(w http.ResponseWriter, r *http.Request) {

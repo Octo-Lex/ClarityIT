@@ -435,6 +435,9 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 		SchemaVersion: 1,
 		WordCount:     wordCount,
 	})
+
+	// v1.5 Knowledge index hook
+	h.fireIndexHook(ctx, teamIDStr, "clarity_document", createdArtID)
 }
 
 // ListDocuments returns document-type artifacts for a team.
@@ -801,6 +804,9 @@ func (h *Handler) PatchDocument(w http.ResponseWriter, r *http.Request) {
 		SchemaVersion: respSchemaVersion,
 		WordCount:     newWordCount,
 	})
+
+	// v1.5 Knowledge index hook
+	h.fireIndexHook(ctx, teamIDStr, "clarity_document", artifactID.String())
 }
 
 

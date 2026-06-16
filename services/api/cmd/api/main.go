@@ -494,6 +494,34 @@ func main() {
 				Token: os.Getenv("WORKER_TOKEN"),
 			})
 		}
+
+		// v1.5 Knowledge index hook: re-extract and index on mutation
+		kIndexer := knowledge.NewIndexer(pool)
+		artifactHandler.SetIndexHook(func(ctx context.Context, teamID, sourceType, sourceID string) {
+			go func() {
+				var docs []knowledge.SourceDocument
+				var err error
+				switch sourceType {
+				case "clarity_document":
+					docs, err = knowledge.ExtractClarityDocuments(ctx, pool, teamID)
+				case "meeting_summary":
+					docs, err = knowledge.ExtractMeetingSummaries(ctx, pool, teamID)
+				case "template":
+					docs, err = knowledge.ExtractTemplates(ctx, pool, teamID)
+				default:
+					docs, err = knowledge.ExtractArtifacts(ctx, pool, teamID)
+				}
+				if err != nil {
+					return
+				}
+				for _, doc := range docs {
+					if doc.SourceID == sourceID {
+						kIndexer.IndexSource(ctx, doc)
+						break
+					}
+				}
+			}()
+		})
 		// v1.3 Track 2: Presenton handler
 		presentonClient := presenton.NewClient(cfg.PresentonURL, cfg.PresentonAdminUser, cfg.PresentonAdminPass, cfg.PresentonGenerationTimeout)
 		presentonCfg := presenton.Config{

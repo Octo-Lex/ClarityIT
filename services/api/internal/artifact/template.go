@@ -270,6 +270,9 @@ func (h *Handler) CreateTemplate(w http.ResponseWriter, r *http.Request) {
 		"is_system":        false,
 		"template_format":  req.TemplateFormat,
 	})
+
+	// v1.5 Knowledge index hook
+	h.fireIndexHook(ctx, teamIDStr, "template", templateID)
 }
 
 func (h *Handler) InstantiateTemplate(w http.ResponseWriter, r *http.Request) {
@@ -448,4 +451,11 @@ func (h *Handler) InstantiateTemplate(w http.ResponseWriter, r *http.Request) {
 		"status":           status,
 		"content_markdown": contentMarkdown,
 	})
+
+	// v1.5 Knowledge index hook
+	sourceType := "artifact"
+	if templateType == "document" {
+		sourceType = "clarity_document"
+	}
+	h.fireIndexHook(ctx, teamIDStr, sourceType, artifactID)
 }

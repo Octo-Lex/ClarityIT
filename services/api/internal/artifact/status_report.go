@@ -182,6 +182,9 @@ func (h *Handler) GenerateStatusReport(w http.ResponseWriter, r *http.Request) {
 		"status":           "draft",
 		"content_markdown": markdown,
 	})
+
+	// v1.5 Knowledge index hook
+	h.fireIndexHook(ctx, teamIDStr, "artifact", artifactID)
 }
 
 // ─── Report Builder ───
