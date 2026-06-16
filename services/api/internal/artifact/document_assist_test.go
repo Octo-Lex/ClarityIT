@@ -56,8 +56,6 @@ func setupAssistTest(t *testing.T) *artifactTestEnv {
 	var resp DocumentResponse
 	json.NewDecoder(w.Body).Decode(&resp)
 
-	// Store document ID for tests
-	e.teamID = e.teamID // keep team ID
 	return e
 }
 

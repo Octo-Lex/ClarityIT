@@ -313,3 +313,34 @@ Presenton is an optional, profile-isolated service:
 5. ✅ All artifact operations are team-scoped and authenticated
 6. ✅ Presenton is profile-isolated with no ClarityIT data access
 7. ✅ No public/external sharing — internal-only
+
+## 11. v1.4 Additions — ClarityDocs Agent Assist
+
+### 11.1 Document Assist Isolation
+
+The document assist feature (`POST /api/teams/{teamId}/artifacts/{artifactId}/document-assist`)
+is a read-only advisory path with strict isolation:
+
+- **No document mutation**: The agent generates suggestions only; the user applies them manually.
+  The Go API does NOT persist suggested blocks to the document. No auto-save.
+- **No persistence of suggestions**: Suggestions are returned in the HTTP response and discarded.
+  They are never stored in artifacts, artifact_documents, versions, or any table.
+- **Python worker HTTP endpoint (port 9100)**: Internal-only, not published to host.
+  Not routed through Cloudflare or any external proxy.
+- **WORKER_TOKEN shared auth**: Both the Go API and reasoning worker read the same `WORKER_TOKEN`
+  env var for Bearer auth. No second token.
+- **No content logging**: The worker suppresses `log_message()` entirely. Gateway errors log
+  the mode name only — never `selected_text`, `instruction`, or generated content.
+- **Bounded request**: 100KB max body, 60s timeout, max_words 20–2000.
+- **No chain_of_thought**: The `validate_assist_response()` function rejects any response
+  containing `chain_of_thought`, `thinking`, `reasoning_trace`, or `internal_notes`.
+
+### 11.2 v1.4 Constraint Summary
+
+1. ❌ No A5 (unchanged)
+2. ❌ No new mutation classes (unchanged)
+3. ❌ No operational control path (document assist is advisory-only)
+4. ❌ No DB/MinIO/NATS/Redis access from worker assist endpoint
+5. ✅ Worker assist endpoint is internal-only (port 9100 not published to host)
+6. ✅ No content logged — only mode name on errors
+7. ✅ No chain_of_thought/thinking fields in responses

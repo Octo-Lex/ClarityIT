@@ -47,6 +47,9 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
       BACKUP_DIR: /var/lib/clarityit/backups
+      # v1.4 Track 3: Document assist worker (internal-only, no host port)
+      WORKER_ASSIST_URL: http://clarityit-reasoning-worker:9100
+      WORKER_TOKEN: ${WORKER_TOKEN:-}
       PORT: "8765"
     depends_on:
       postgres:
