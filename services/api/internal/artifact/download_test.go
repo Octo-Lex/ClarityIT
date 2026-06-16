@@ -68,6 +68,10 @@ func setupDownloadTest(t *testing.T) *artifactTestEnv {
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/markdown", artH.ExportMarkdown)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/pdf", artH.ExportPDF)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/docx", artH.ExportDOCX)
+		// v1.4 Track 7: Version History
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/documents/{artifactId}/versions", artH.ListVersions)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/documents/{artifactId}/versions/{versionId}", artH.GetVersion)
+		r.With(middleware.RequirePermission(pool, "artifacts.update")).Post("/artifacts/documents/{artifactId}/versions/{versionId}/restore", artH.RestoreVersion)
 		r.With(middleware.RequirePermission(pool, "artifacts.delete")).Delete("/artifacts/{artifactId}", artH.Delete)
 		// v1.4 Track 1: Document routes (for native document export tests)
 		r.With(middleware.RequirePermission(pool, "artifacts.create")).Post("/artifacts/documents", artH.CreateDocument)

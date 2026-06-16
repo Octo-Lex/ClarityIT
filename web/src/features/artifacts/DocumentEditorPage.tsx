@@ -7,6 +7,7 @@ import DocumentOutline from './DocumentOutline';
 import DocumentToolbar, { BlockType } from './DocumentToolbar';
 import DocumentSaveStatus from './DocumentSaveStatus';
 import AgentAssistPanel from './AgentAssistPanel';
+import VersionHistoryDrawer from './VersionHistoryDrawer';
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   general_document: 'General Document',
@@ -43,6 +44,7 @@ export default function DocumentEditorPage() {
   const [archived, setArchived] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
+  const [showVersions, setShowVersions] = useState(false);
   const auth = useAuth();
 
   // ─── Load document ───
@@ -251,6 +253,12 @@ export default function DocumentEditorPage() {
         )}
         {exporting && <span className="text-xs text-[var(--text-muted)]" data-testid="export-loading">Exporting...</span>}
         {exportError && <span className="text-xs text-red-400" data-testid="export-error">{exportError}</span>}
+        {/* v1.4 Track 7: Version History */}
+        <button
+          data-testid="version-history-btn"
+          onClick={() => setShowVersions(true)}
+          className="px-2 py-0.5 text-xs bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)]"
+        >📋 History</button>
       </div>
 
       {/* Toolbar */}
@@ -325,6 +333,24 @@ export default function DocumentEditorPage() {
           onReplaceBlock={handleReplaceBlock}
         />
       )}
+
+      {/* v1.4 Track 7: Version History Drawer */}
+      <VersionHistoryDrawer
+        artifactId={artifactId || ''}
+        open={showVersions}
+        onClose={() => setShowVersions(false)}
+        archived={archived}
+        onRestored={(docJson, wc) => {
+          if (docJson?.blocks) {
+            setBlocks(docJson.blocks);
+          }
+          if (docJson?.title) {
+            setTitle(docJson.title);
+          }
+          setDirty(false);
+          setSaveState('saved');
+        }}
+      />
     </div>
   );
 }

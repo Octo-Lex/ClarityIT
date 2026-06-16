@@ -502,6 +502,14 @@ export const api = {
   exportDocumentUrl: (artifactId: string, format: 'markdown' | 'pdf' | 'docx') =>
     teamPath(`/artifacts/${artifactId}/export/${format}`),
 
+  // v1.4 Track 7: Document Versions
+  listVersions: (artifactId: string) =>
+    request<{versions: any[]}>(teamPath(`/artifacts/documents/${artifactId}/versions`)),
+  getVersion: (artifactId: string, versionId: string) =>
+    request<any>(teamPath(`/artifacts/documents/${artifactId}/versions/${versionId}`)),
+  restoreVersion: (artifactId: string, versionId: string) =>
+    request<any>(teamPath(`/artifacts/documents/${artifactId}/versions/${versionId}/restore`), { method: 'POST' }),
+
   // v1.3 Track 5: Template Library
   listTemplates: (typeFilter?: string, formatFilter?: string) => {
     let qs = '';

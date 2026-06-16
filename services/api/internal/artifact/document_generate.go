@@ -327,6 +327,10 @@ func (h *Handler) GenerateDocument(w http.ResponseWriter, r *http.Request) {
 		Payload:       outboxPayload,
 	})
 
+	// v1.4 Track 7: Create initial version with source=generated
+	createDocumentVersion(ctx, tx, artifactID, teamID, docJSONBytes, wordCount,
+		VersionSourceGenerated, "Generated document", &actorID)
+
 	if err := tx.Commit(ctx); err != nil {
 		writeErr(w, 500, "Failed to commit transaction")
 		return

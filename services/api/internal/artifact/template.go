@@ -383,6 +383,9 @@ func (h *Handler) InstantiateTemplate(w http.ResponseWriter, r *http.Request) {
 				AggregateID:   artID.String(),
 				Payload:       meta,
 			})
+			// v1.4 Track 7: Create initial version with source=template
+			createDocumentVersion(ctx, tx, artID, teamID, finalDocJSON, wordCount,
+				VersionSourceTemplate, "Created from template", &actorID)
 			return nil
 		})
 		if err != nil {

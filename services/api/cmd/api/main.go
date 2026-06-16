@@ -574,6 +574,13 @@ func main() {
 			// v1.4 Track 6: DOCX Export
 			r.With(middleware.RequirePermission(pool, "artifacts.read")).
 				Get("/artifacts/{artifactId}/export/docx", artifactHandler.ExportDOCX)
+			// v1.4 Track 7: Document Version History
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/artifacts/documents/{artifactId}/versions", artifactHandler.ListVersions)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/artifacts/documents/{artifactId}/versions/{versionId}", artifactHandler.GetVersion)
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Post("/artifacts/documents/{artifactId}/versions/{versionId}/restore", artifactHandler.RestoreVersion)
 		})
 	})
 

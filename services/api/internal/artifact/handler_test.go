@@ -84,6 +84,10 @@ func setupArtifactTest(t *testing.T) *artifactTestEnv {
 		r.With(middleware.RequirePermission(pool, "artifacts.create")).Post("/artifacts/generate-document", artH.GenerateDocument)
 		// v1.4 Track 6: DOCX Export
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/docx", artH.ExportDOCX)
+		// v1.4 Track 7: Version History
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/documents/{artifactId}/versions", artH.ListVersions)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/documents/{artifactId}/versions/{versionId}", artH.GetVersion)
+		r.With(middleware.RequirePermission(pool, "artifacts.update")).Post("/artifacts/documents/{artifactId}/versions/{versionId}/restore", artH.RestoreVersion)
 	})
 
 	token := loginArtifact(t, r, "owner@test.dev", "password12")

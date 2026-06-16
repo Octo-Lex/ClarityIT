@@ -405,6 +405,10 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 		Payload:       payload,
 	})
 
+	// v1.4 Track 7: Create initial version snapshot
+	createDocumentVersion(ctx, tx, artifactID, teamID, docJSONBytes, wordCount,
+		VersionSourceUserSave, "Initial version", &actorID)
+
 	if err := tx.Commit(ctx); err != nil {
 		writeErr(w, 500, "Failed to commit transaction")
 		return
@@ -587,6 +591,11 @@ func (h *Handler) PatchDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// v1.4 Track 7: Save conflict detection (Option A)
+	// Client must send If-Match header with the updated_at value they last saw.
+	// If it doesn't match the current DB value, return 409.
+	ifMatch := r.Header.Get("If-Match")
+
 	tx, err := h.pool.Begin(ctx)
 	if err != nil {
 		writeErr(w, 500, "Failed to begin transaction")
@@ -596,16 +605,22 @@ func (h *Handler) PatchDocument(w http.ResponseWriter, r *http.Request) {
 
 	// Check artifact exists, is team-scoped, and not archived
 	var status, title, description string
+	var currentUpdatedAt string
 	err = tx.QueryRow(ctx, `
-		SELECT status, title, COALESCE(description, '')
+		SELECT status, title, COALESCE(description, ''), updated_at::text
 		FROM artifacts WHERE id = $1 AND team_id = $2 AND artifact_type = 'document'
-	`, artifactID, teamID).Scan(&status, &title, &description)
+	`, artifactID, teamID).Scan(&status, &title, &description, &currentUpdatedAt)
 	if err != nil {
 		writeErr(w, 404, "Document not found")
 		return
 	}
 	if status == "archived" {
 		writeErr(w, 403, "Archived documents cannot be updated")
+		return
+	}
+	// Save conflict check
+	if ifMatch != "" && ifMatch != currentUpdatedAt && ifMatch != `"`+currentUpdatedAt+`"` {
+		writeErr(w, 409, "Document was modified by another user. Please refresh and try again.")
 		return
 	}
 
@@ -735,6 +750,17 @@ func (h *Handler) PatchDocument(w http.ResponseWriter, r *http.Request) {
 		TeamID:     &teamID,
 		NewValue:   newVal,
 	})
+
+	// v1.4 Track 7: Create version snapshot if document_json was updated
+	if req.DocumentJSON != nil {
+		source := VersionSourceUserSave
+		if r.Header.Get("X-Version-Source") == "agent_assisted_edit" {
+			source = VersionSourceAgentAssistedEdit
+		}
+		versionJSON, _ := json.Marshal(req.DocumentJSON)
+		createDocumentVersion(ctx, tx, artifactID, teamID, versionJSON,
+			computeWordCount(req.DocumentJSON.Blocks), source, "", &actorID)
+	}
 
 	// Outbox event for patch
 	patchPayload, _ := json.Marshal(map[string]any{
