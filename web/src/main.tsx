@@ -31,6 +31,8 @@ import AdminAssetActions from './features/admin/AdminAssetActions';
 import RemediationPanel from './features/incidents/RemediationPanel';
 import AssetActions from './features/assets/AssetActions';
 import { AgentsPage } from './features/agents/AgentsPage';
+import ArtifactsPage from './features/artifacts/ArtifactsPage';
+import DocumentEditorPage from './features/artifacts/DocumentEditorPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { authenticated, loading } = useAuth();
@@ -77,6 +79,9 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/incidents/:id" element={<IncidentDetail />} />
             <Route path="/settings/team" element={<TeamSettings />} />
             <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/artifacts" element={<ArtifactsPage />} />
+            <Route path="/teams/:teamId/artifacts/documents/:artifactId" element={<DocumentEditorPage />} />
+            <Route path="/artifacts/documents/:artifactId" element={<DocumentEditorPage />} />
             <Route path="/account/security" element={<SecurityPage />} />
             <Route path="/admin/approvals" element={<PermissionRoute perm="approvals.read"><AdminApprovals /></PermissionRoute>} />
             <Route path="/admin/asset-actions" element={<PermissionRoute perm="assets.actions.read"><AdminAssetActions /></PermissionRoute>} />

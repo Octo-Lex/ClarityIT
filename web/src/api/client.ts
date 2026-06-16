@@ -531,6 +531,18 @@ export const api = {
   exportArtifactUrl: (artifactId: string, format: 'markdown' | 'pdf') =>
     `${teamPath(`/artifacts/${artifactId}/export/${format}`)}`, 
 
+  // v1.4 Track 1: Native Documents
+  createDocument: (data: { title: string; document_type: string; document_json: any; description?: string; status?: string }) =>
+    mutation<any>('POST', teamPath('/artifacts/documents'), data),
+  listDocuments: (includeArchived?: boolean) => {
+    const qs = includeArchived ? '?include_archived=true' : '';
+    return request<any[]>(teamPath(`/artifacts/documents${qs}`));
+  },
+  getDocument: (artifactId: string) =>
+    request<any>(teamPath(`/artifacts/documents/${artifactId}`)),
+  updateDocument: (artifactId: string, data: { title?: string; description?: string; document_type?: string; document_json?: any }) =>
+    mutation<any>('PATCH', teamPath(`/artifacts/documents/${artifactId}`), data), 
+
   // v1.3 Track 2: Presenton
   getPresentonStatus: () =>
     request<any>(teamPath('/artifacts/presenton/status')),
