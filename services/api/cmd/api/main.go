@@ -547,6 +547,16 @@ func main() {
 				Get("/{artifactId}/export/markdown", artifactHandler.ExportMarkdown)
 			r.With(middleware.RequirePermission(pool, "artifacts.read")).
 				Get("/{artifactId}/export/pdf", artifactHandler.ExportPDF)
+
+			// v1.4 Track 1: Native Document Artifacts
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/documents", artifactHandler.CreateDocument)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/documents", artifactHandler.ListDocuments)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/documents/{artifactId}", artifactHandler.GetDocument)
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Patch("/documents/{artifactId}", artifactHandler.PatchDocument)
 		})
 	})
 

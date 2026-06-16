@@ -73,6 +73,11 @@ func setupArtifactTest(t *testing.T) *artifactTestEnv {
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/download", artH.Download)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/markdown", artH.ExportMarkdown)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/pdf", artH.ExportPDF)
+		// Documents (v1.4 Track 1)
+		r.With(middleware.RequirePermission(pool, "artifacts.create")).Post("/artifacts/documents", artH.CreateDocument)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/documents", artH.ListDocuments)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/documents/{artifactId}", artH.GetDocument)
+		r.With(middleware.RequirePermission(pool, "artifacts.update")).Patch("/artifacts/documents/{artifactId}", artH.PatchDocument)
 	})
 
 	token := loginArtifact(t, r, "owner@test.dev", "password12")
