@@ -219,7 +219,7 @@ services:
   # Presenton — optional presentation generation service
   # Enable with: docker compose --profile presenton up -d
   presenton:
-    image: ghcr.io/presenton/presenton:latest
+    image: ghcr.io/presenton/presenton:v0.8.7-beta@sha256:d855169e643f13f082ea1272173e0988a67d63a345ca6f5b912c9475cd1d2465
     logging: *default-logging
     container_name: clarityit-presenton
     profiles: ["presenton"]

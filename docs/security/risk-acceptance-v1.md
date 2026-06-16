@@ -1,15 +1,15 @@
 # ClarityIT v1.0 Risk Acceptance — Dev-Only Dependency Vulnerabilities
 
 ## Document Status
-- **Version**: 1.2.0
-- **Date**: 2026-06-15
+- **Version**: 1.3.0
+- **Date**: 2026-06-16
 - **Owner**: Platform Engineering
 - **Status**: CLOSED — Remediated in v1.1.0
 - **Target Remediation Release**: ~~v1.1.0~~ → **COMPLETED**
 
-> **v1.2.0 Update**: No new open high-risk items. v1.2.0 is accepted with **zero carried-forward security debt**. The original vulnerability was fully remediated in v1.1.0. v1.2.0 adds no new dependencies that introduce vulnerabilities. `npm audit --audit-level=high` and `npm audit --omit=dev --audit-level=high` both report 0 vulnerabilities. No new risk acceptance items are required.
+> **v1.3.0 Update**: No new open high-risk items. v1.3.0 is accepted with **zero carried-forward security debt**. The original vulnerability was fully remediated in v1.1.0. v1.3.0 adds `github.com/minio/minio-go/v7 v7.2.0` (no known vulnerabilities) and the optional Presenton container (profile-isolated, pinned by digest, no ClarityIT data access). `npm audit --audit-level=high` and `npm audit --omit=dev --audit-level=high` both report 0 vulnerabilities.
 >
-> **Presenton**: Remains explicitly **backlog-only** — not part of v1.2.0 core scope, absent from the v1.2.0 runtime. No Presenton code, dependencies, or runtime components ship in this release.
+> **Presenton Risk**: Accepted as low-risk. Presenton is profile-isolated (`profiles: ["presenton"]`), image pinned by digest (`v0.8.7-beta@sha256:d855169e...`), bound to localhost only, has no ClarityIT DB/NATS/Redis/MinIO credentials, and `CAN_CHANGE_KEYS=false`. ClarityIT proxies all requests. No raw ClarityIT data flows to Presenton.
 
 ---
 

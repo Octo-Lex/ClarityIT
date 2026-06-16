@@ -1,8 +1,8 @@
 # ClarityIT v1.0 Agent Autonomy Boundary
 
 ## Document Status
-- **Version**: 1.0.0
-- **Date**: 2026-06-14
+- **Version**: 1.3.0
+- **Date**: 2026-06-16
 - **Scope**: Agent runtime, tool gateway, policy enforcement, autonomy ladder, reasoning worker isolation
 
 ---
@@ -271,3 +271,45 @@ The following v1.2 features do NOT expand autonomous execution authority:
 5. ✅ Advisory intelligence features are non-executing
 6. ✅ Evaluation mode is non-executing
 7. ✅ All new endpoints are read-only or advisory
+
+## 10. v1.3 Additions — Team Productivity (Non-Operational)
+
+v1.3.0 adds team productivity features (documents, presentations, meeting summaries, status reports, templates, storage, download/export) that are explicitly **non-operational**:
+
+### 10.1 No Operational Control Path
+
+- ❌ v1.3 adds NO operational mutations, NO approval workflows, NO agent execution expansion
+- ❌ v1.3 adds NO Tool Gateway calls, NO Proxmox mutation changes, NO Python worker calls
+- ❌ A5 remains disabled (hardcoded)
+- ❌ Allowed mutations remain: start/shutdown/stop/snapshot only
+- ✅ All v1.3 endpoints are artifact CRUD, read-only search/summary, or file download/export
+
+### 10.2 Presenton Isolation
+
+Presenton is an optional, profile-isolated service:
+- Image pinned by digest: `ghcr.io/presenton/presenton:v0.8.7-beta@sha256:d855169e...`
+- Behind `profiles: ["presenton"]` — does not start by default
+- Has NO ClarityIT database, NATS, Redis, or MinIO credentials
+- `CAN_CHANGE_KEYS=false`, `no-new-privileges:true`
+- Port bound to `127.0.0.1:5000` only
+- ClarityIT proxies all requests — Presenton never receives raw ClarityIT data
+
+### 10.3 Artifact Download/Export Safety
+
+- Presigned URLs expire in ≤ 900 seconds (15 minutes)
+- No bucket names, object keys, or filesystem paths in any API response
+- All download/export endpoints are authenticated and team-scoped
+- Cross-team access → 404
+- Archived artifacts denied download/export (403)
+- PDF export is pure Go — no external rendering service, no JavaScript execution
+- No public links, no external sharing, no email delivery
+
+### 10.4 v1.3 Constraint Summary
+
+1. ❌ No A5 (unchanged)
+2. ❌ No new mutation classes (unchanged)
+3. ❌ No operational control path (new features are artifact productivity only)
+4. ❌ No Presenton/Python/Tool Gateway calls for artifact operations
+5. ✅ All artifact operations are team-scoped and authenticated
+6. ✅ Presenton is profile-isolated with no ClarityIT data access
+7. ✅ No public/external sharing — internal-only

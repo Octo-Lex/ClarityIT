@@ -38,6 +38,9 @@ func setupArtifactTest(t *testing.T) *artifactTestEnv {
 	pool, _ := pgxpool.New(t.Context(), artifactDBURL)
 	t.Cleanup(func() { pool.Close() })
 
+	// Re-seed system templates if wiped by other test packages' TRUNCATE CASCADE
+	ensureSystemTemplates(t, pool)
+
 	artH := NewHandler(pool)
 	iamH := iam.NewHandler(pool, cfg)
 

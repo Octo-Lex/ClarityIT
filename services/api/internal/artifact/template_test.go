@@ -1,12 +1,45 @@
 package artifact
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// ensureSystemTemplates re-seeds system templates if they've been wiped by
+// other test packages' TRUNCATE ... CASCADE (iam/team/domain packages truncate
+// the teams table which cascades to artifact_templates via FK).
+func ensureSystemTemplates(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	var count int
+	pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM artifact_templates WHERE is_system = true").Scan(&count)
+	if count >= 6 {
+		return
+	}
+	// Re-seed all 6 system templates
+	templates := []struct {
+		id, ttype, name, desc, content string
+	}{
+		{"a0000000-0000-0000-0000-000000000001", "status_report", "Weekly Status Report", "Standard weekly status", "# Weekly Status"},
+		{"a0000000-0000-0000-0000-000000000002", "meeting_summary", "Meeting Summary", "Standard meeting", "# Meeting"},
+		{"a0000000-0000-0000-0000-000000000003", "decision_memo", "Decision Memo", "Decision template", "# Decision"},
+		{"a0000000-0000-0000-0000-000000000004", "report", "Incident Summary", "Post-incident", "# Incident"},
+		{"a0000000-0000-0000-0000-000000000005", "document", "Architecture Walkthrough", "Architecture doc", "# Architecture"},
+		{"a0000000-0000-0000-0000-000000000006", "training_deck", "Training Deck Prompt", "Training template", "# Training"},
+	}
+	for _, tmpl := range templates {
+		pool.Exec(context.Background(), `
+			INSERT INTO artifact_templates (id, team_id, template_type, name, description, content_markdown, metadata, is_system)
+			VALUES ($1, NULL, $2, $3, $4, $5, '{}'::jsonb, true)
+			ON CONFLICT (id) DO NOTHING
+		`, tmpl.id, tmpl.ttype, tmpl.name, tmpl.desc, tmpl.content)
+	}
+}
 
 func TestTemplate_SystemTemplatesSeeded(t *testing.T) {
 	e := setupArtifactTest(t)
