@@ -7,6 +7,19 @@
 - **Status**: CLOSED — Remediated in v1.1.0
 - **Target Remediation Release**: ~~v1.1.0~~ → **COMPLETED**
 
+> **v1.4.0 Update**: No new security risks introduced. ClarityDocs is an internal productivity feature with no public sharing, no external document engine dependency, and no operational control path changes. v1.4.0 adds document assist/generation worker endpoints (port 9100, internal-only), but these follow the same isolation model as the reasoning worker. `npm audit --audit-level=high` and `npm audit --omit=dev --audit-level=high` both report 0 vulnerabilities. `go vet ./...` is clean.
+>
+> **ClarityDocs Risk**: Accepted as low-risk. Key boundaries:
+> - No SuperDoc dependency, no copied code, no external document engine
+> - PostgreSQL JSONB is source of truth (DOCX is export-only)
+> - Python worker has zero DB/MinIO/NATS/Redis access
+> - No raw prompts stored in `source_data`
+> - No `chain_of_thought` fields accepted or rendered
+> - Exports are streaming-only (no storage mutation)
+> - Version history is non-destructive (no delete path)
+> - Save conflict protection via If-Match (409 on stale save)
+> - No A5/autonomy expansion, no Tool Gateway changes, no Proxmox changes
+>
 > **v1.3.0 Update**: No new open high-risk items. v1.3.0 is accepted with **zero carried-forward security debt**. The original vulnerability was fully remediated in v1.1.0. v1.3.0 adds `github.com/minio/minio-go/v7 v7.2.0` (no known vulnerabilities) and the optional Presenton container (profile-isolated, pinned by digest, no ClarityIT data access). `npm audit --audit-level=high` and `npm audit --omit=dev --audit-level=high` both report 0 vulnerabilities.
 >
 > **Presenton Risk**: Accepted as low-risk. Presenton is profile-isolated (`profiles: ["presenton"]`), image pinned by digest (`v0.8.7-beta@sha256:d855169e...`), bound to localhost only, has no ClarityIT DB/NATS/Redis/MinIO credentials, and `CAN_CHANGE_KEYS=false`. ClarityIT proxies all requests. No raw ClarityIT data flows to Presenton.

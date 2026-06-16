@@ -123,6 +123,23 @@ describe('DocumentEditorPage', () => {
     });
   });
 
+  it('4b. stale-save 409 shows conflict dialog (Track 8 regression)', async () => {
+    const conflictErr = new Error('Document was modified by another user') as any;
+    conflictErr.status = 409;
+    (api.updateDocument as any).mockRejectedValue(conflictErr);
+    renderEditor();
+    await waitFor(() => expect(screen.queryByTestId('doc-loading')).toBeNull());
+    fireEvent.change(screen.getByTestId('doc-title-input'), { target: { value: 'Stale Title' } });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('toolbar-save'));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('save-conflict')).toBeTruthy();
+      expect(screen.getByTestId('conflict-reload')).toBeTruthy();
+      expect(screen.getByTestId('conflict-dismiss')).toBeTruthy();
+    });
+  });
+
   it('5. heading block renders and edits', async () => {
     renderEditor();
     await waitFor(() => expect(screen.queryByTestId('doc-loading')).toBeNull());

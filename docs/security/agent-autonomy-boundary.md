@@ -335,12 +335,54 @@ is a read-only advisory path with strict isolation:
 - **No chain_of_thought**: The `validate_assist_response()` function rejects any response
   containing `chain_of_thought`, `thinking`, `reasoning_trace`, or `internal_notes`.
 
-### 11.2 v1.4 Constraint Summary
+### 11.2 Document Generation Isolation
+
+The document generation feature (`POST /api/teams/{teamId}/artifacts/generate-document`)
+follows the same isolation model:
+
+- **Go API owns persistence**: The Python worker returns structured `document_json` only.
+  All validation, word count computation, and database writes happen in the Go API.
+- **No raw prompt storage**: `source_data` records `{document_type, tone, sections, generation}`
+  but does NOT include the user's raw prompt text.
+- **Worker reuses port 9100**: Same internal-only endpoint as document assist.
+- **Bounded request**: 200KB max body, 90s timeout.
+- **No chain_of_thought**: `validate_generate_response()` rejects forbidden fields.
+
+### 11.3 Document Export Isolation
+
+All three export formats (Markdown, PDF, DOCX) are pure Go server-side rendering:
+
+- **No external document engine**: No SuperDoc, no LibreOffice, no browser export.
+- **Streaming-only**: Exports stream directly to the HTTP response. No MinIO writes.
+- **`last_exported_storage_object_id` intentionally unused**: Track 6 does not persist
+  export artifacts. The column remains NULL by design.
+- **DOCX is pure Go OOXML**: Built with `archive/zip` + XML templates. All user content
+  is XML-escaped.
+- **No JavaScript execution in PDF**: The Go PDF writer does not evaluate scripts.
+
+### 11.4 Version History Isolation
+
+Document version history (`artifact_document_versions`) is non-destructive:
+
+- **No version deletion endpoint**: No DELETE route exists for version rows.
+- **Restore is non-destructive**: Creates a new version with old content. Old versions
+  are never overwritten or deleted.
+- **Save conflict protection**: PATCH with stale `If-Match` header returns 409.
+- **No Python/export/Tool Gateway interaction**: Version operations are Go-only.
+- **No operational side effects**: Version operations do not create approval requests,
+  asset actions, or remediation proposals.
+
+### 11.5 v1.4 Constraint Summary
 
 1. ❌ No A5 (unchanged)
 2. ❌ No new mutation classes (unchanged)
-3. ❌ No operational control path (document assist is advisory-only)
-4. ❌ No DB/MinIO/NATS/Redis access from worker assist endpoint
-5. ✅ Worker assist endpoint is internal-only (port 9100 not published to host)
-6. ✅ No content logged — only mode name on errors
+3. ❌ No operational control path (document features are advisory/productivity only)
+4. ❌ No DB/MinIO/NATS/Redis access from worker assist/generate endpoint
+5. ✅ Worker assist/generate endpoint is internal-only (port 9100 not published to host)
+6. ✅ No content logged — only mode/type name on errors
 7. ✅ No chain_of_thought/thinking fields in responses
+8. ✅ No raw prompts stored in source_data
+9. ✅ No SuperDoc dependency, no copied code, no external document engine
+10. ✅ Exports are streaming-only, no storage mutation
+11. ✅ Version history is non-destructive with no delete path
+12. ✅ Save conflict protection via If-Match precondition (409)

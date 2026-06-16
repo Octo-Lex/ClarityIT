@@ -159,9 +159,11 @@ export default function DocumentEditorPage() {
   };
 
   // ─── Save ───
+  const [saveConflict, setSaveConflict] = useState(false);
   const handleSave = async () => {
     if (!artifactId) return;
     setSaveState('saving');
+    setSaveConflict(false);
     try {
       const documentJson = {
         schema_version: 1,
@@ -173,8 +175,13 @@ export default function DocumentEditorPage() {
       setDirty(false);
       setSaveState('saved');
       setLastSaved(new Date().toISOString());
-    } catch (err) {
-      setSaveState('error');
+    } catch (err: any) {
+      if (err?.status === 409 || err?.message?.includes('409')) {
+        setSaveState('error');
+        setSaveConflict(true);
+      } else {
+        setSaveState('error');
+      }
     }
   };
 
@@ -238,6 +245,31 @@ export default function DocumentEditorPage() {
           {DOCUMENT_TYPE_LABELS[docType] || docType}
         </span>
         <DocumentSaveStatus status={saveState} lastSaved={lastSaved} />
+        {/* v1.4 Track 8: Stale-save 409 conflict dialog */}
+        {saveConflict && (
+          <div data-testid="save-conflict" className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50" />
+            <div className="relative bg-[var(--bg)] border border-[var(--border)] rounded-lg p-4 max-w-sm">
+              <div className="text-sm font-medium mb-2">⚠️ Document Changed</div>
+              <div className="text-xs text-[var(--text-muted)] mb-4">
+                This document was modified on the server. Your local changes were not saved.
+                Please reload to get the latest version, or copy your changes before reloading.
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  data-testid="conflict-dismiss"
+                  onClick={() => setSaveConflict(false)}
+                  className="px-3 py-1 text-xs border border-[var(--border)] rounded"
+                >Keep my changes</button>
+                <button
+                  data-testid="conflict-reload"
+                  onClick={() => window.location.reload()}
+                  className="px-3 py-1 text-xs bg-[var(--primary)] text-white rounded"
+                >Reload latest</button>
+              </div>
+            </div>
+          </div>
+        )}
         <button
           data-testid="toggle-assist"
           onClick={() => setShowAssist(!showAssist)}
