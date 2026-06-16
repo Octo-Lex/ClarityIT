@@ -34,6 +34,13 @@ from document_assist import (
     validate_assist_response,
     ASSIST_MODES,
 )
+from document_generate import (
+    StubDocumentGenerateGateway,
+    validate_generate_request,
+    validate_generate_response,
+    GENERATE_TONES,
+    GENERATE_DOC_TYPES,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -193,10 +200,11 @@ class DocumentAssistServer:
 
     MAX_BODY_SIZE = 100_000  # 100KB max request body
 
-    def __init__(self, port: int, token: str, gateway: StubDocumentAssistGateway):
+    def __init__(self, port: int, token: str, gateway: StubDocumentAssistGateway, generate_gateway: StubDocumentGenerateGateway | None = None):
         self._port = port
         self._token = token
         self._gateway = gateway
+        self._generate_gateway = generate_gateway or StubDocumentGenerateGateway()
         self._server: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
 
@@ -216,6 +224,7 @@ class DocumentAssistServer:
     def _make_handler(self):
         token = self._token
         gateway = self._gateway
+        generate_gateway = self._generate_gateway
         max_body = self.MAX_BODY_SIZE
 
         class Handler(BaseHTTPRequestHandler):
@@ -234,7 +243,7 @@ class DocumentAssistServer:
                 self.wfile.write(data)
 
             def do_POST(self) -> None:
-                if self.path != "/document-assist":
+                if self.path not in ("/document-assist", "/document-generate"):
                     self._send_json(404, {"error": "Not found"})
                     return
 
@@ -255,6 +264,12 @@ class DocumentAssistServer:
                     self._send_json(400, {"error": "Invalid JSON"})
                     return
 
+                if self.path == "/document-assist":
+                    self._handle_assist(payload, gateway)
+                elif self.path == "/document-generate":
+                    self._handle_generate(payload, generate_gateway)
+
+            def _handle_assist(self, payload: dict, gateway: Any) -> None:
                 # Validate required fields
                 mode = payload.get("mode", "")
                 mode_errors = validate_assist_mode(mode)
@@ -303,6 +318,43 @@ class DocumentAssistServer:
                 log.info("Document assist completed: mode=%s", mode)
                 self._send_json(200, result)
 
+            def _handle_generate(self, payload: dict, generate_gateway: Any) -> None:
+                # Validate request
+                errors = validate_generate_request(payload)
+                if errors:
+                    self._send_json(400, {"error": errors[0]})
+                    return
+
+                title = payload.get("title", "")
+                document_type = payload.get("document_type", "general_document")
+                prompt = payload.get("prompt", "")
+                tone = payload.get("tone", "technical")
+                sections = payload.get("sections", [])
+
+                try:
+                    result = generate_gateway.generate_document(
+                        title=title,
+                        document_type=document_type,
+                        prompt=prompt,
+                        tone=tone,
+                        sections=sections if sections else None,
+                    )
+                except Exception:
+                    # Do NOT log raw prompt
+                    log.error("Document generate gateway error for type=%s", document_type)
+                    self._send_json(500, {"error": "Generation failed"})
+                    return
+
+                # Validate no forbidden fields
+                forbidden = validate_generate_response(result)
+                if forbidden:
+                    self._send_json(500, {"error": "Invalid response"})
+                    return
+
+                # Do NOT log raw prompt or generated content
+                log.info("Document generate completed: type=%s, tone=%s", document_type, tone)
+                self._send_json(200, result)
+
             def do_GET(self) -> None:
                 if self.path == "/health":
                     self._send_json(200, {"status": "ok"})
@@ -343,7 +395,8 @@ def main() -> None:
 
     # Start document assist HTTP server in background thread
     assist_gateway = StubDocumentAssistGateway()
-    assist_server = DocumentAssistServer(assist_port, token, assist_gateway)
+    generate_gateway = StubDocumentGenerateGateway()
+    assist_server = DocumentAssistServer(assist_port, token, assist_gateway, generate_gateway)
     assist_server.start()
 
     # Graceful shutdown

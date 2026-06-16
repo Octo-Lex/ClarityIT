@@ -549,6 +549,14 @@ export const api = {
       method: 'POST',
       headers: { 'Idempotency-Key': uuid() },
       body: JSON.stringify(data),
+    }),
+
+  // v1.4 Track 4: Generate Document
+  generateDocument: (data: { title: string; document_type: string; prompt: string; tone: string; sections: string[] }) =>
+    request<any>(teamPath(`/artifacts/generate-document`), {
+      method: 'POST',
+      headers: { 'Idempotency-Key': uuid() },
+      body: JSON.stringify(data),
     }), 
 
   // v1.3 Track 2: Presenton

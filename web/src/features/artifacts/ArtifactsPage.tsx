@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../../api/client';
 import ArtifactEditor from './ArtifactEditor';
 import PresentationModal from './PresentationModal';
 import MeetingSummaryEditor from './MeetingSummaryEditor';
 import StatusReportModal from './StatusReportModal';
 import TemplateGallery from './TemplateGallery';
+import DocumentGenerateModal from './DocumentGenerateModal';
 
 const ARTIFACT_TYPES = [
   { value: '', label: 'All Types' },
@@ -52,7 +54,9 @@ export default function ArtifactsPage() {
   const [showMeeting, setShowMeeting] = useState(false);
   const [showStatusReport, setShowStatusReport] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [storageSummary, setStorageSummary] = useState<any>(null);
   const [recentArtifacts, setRecentArtifacts] = useState<any[]>([]);
 
@@ -131,6 +135,13 @@ export default function ArtifactsPage() {
             data-testid="artifacts-status-report-btn"
           >
             📊 Status Report
+          </button>
+          <button
+            onClick={() => setShowGenerate(true)}
+            className="px-3 py-1.5 bg-amber-700 text-white rounded text-sm hover:bg-amber-600"
+            data-testid="artifacts-generate-doc-btn"
+          >
+            🤖 Generate Document
           </button>
           <button
             onClick={() => setShowTemplates(true)}
@@ -329,6 +340,17 @@ export default function ArtifactsPage() {
         <TemplateGallery
           onClose={() => setShowTemplates(false)}
           onInstantiated={() => fetchArtifacts()}
+        />
+      )}
+
+      {/* v1.4 Track 4: Generate Document modal */}
+      {showGenerate && (
+        <DocumentGenerateModal
+          onClose={() => setShowGenerate(false)}
+          onGenerated={(artifactId) => {
+            setShowGenerate(false);
+            navigate(`/artifacts/documents/${artifactId}`);
+          }}
         />
       )}
 

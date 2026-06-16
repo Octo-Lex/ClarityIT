@@ -568,6 +568,9 @@ func main() {
 			// v1.4 Track 3: Agent Assist
 			r.With(middleware.RequirePermission(pool, "artifacts.update")).
 				Post("/documents/{artifactId}/document-assist", artifactHandler.DocumentAssist)
+			// v1.4 Track 4: Document Generation
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/artifacts/generate-document", artifactHandler.GenerateDocument)
 		})
 	})
 
