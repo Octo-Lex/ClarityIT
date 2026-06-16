@@ -25,6 +25,7 @@ import (
 	"github.com/clarityit/api/internal/health"
 	"github.com/clarityit/api/internal/mfa"
 	"github.com/clarityit/api/internal/integration"
+	"github.com/clarityit/api/internal/knowledge"
 	"github.com/clarityit/api/internal/proxmox"
 	"github.com/clarityit/api/internal/remediation"
 	"github.com/clarityit/api/internal/storage"
@@ -582,6 +583,15 @@ func main() {
 			r.With(middleware.RequirePermission(pool, "artifacts.update")).
 				Post("/documents/{artifactId}/versions/{versionId}/restore", artifactHandler.RestoreVersion)
 		})
+
+		// v1.5 Knowledge
+		knowledgeHandler := knowledge.NewHandler(pool)
+		r.With(middleware.RequirePermission(pool, "knowledge.search")).
+			Get("/knowledge/search", knowledgeHandler.SearchHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/index-status", knowledgeHandler.IndexStatusHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/{itemId}", knowledgeHandler.GetHTTP)
 	})
 
 	// ─── Platform Admin ───
