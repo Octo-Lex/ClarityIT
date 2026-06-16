@@ -571,6 +571,9 @@ func main() {
 			// v1.4 Track 4: Document Generation
 			r.With(middleware.RequirePermission(pool, "artifacts.create")).
 				Post("/artifacts/generate-document", artifactHandler.GenerateDocument)
+			// v1.4 Track 6: DOCX Export
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/artifacts/{artifactId}/export/docx", artifactHandler.ExportDOCX)
 		})
 	})
 

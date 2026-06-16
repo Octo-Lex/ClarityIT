@@ -498,6 +498,10 @@ export const api = {
   generateStatusReport: (data: { title: string; project_id?: string; period_start: string; period_end: string; include_sections: string[] }) =>
     mutation<any>('POST', teamPath('/status-reports/generate'), data),
 
+  // v1.4 Track 6: Export endpoints
+  exportDocumentUrl: (artifactId: string, format: 'markdown' | 'pdf' | 'docx') =>
+    teamPath(`/artifacts/${artifactId}/export/${format}`),
+
   // v1.3 Track 5: Template Library
   listTemplates: (typeFilter?: string, formatFilter?: string) => {
     let qs = '';

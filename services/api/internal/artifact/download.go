@@ -107,6 +107,8 @@ func (h *Handler) Download(w http.ResponseWriter, r *http.Request) {
 }
 
 // ExportMarkdown returns content_markdown as a .md file download.
+// For native documents (artifact_type=document), renders document_json to markdown.
+// For other artifacts, returns content_markdown directly (v1.3 behavior).
 func (h *Handler) ExportMarkdown(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	teamID, err := uuid.Parse(chi.URLParam(r, "teamId"))
@@ -120,11 +122,15 @@ func (h *Handler) ExportMarkdown(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var title, content, status string
+	var title, content, status, artifactType string
+	var docJSON []byte
 	err = h.pool.QueryRow(ctx, `
-		SELECT title, COALESCE(content_markdown, ''), status
-		FROM artifacts WHERE id = $1 AND team_id = $2
-	`, artifactID, teamID).Scan(&title, &content, &status)
+		SELECT a.title, COALESCE(a.content_markdown, ''), a.status, a.artifact_type,
+		       d.document_json
+		FROM artifacts a
+		LEFT JOIN artifact_documents d ON d.artifact_id = a.id
+		WHERE a.id = $1 AND a.team_id = $2
+	`, artifactID, teamID).Scan(&title, &content, &status, &artifactType, &docJSON)
 	if err != nil {
 		writeErr(w, 404, "Artifact not found")
 		return
@@ -135,6 +141,31 @@ func (h *Handler) ExportMarkdown(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// v1.4 Track 6: Native document export from document_json
+	if artifactType == "document" && len(docJSON) > 0 {
+		var doc DocumentJSON
+		if err := json.Unmarshal(docJSON, &doc); err != nil {
+			writeErr(w, 400, "Invalid document_json")
+			return
+		}
+		if doc.SchemaVersion != 1 {
+			writeErr(w, 400, "Unsupported schema_version")
+			return
+		}
+		mdContent := renderBlocksToMarkdown(doc.Blocks)
+		if strings.TrimSpace(mdContent) == "" {
+			writeErr(w, 400, "Document has no content to export")
+			return
+		}
+		filename := sanitizeFilename(title) + ".md"
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+		w.WriteHeader(200)
+		w.Write([]byte(mdContent))
+		return
+	}
+
+	// v1.3 fallback: markdown-based artifacts
 	if strings.TrimSpace(content) == "" {
 		writeErr(w, 400, "This artifact has no markdown content to export")
 		return
@@ -148,6 +179,7 @@ func (h *Handler) ExportMarkdown(w http.ResponseWriter, r *http.Request) {
 }
 
 // ExportPDF returns a simple server-side PDF generated from markdown content.
+// For native documents (artifact_type=document), renders document_json to PDF.
 // Uses only Go standard library — no external rendering, no JS execution.
 func (h *Handler) ExportPDF(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -162,11 +194,15 @@ func (h *Handler) ExportPDF(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var title, content, status string
+	var title, content, status, artifactType string
+	var docJSON []byte
 	err = h.pool.QueryRow(ctx, `
-		SELECT title, COALESCE(content_markdown, ''), status
-		FROM artifacts WHERE id = $1 AND team_id = $2
-	`, artifactID, teamID).Scan(&title, &content, &status)
+		SELECT a.title, COALESCE(a.content_markdown, ''), a.status, a.artifact_type,
+		       d.document_json
+		FROM artifacts a
+		LEFT JOIN artifact_documents d ON d.artifact_id = a.id
+		WHERE a.id = $1 AND a.team_id = $2
+	`, artifactID, teamID).Scan(&title, &content, &status, &artifactType, &docJSON)
 	if err != nil {
 		writeErr(w, 404, "Artifact not found")
 		return
@@ -177,6 +213,36 @@ func (h *Handler) ExportPDF(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// v1.4 Track 6: Native document export from document_json
+	if artifactType == "document" && len(docJSON) > 0 {
+		var doc DocumentJSON
+		if err := json.Unmarshal(docJSON, &doc); err != nil {
+			writeErr(w, 400, "Invalid document_json")
+			return
+		}
+		if doc.SchemaVersion != 1 {
+			writeErr(w, 400, "Unsupported schema_version")
+			return
+		}
+		mdContent := renderBlocksToMarkdown(doc.Blocks)
+		if strings.TrimSpace(mdContent) == "" {
+			writeErr(w, 400, "Document has no content to export")
+			return
+		}
+		pdfBytes, err := buildMinimalPDF(title, mdContent)
+		if err != nil {
+			writeErr(w, 500, "Failed to generate PDF")
+			return
+		}
+		filename := sanitizeFilename(title) + ".pdf"
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+		w.WriteHeader(200)
+		w.Write(pdfBytes)
+		return
+	}
+
+	// v1.3 fallback: markdown-based artifacts
 	if strings.TrimSpace(content) == "" {
 		writeErr(w, 400, "This artifact has no markdown content to export")
 		return
@@ -193,6 +259,68 @@ func (h *Handler) ExportPDF(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	w.WriteHeader(200)
 	w.Write(pdfBytes)
+}
+
+// ExportDOCX exports a native ClarityDocs document to DOCX (OOXML) format.
+// Only available for native documents (artifact_type=document).
+// v1.4 Track 6.
+func (h *Handler) ExportDOCX(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	teamID, err := uuid.Parse(chi.URLParam(r, "teamId"))
+	if err != nil {
+		writeErr(w, 400, "Invalid team ID")
+		return
+	}
+	artifactID, err := uuid.Parse(chi.URLParam(r, "artifactId"))
+	if err != nil {
+		writeErr(w, 400, "Invalid artifact ID")
+		return
+	}
+
+	var title, status, artifactType string
+	var docJSON []byte
+	err = h.pool.QueryRow(ctx, `
+		SELECT a.title, a.status, a.artifact_type, d.document_json
+		FROM artifacts a
+		JOIN artifact_documents d ON d.artifact_id = a.id
+		WHERE a.id = $1 AND a.team_id = $2
+	`, artifactID, teamID).Scan(&title, &status, &artifactType, &docJSON)
+	if err != nil {
+		writeErr(w, 404, "Document not found")
+		return
+	}
+
+	if artifactType != "document" {
+		writeErr(w, 400, "DOCX export is only available for native documents")
+		return
+	}
+
+	if status == "archived" {
+		writeErr(w, 403, "Archived artifacts cannot be exported")
+		return
+	}
+
+	var doc DocumentJSON
+	if err := json.Unmarshal(docJSON, &doc); err != nil {
+		writeErr(w, 400, "Invalid document_json")
+		return
+	}
+	if doc.SchemaVersion != 1 {
+		writeErr(w, 400, "Unsupported schema_version")
+		return
+	}
+
+	docxBytes, err := buildDOCX(title, doc.Blocks)
+	if err != nil {
+		writeErr(w, 500, "Failed to generate DOCX")
+		return
+	}
+
+	filename := sanitizeFilename(title) + ".docx"
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	w.WriteHeader(200)
+	w.Write(docxBytes)
 }
 
 // ─── Helpers ───

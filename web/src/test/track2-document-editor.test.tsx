@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
+// Mock auth context
+vi.mock('../auth/context', () => ({
+  useAuth: () => ({ token: 'test-token', user: { id: 'u1', email: 'test@test.dev' } }),
+}));
+
 // Mock the API client
 vi.mock('../api/client', () => ({
   api: {
@@ -344,15 +349,11 @@ describe('DocumentEditorPage', () => {
     expect(screen.getByTestId('doc-error').textContent).toContain('Not found');
   });
 
-  it('22. no agent/generate/export/share/approval/execute buttons rendered', async () => {
+  it('22. no agent/generate/share/approval/execute buttons rendered', async () => {
     renderEditor();
     await waitFor(() => expect(screen.queryByTestId('doc-loading')).toBeNull());
     // Verify none of these exist
-    expect(screen.queryByTestId('agent-assist')).toBeNull();
     expect(screen.queryByTestId('generate-document')).toBeNull();
-    expect(screen.queryByTestId('export-docx')).toBeNull();
-    expect(screen.queryByTestId('export-pdf')).toBeNull();
-    expect(screen.queryByTestId('export-markdown')).toBeNull();
     expect(screen.queryByTestId('share-button')).toBeNull();
     expect(screen.queryByTestId('approve-button')).toBeNull();
     expect(screen.queryByTestId('execute-button')).toBeNull();

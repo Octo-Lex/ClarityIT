@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../../api/client';
+import { useAuth } from '../../auth/context';
 import DocumentBlockEditor, { Block, genId } from './DocumentBlockEditor';
 import DocumentOutline from './DocumentOutline';
 import DocumentToolbar, { BlockType } from './DocumentToolbar';
@@ -39,6 +40,10 @@ export default function DocumentEditorPage() {
   const [showAssist, setShowAssist] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [selectedBlockText, setSelectedBlockText] = useState('');
+  const [archived, setArchived] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const auth = useAuth();
 
   // ─── Load document ───
   useEffect(() => {
@@ -171,6 +176,34 @@ export default function DocumentEditorPage() {
     }
   };
 
+  // ─── Export (v1.4 Track 6) ───
+  const doExport = async (format: 'markdown' | 'pdf' | 'docx') => {
+    if (!artifactId) return;
+    setExporting(true);
+    setExportError('');
+    try {
+      const token = auth.token;
+      if (!token) throw new Error('Not authenticated');
+      const url = api.exportDocumentUrl(artifactId, format);
+      const resp = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) throw new Error('Export failed');
+      const blob = await resp.blob();
+      const ext = format === 'markdown' ? 'md' : format;
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `${title || 'document'}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      setExportError('Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
     markDirty();
@@ -208,6 +241,16 @@ export default function DocumentEditorPage() {
           onClick={() => setShowAssist(!showAssist)}
           className={`px-2 py-0.5 text-xs rounded ${showAssist ? 'bg-[var(--primary)] text-white' : 'bg-[var(--card)] border border-[var(--border)]'}`}
         >🤖 Assist</button>
+        {/* v1.4 Track 6: Export buttons */}
+        {!previewMode && !archived && (
+          <>
+            <button data-testid="export-md" onClick={() => doExport('markdown')} disabled={exporting} className="px-2 py-0.5 text-xs bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)]">📄 MD</button>
+            <button data-testid="export-pdf" onClick={() => doExport('pdf')} disabled={exporting} className="px-2 py-0.5 text-xs bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)]">📄 PDF</button>
+            <button data-testid="export-docx" onClick={() => doExport('docx')} disabled={exporting} className="px-2 py-0.5 text-xs bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)]">📄 DOCX</button>
+          </>
+        )}
+        {exporting && <span className="text-xs text-[var(--text-muted)]" data-testid="export-loading">Exporting...</span>}
+        {exportError && <span className="text-xs text-red-400" data-testid="export-error">{exportError}</span>}
       </div>
 
       {/* Toolbar */}

@@ -67,7 +67,11 @@ func setupDownloadTest(t *testing.T) *artifactTestEnv {
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/download", artH.Download)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/markdown", artH.ExportMarkdown)
 		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/pdf", artH.ExportPDF)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/{artifactId}/export/docx", artH.ExportDOCX)
 		r.With(middleware.RequirePermission(pool, "artifacts.delete")).Delete("/artifacts/{artifactId}", artH.Delete)
+		// v1.4 Track 1: Document routes (for native document export tests)
+		r.With(middleware.RequirePermission(pool, "artifacts.create")).Post("/artifacts/documents", artH.CreateDocument)
+		r.With(middleware.RequirePermission(pool, "artifacts.read")).Get("/artifacts/documents/{artifactId}", artH.GetDocument)
 	})
 
 	e.r = r
