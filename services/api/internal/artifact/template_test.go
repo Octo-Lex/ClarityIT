@@ -18,7 +18,7 @@ func ensureSystemTemplates(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	var count int
 	pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM artifact_templates WHERE is_system = true").Scan(&count)
-	if count >= 6 {
+	if count >= 13 {
 		return
 	}
 	// Re-seed all 6 system templates

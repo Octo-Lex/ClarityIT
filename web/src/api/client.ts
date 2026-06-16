@@ -499,12 +499,13 @@ export const api = {
     mutation<any>('POST', teamPath('/status-reports/generate'), data),
 
   // v1.3 Track 5: Template Library
-  listTemplates: (typeFilter?: string) => {
+  listTemplates: (typeFilter?: string, formatFilter?: string) => {
     let qs = '';
     if (typeFilter) qs += `?type=${typeFilter}`;
+    if (formatFilter) qs += `${typeFilter ? '&' : '?'}format=${formatFilter}`;
     return request<any[]>(teamPath(`/artifact-templates${qs}`));
   },
-  createTemplate: (data: { template_type: string; name: string; content_markdown: string; description?: string; metadata?: any }) =>
+  createTemplate: (data: { template_type: string; name: string; content_markdown?: string; description?: string; metadata?: any; template_format?: string; document_json?: any; schema_version?: number }) =>
     mutation<any>('POST', teamPath('/artifact-templates'), data),
   instantiateTemplate: (templateId: string, data: { title?: string; description?: string; status?: string }) =>
     mutation<any>('POST', teamPath(`/artifact-templates/${templateId}/instantiate`), data),

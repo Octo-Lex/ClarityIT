@@ -85,7 +85,7 @@ describe('Track 5 — Template Library', () => {
     );
     await waitFor(() => expect(screen.getByTestId('template-filter')).toBeInTheDocument());
     fireEvent.change(screen.getByTestId('template-filter'), { target: { value: 'status_report' } });
-    expect(api.listTemplates).toHaveBeenCalledWith('status_report');
+    expect(api.listTemplates).toHaveBeenCalledWith('status_report', undefined);
   });
 
   // Test 5: preview content renders
