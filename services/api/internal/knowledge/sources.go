@@ -86,7 +86,6 @@ func ExtractArtifacts(ctx context.Context, pool *pgxpool.Pool, teamID string) ([
 			continue
 		}
 
-		title = title
 		contentText := ""
 		if content != nil {
 			contentText = *content
