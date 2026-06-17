@@ -5,119 +5,142 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ───────────────────────────────────────────────────────────────────────────
+ * Design tokens — clean enterprise SaaS (Notion/Stripe/GitHub register)
+ *
+ * Strategy: the shadcn semantic-token model (--background/--foreground/--card/
+ * --primary/--muted/--destructive/...) is the single source of truth for new
+ * feature code. Legacy tokens (--bg/--text/.card/.badge-*/.btn-*) are aliased
+ * to the new system so existing pages keep rendering while tracks migrate.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --bg: #09090b;
-  --card: oklch(1 0 0);
-  --border: oklch(0.922 0 0);
-  --text: #fafafa;
-  --text-muted: #a1a1aa;
-  --primary: oklch(0.205 0 0);
-  --primary-hover: #2563eb;
-  --danger: #ef4444;
-  --success: #22c55e;
-  --warning: #f59e0b;
+  /* Radius */
+  --radius: 0.625rem;
+
+  /* Base semantic palette — light theme */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
+
+  /* Primary: a confident, readable enterprise blue */
+  --primary: oklch(0.546 0.245 262.881);
   --primary-foreground: oklch(0.985 0 0);
+
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
+
   --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --ring: oklch(0.546 0.245 262.881);
+
+  /* Status tones (semantic — used by StatusBadge) */
+  --success: oklch(0.627 0.194 149.214);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.769 0.188 70.08);
+  --warning-foreground: oklch(0.205 0 0);
+  --danger: oklch(0.577 0.245 27.325);
+  --info: oklch(0.623 0.214 259.815);
+  --info-foreground: oklch(0.985 0 0);
+
+  /* Charts */
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+
+  /* Sidebar */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.546 0.245 262.881);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: oklch(0.546 0.245 262.881);
+
+  /* ── Legacy aliases (compat during per-track migration) ──
+   * Old feature code references var(--bg), var(--text), var(--text-muted),
+   * var(--primary-hover), var(--danger), var(--success), var(--warning),
+   * var(--card), var(--border). Keep them pointing at the new tokens so the
+   * unmigrated 47 files render correctly. These are removed once Track 8 lands.
+   */
+  --bg: var(--background);
+  --text: var(--foreground);
+  --text-muted: var(--muted-foreground);
+  --primary-hover: oklch(0.488 0.243 264.376);
+  --success: var(--success);
+  --warning: var(--warning);
+  --danger: var(--destructive);
 }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  margin: 0;
-}
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
 
-input, select, textarea {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 14px;
-  width: 100%;
-  &:focus { outline: none; border-color: var(--primary); }
-}
+  --primary: oklch(0.623 0.214 259.815);
+  --primary-foreground: oklch(0.205 0 0);
 
-button {
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  font-weight: 500;
-  &:hover { background: var(--primary-hover); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-}
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
 
-.btn-secondary {
-  background: var(--card);
-  border: 1px solid var(--border);
-  &:hover { background: var(--border); }
-}
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.623 0.214 259.815);
 
-.btn-danger {
-  background: var(--danger);
-  &:hover { background: #dc2626; }
-}
+  --success: oklch(0.696 0.17 162.48);
+  --success-foreground: oklch(0.205 0 0);
+  --warning: oklch(0.794 0.184 86.04);
+  --warning-foreground: oklch(0.205 0 0);
+  --danger: var(--destructive);
+  --info: oklch(0.707 0.165 254.624);
+  --info-foreground: oklch(0.205 0 0);
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
-}
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.194 149.214);
+  --chart-5: oklch(0.645 0.246 16.439);
 
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.badge-green { background: #166534; color: #bbf7d0; }
-.badge-yellow { background: #713f12; color: #fef08a; }
-.badge-red { background: #7f1d1d; color: #fecaca; }
-.badge-blue { background: #1e3a5f; color: #bfdbfe; }
-.badge-gray { background: #27272a; color: #a1a1aa; }
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.623 0.214 259.815);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 
-.error-msg {
-  color: var(--danger);
-  font-size: 14px;
-  margin-top: 4px;
+  /* Legacy aliases follow the dark tokens */
+  --bg: var(--background);
+  --text: var(--foreground);
+  --text-muted: var(--muted-foreground);
+  --primary-hover: oklch(0.488 0.243 264.376);
 }
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -126,15 +149,16 @@ button {
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -149,6 +173,13 @@ button {
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -158,48 +189,87 @@ button {
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
   }
+  body {
+    @apply bg-background text-foreground antialiased;
+    margin: 0;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * Legacy component classes — kept for backward compat with unmigrated pages.
+ * Each is a thin alias onto the new token system. Removed once Track 8 lands.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+/* Raw element styling for <input>/<select>/<textarea>/<button> used by
+ * legacy pages that hand-roll forms instead of using the ui/ primitives. */
+input, select, textarea {
+  background: var(--background);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 14px;
+  width: 100%;
+  &:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent); }
+}
+
+button {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  &:hover { background: var(--primary-hover); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  border: 1px solid var(--border);
+  &:hover { background: var(--muted); }
+}
+
+.btn-danger {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+  &:hover { background: color-mix(in oklch, var(--destructive) 85%, black); }
+}
+
+.card {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  box-shadow: 0 1px 2px 0 oklch(0 0 0 / 0.04);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-4xl);
+  font-size: 12px;
+  font-weight: 500;
+}
+.badge-green { background: color-mix(in oklch, var(--success) 18%, transparent); color: var(--success); }
+.badge-yellow { background: color-mix(in oklch, var(--warning) 20%, transparent); color: color-mix(in oklch, var(--warning) 70%, black); }
+.badge-red { background: color-mix(in oklch, var(--destructive) 16%, transparent); color: var(--destructive); }
+.badge-blue { background: color-mix(in oklch, var(--info) 18%, transparent); color: var(--info); }
+.badge-gray { background: var(--muted); color: var(--muted-foreground); }
+
+.error-msg {
+  color: var(--destructive);
+  font-size: 14px;
+  margin-top: 4px;
 }
