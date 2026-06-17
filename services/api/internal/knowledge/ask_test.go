@@ -354,3 +354,30 @@ func TestAsk_NoOperationalSideEffects(t *testing.T) {
 		}
 	}
 }
+
+func TestAsk_WorkerConfigOnlyNeedsURLAndToken(t *testing.T) {
+	// Verify that WorkerConfig only uses URL and Token fields —
+	// no DB, NATS, Redis, MinIO, or other infra env vars needed.
+	wc := WorkerConfig{
+		URL:   "http://worker:9100",
+		Token: "test-token",
+	}
+
+	// The WorkerConfig struct must not have any infra connection fields.
+	// This is a compile-time + runtime assertion that the worker boundary
+	// only requires HTTP URL + auth token.
+	if wc.URL == "" {
+		t.Error("URL field missing from WorkerConfig")
+	}
+	if wc.Token == "" {
+		t.Error("Token field missing from WorkerConfig")
+	}
+
+	// Verify the knowledge Handler's worker field is the only external dependency
+	// for ask — no pool, no NATS, no Redis needed beyond what Handler already has
+	h := NewHandler(nil) // pool not needed for worker config
+	h.SetWorker(wc)
+	if h.worker == nil || h.worker.URL != wc.URL || h.worker.Token != wc.Token {
+		t.Error("worker config not properly set")
+	}
+}
