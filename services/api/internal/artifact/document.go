@@ -483,10 +483,10 @@ func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
 		var contentMD, storageID, fileFmt, lastExported *string
 		var sourceDataRaw any
 
-		var description *string
+		var description, sourceType *string
 		err := rows.Scan(
 			&doc.ID, &doc.TeamID, &doc.ArtifactType, &doc.Title, &description,
-			&contentMD, &doc.Status, &doc.SourceType, &sourceDataRaw,
+			&contentMD, &doc.Status, &sourceType, &sourceDataRaw,
 			&storageID, &fileFmt,
 			&doc.CreatedBy, &doc.UpdatedBy,
 			&doc.CreatedAt, &doc.UpdatedAt,
@@ -499,6 +499,9 @@ func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
 		}
 		if description != nil {
 			doc.Description = *description
+		}
+		if sourceType != nil {
+			doc.SourceType = *sourceType
 		}
 
 		docs = append(docs, doc)
@@ -530,7 +533,7 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 	var contentMD *string
 	var sourceDataRaw any
 	var storageID, fileFmt, lastExported *string
-	var description *string
+	var description, sourceType *string
 
 	err = h.pool.QueryRow(ctx, `
 		SELECT a.id::text, a.team_id::text, a.artifact_type, a.title, a.description,
@@ -545,7 +548,7 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 		WHERE a.id = $1 AND a.team_id = $2 AND a.artifact_type = 'document'
 	`, artifactID, teamID).Scan(
 		&doc.ID, &doc.TeamID, &doc.ArtifactType, &doc.Title, &description,
-		&contentMD, &doc.Status, &doc.SourceType, &sourceDataRaw,
+		&contentMD, &doc.Status, &sourceType, &sourceDataRaw,
 		&storageID, &fileFmt,
 		&doc.CreatedBy, &doc.UpdatedBy,
 		&doc.CreatedAt, &doc.UpdatedAt,
@@ -558,6 +561,9 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 	}
 	if description != nil {
 		doc.Description = *description
+	}
+	if sourceType != nil {
+		doc.SourceType = *sourceType
 	}
 
 	_ = contentMD

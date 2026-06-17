@@ -497,6 +497,14 @@ func main() {
 
 		// v1.5 Knowledge index hook: re-extract and index on mutation
 		kIndexer := knowledge.NewIndexer(pool)
+
+		// v1.5 Track 5: Wire worker for knowledge-ask
+		if workerAssistURL != "" {
+			knowledgeHandler.SetWorker(knowledge.WorkerConfig{
+				URL:   workerAssistURL,
+				Token: os.Getenv("WORKER_TOKEN"),
+			})
+		}
 		artifactHandler.SetIndexHook(func(ctx context.Context, teamID, sourceType, sourceID string) {
 			go func() {
 				var docs []knowledge.SourceDocument
@@ -623,6 +631,8 @@ func main() {
 			Get("/knowledge/index-status", knowledgeHandler.IndexStatusHTTP)
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/related", knowledgeHandler.RelatedHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.ask")).
+			Post("/knowledge/ask", knowledgeHandler.AskHTTP)
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/{itemId}", knowledgeHandler.GetHTTP)
 	})

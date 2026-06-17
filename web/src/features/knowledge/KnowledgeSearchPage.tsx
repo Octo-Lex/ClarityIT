@@ -3,6 +3,7 @@ import { api, ApiError } from '../../api/client';
 import type { KnowledgeSearchResult } from '../../api/client';
 import { SearchResultCard } from './SearchResultCard';
 import { SearchFilters } from './SearchFilters';
+import { AskClarityPanel } from './AskClarityPanel';
 
 export function KnowledgeSearchPage() {
   const [query, setQuery] = useState('');
@@ -59,6 +60,11 @@ export function KnowledgeSearchPage() {
       <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
         Knowledge Search
       </h1>
+
+      {/* v1.5 Track 5: Ask Clarity Q&A Panel */}
+      <div className="mb-6">
+        <AskClarityPanel />
+      </div>
 
       {/* Search input */}
       <form onSubmit={handleSubmit} className="mb-4">

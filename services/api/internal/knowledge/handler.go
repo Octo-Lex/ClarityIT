@@ -70,7 +70,8 @@ type IndexStatus struct {
 // ─── Handler ───
 
 type Handler struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	worker *WorkerConfig
 }
 
 func NewHandler(pool *pgxpool.Pool) *Handler {

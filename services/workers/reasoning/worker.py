@@ -243,7 +243,7 @@ class DocumentAssistServer:
                 self.wfile.write(data)
 
             def do_POST(self) -> None:
-                if self.path not in ("/document-assist", "/document-generate"):
+                if self.path not in ("/document-assist", "/document-generate", "/knowledge-ask"):
                     self._send_json(404, {"error": "Not found"})
                     return
 
@@ -268,6 +268,8 @@ class DocumentAssistServer:
                     self._handle_assist(payload, gateway)
                 elif self.path == "/document-generate":
                     self._handle_generate(payload, generate_gateway)
+                elif self.path == "/knowledge-ask":
+                    self._handle_knowledge_ask(payload, gateway)
 
             def _handle_assist(self, payload: dict, gateway: Any) -> None:
                 # Validate required fields
@@ -364,6 +366,11 @@ class DocumentAssistServer:
             def log_message(self, format: str, *args: Any) -> None:
                 # Suppress default access logs to prevent content leakage
                 pass
+
+            def _handle_knowledge_ask(self, payload: dict, gateway: Any) -> None:
+                from knowledge_ask import handle_knowledge_ask
+                result = handle_knowledge_ask(payload, gateway)
+                self._send_json(200, result)
 
         return Handler
 

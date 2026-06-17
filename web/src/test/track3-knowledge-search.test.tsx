@@ -324,12 +324,28 @@ describe('KnowledgeSearchPage — Unified Knowledge Search UI', () => {
     expect(screen.queryByText(/prompt/i)).not.toBeInTheDocument();
   });
 
-  // Test 17: no Ask/Q&A UI appears
-  it('does not render Ask/Q&A UI elements', () => {
+  // Test 17: no Ask/Q&A UI appears in search results
+  // Note: Track 5 adds AskClarityPanel to /knowledge page intentionally.
+  // This test now verifies that no Ask/Q&A UI appears inside search results themselves.
+  it('does not render Q&A controls inside search results', async () => {
+    vi.mocked(api.knowledgeSearch).mockResolvedValue({
+      results: mockResults,
+      total: 2,
+      query: 'authentication',
+    });
     renderPage();
-    expect(screen.queryByTestId('ask-clarity')).not.toBeInTheDocument();
-    expect(screen.queryByText(/ask clarity/i)).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText(/ask a question/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('knowledge-search-input'), { target: { value: 'authentication' } });
+    fireEvent.click(screen.getByTestId('knowledge-search-button'));
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('search-result-card')).toHaveLength(2);
+    });
+    // Search result cards should not have Q&A mutation controls
+    const cards = screen.getAllByTestId('search-result-card');
+    for (const card of cards) {
+      expect(card.querySelector('[data-testid="ask-clarity"]')).not.toBeTruthy();
+    }
   });
 
   // Test 18: no share/public/approval/execute controls

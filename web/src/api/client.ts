@@ -206,6 +206,21 @@ export interface RelatedKnowledgeResponse {
   related: RelatedKnowledgeItem[];
 }
 
+export interface AskClaritySource {
+  source_type: string;
+  source_id: string;
+  knowledge_item_id: string;
+  chunk_id: string;
+  title: string;
+  snippet: string;
+}
+export interface AskClarityResponse {
+  answer: string;
+  sources: AskClaritySource[];
+  confidence: 'low' | 'medium' | 'high';
+  missing_info: string[];
+}
+
 // ─── API ───
 export const api = {
   // Bootstrap
@@ -636,4 +651,10 @@ export const api = {
     if (limit) qs += `&limit=${limit}`;
     return request<RelatedKnowledgeResponse>(teamPath(`/knowledge/related?${qs}`));
   },
+  askClarity: (question: string, sourceTypes?: string[], maxSources?: number) =>
+    mutation<AskClarityResponse>('POST', teamPath('/knowledge/ask'), {
+      question,
+      source_types: sourceTypes,
+      max_sources: maxSources,
+    }),
 };

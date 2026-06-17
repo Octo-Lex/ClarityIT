@@ -62,6 +62,8 @@ func setupKnowledgeTest(t *testing.T) *knowledgeTestEnv {
 			Get("/knowledge/index-status", kh.IndexStatusHTTP)
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/related", kh.RelatedHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.ask")).
+			Post("/knowledge/ask", kh.AskHTTP)
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/{itemId}", kh.GetHTTP)
 	})
