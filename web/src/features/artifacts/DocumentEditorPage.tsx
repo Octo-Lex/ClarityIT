@@ -8,6 +8,7 @@ import DocumentToolbar, { BlockType } from './DocumentToolbar';
 import DocumentSaveStatus from './DocumentSaveStatus';
 import AgentAssistPanel from './AgentAssistPanel';
 import VersionHistoryDrawer from './VersionHistoryDrawer';
+import { RelatedKnowledgePanel } from '../knowledge/RelatedKnowledgePanel';
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   general_document: 'General Document',
@@ -383,6 +384,16 @@ export default function DocumentEditorPage() {
           setSaveState('saved');
         }}
       />
+
+      {/* v1.5 Track 4: Related Knowledge Panel */}
+      {artifactId && !archived && (
+        <div className="mt-4">
+          <RelatedKnowledgePanel
+            sourceType="clarity_document"
+            sourceId={artifactId}
+          />
+        </div>
+      )}
     </div>
   );
 }

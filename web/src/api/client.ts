@@ -191,6 +191,21 @@ export interface KnowledgeItem {
   updated_at: string;
 }
 
+export interface RelatedKnowledgeItem {
+  source_type: string;
+  source_id: string;
+  title: string;
+  summary: string;
+  snippet: string;
+  rank: number;
+  reason: string;
+  updated_at: string;
+}
+export interface RelatedKnowledgeResponse {
+  source: { source_type: string; source_id: string };
+  related: RelatedKnowledgeItem[];
+}
+
 // ─── API ───
 export const api = {
   // Bootstrap
@@ -616,4 +631,9 @@ export const api = {
   },
   getKnowledgeItem: (itemId: string) =>
     request<KnowledgeItem>(teamPath(`/knowledge/${itemId}`)),
+  getRelatedKnowledge: (sourceType: string, sourceId: string, limit?: number) => {
+    let qs = `source_type=${sourceType}&source_id=${sourceId}`;
+    if (limit) qs += `&limit=${limit}`;
+    return request<RelatedKnowledgeResponse>(teamPath(`/knowledge/related?${qs}`));
+  },
 };

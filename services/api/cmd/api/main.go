@@ -622,6 +622,8 @@ func main() {
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/index-status", knowledgeHandler.IndexStatusHTTP)
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/related", knowledgeHandler.RelatedHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/{itemId}", knowledgeHandler.GetHTTP)
 	})
 

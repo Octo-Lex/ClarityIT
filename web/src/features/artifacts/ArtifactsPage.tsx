@@ -7,6 +7,7 @@ import MeetingSummaryEditor from './MeetingSummaryEditor';
 import StatusReportModal from './StatusReportModal';
 import TemplateGallery from './TemplateGallery';
 import DocumentGenerateModal from './DocumentGenerateModal';
+import { RelatedKnowledgePanel } from '../knowledge/RelatedKnowledgePanel';
 
 const ARTIFACT_TYPES = [
   { value: '', label: 'All Types' },
@@ -360,6 +361,14 @@ export default function ArtifactsPage() {
           mode="edit"
           artifactId={editingId}
           onClose={() => { setEditingId(null); fetchArtifacts(); }}
+        />
+      )}
+
+      {/* v1.5 Track 4: Related Knowledge Panel */}
+      {recentArtifacts && recentArtifacts.length > 0 && recentArtifacts[0]?.id && (
+        <RelatedKnowledgePanel
+          sourceType="artifact"
+          sourceId={recentArtifacts[0].id}
         />
       )}
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, type Incident, type Comment } from '../../api/client';
 import { useAuth } from '../../auth/context';
+import { RelatedKnowledgePanel } from '../knowledge/RelatedKnowledgePanel';
 
 export default function IncidentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -76,6 +77,12 @@ export default function IncidentDetail() {
             ))}
           </div>
         </div>
+
+        {/* v1.5 Track 4: Related Knowledge Panel */}
+        <RelatedKnowledgePanel
+          sourceType="incident"
+          sourceId={id || ''}
+        />
       </div>
     </div>
   );
