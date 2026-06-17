@@ -163,6 +163,34 @@ export interface AgentIntention {
   created_at: string;
 }
 
+// v1.5 Knowledge Search
+export interface KnowledgeSearchResult {
+  source_type: string;
+  source_id: string;
+  title: string;
+  summary: string;
+  snippet: string;
+  rank: number;
+  updated_at: string;
+}
+export interface KnowledgeSearchResponse {
+  results: KnowledgeSearchResult[];
+  total: number;
+  query: string;
+}
+export interface KnowledgeItem {
+  id: string;
+  team_id: string;
+  source_type: string;
+  source_id: string;
+  title: string;
+  summary: string;
+  metadata: any;
+  visibility: string;
+  indexed_at: string;
+  updated_at: string;
+}
+
 // ─── API ───
 export const api = {
   // Bootstrap
@@ -577,4 +605,15 @@ export const api = {
     request<any>(teamPath('/artifacts/presenton/status')),
   generatePresentation: (data: { title: string; content: string; num_slides: number; template?: string; tone?: string; language?: string; export_as: string; instructions?: string }) =>
     mutation<any>('POST', teamPath('/artifacts/generate-presentation'), data),
+
+  // v1.5 Track 1-3: Knowledge Search
+  knowledgeSearch: (query: string, sourceType?: string, limit?: number, offset?: number) => {
+    let qs = `q=${encodeURIComponent(query)}`;
+    if (sourceType && sourceType !== 'all') qs += `&source_type=${sourceType}`;
+    if (limit) qs += `&limit=${limit}`;
+    if (offset) qs += `&offset=${offset}`;
+    return request<KnowledgeSearchResponse>(teamPath(`/knowledge/search?${qs}`));
+  },
+  getKnowledgeItem: (itemId: string) =>
+    request<KnowledgeItem>(teamPath(`/knowledge/${itemId}`)),
 };

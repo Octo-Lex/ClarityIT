@@ -32,6 +32,7 @@ import RemediationPanel from './features/incidents/RemediationPanel';
 import AssetActions from './features/assets/AssetActions';
 import { AgentsPage } from './features/agents/AgentsPage';
 import ArtifactsPage from './features/artifacts/ArtifactsPage';
+import { KnowledgeSearchPage } from './features/knowledge/KnowledgeSearchPage';
 import DocumentEditorPage from './features/artifacts/DocumentEditorPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -80,6 +81,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/settings/team" element={<TeamSettings />} />
             <Route path="/agents" element={<AgentsPage />} />
             <Route path="/artifacts" element={<ArtifactsPage />} />
+          <Route path="/knowledge" element={<PermissionRoute perm="knowledge.search"><KnowledgeSearchPage /></PermissionRoute>} />
             <Route path="/teams/:teamId/artifacts/documents/:artifactId" element={<DocumentEditorPage />} />
             <Route path="/artifacts/documents/:artifactId" element={<DocumentEditorPage />} />
             <Route path="/account/security" element={<SecurityPage />} />

@@ -38,6 +38,7 @@ type SearchResult struct {
 	SourceType string  `json:"source_type"`
 	SourceID   string  `json:"source_id"`
 	Title      string  `json:"title"`
+	Summary    string  `json:"summary"`
 	Snippet    string  `json:"snippet"`
 	Rank       float64 `json:"rank"`
 	UpdatedAt  string  `json:"updated_at"`
@@ -148,7 +149,7 @@ func (h *Handler) Search(ctx context.Context, teamID, query, sourceType string, 
 	var err error
 	if sourceType != "" && sourceType != "all" {
 		rows, err = h.pool.Query(ctx, `
-			SELECT source_type, source_id::text, title,
+			SELECT source_type, source_id::text, title, summary,
 			       ts_headline('english', content_text, to_tsquery($3), 'MaxWords=35, MinWords=10') AS snippet,
 			       ts_rank(search_vector, to_tsquery($3)) AS rank,
 			       updated_at::text
@@ -161,7 +162,7 @@ func (h *Handler) Search(ctx context.Context, teamID, query, sourceType string, 
 		`, teamID, sourceType, tsquery, limit, offset)
 	} else {
 		rows, err = h.pool.Query(ctx, `
-			SELECT source_type, source_id::text, title,
+			SELECT source_type, source_id::text, title, summary,
 			       ts_headline('english', content_text, to_tsquery($2), 'MaxWords=35, MinWords=10') AS snippet,
 			       ts_rank(search_vector, to_tsquery($2)) AS rank,
 			       updated_at::text
@@ -180,7 +181,7 @@ func (h *Handler) Search(ctx context.Context, teamID, query, sourceType string, 
 	results := []SearchResult{}
 	for rows.Next() {
 		var r SearchResult
-		if err := rows.Scan(&r.SourceType, &r.SourceID, &r.Title, &r.Snippet, &r.Rank, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.SourceType, &r.SourceID, &r.Title, &r.Summary, &r.Snippet, &r.Rank, &r.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
 		results = append(results, r)

@@ -16,6 +16,7 @@ export default function AppLayout() {
     { path: '/incidents', label: 'Incidents', icon: '🔥', perm: 'incidents.list' },
     { path: '/agents', label: 'Agents', icon: '🤖', perm: 'agents.read' },
     { path: '/artifacts', label: 'Documents', icon: '📄', perm: 'artifacts.read' },
+    { path: '/knowledge', label: 'Knowledge', icon: '🔍', perm: 'knowledge.search' },
     { path: '/account/security', label: 'Security', icon: '🔐' },
     { path: '/settings/team', label: 'Team', icon: '👥', perm: 'team.settings.view' },
   ];
