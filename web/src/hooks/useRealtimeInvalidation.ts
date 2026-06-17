@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { useWebSocketInvalidation } from './useWebSocket';
+import { useWebSocketInvalidation, useWebSocketConnected } from './useWebSocket';
 
 /**
  * WS → React Query invalidation bridge.
@@ -79,8 +78,5 @@ export function useRealtimeInvalidation(teamId: string | null) {
  * triggering invalidation. Returns the connected boolean.
  */
 export function useRealtimeConnected() {
-  // Reuse the existing hook but with a no-op handler; it still tracks connection.
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  const { connected } = useWebSocketInvalidation(() => {});
-  return connected;
+  return useWebSocketConnected();
 }

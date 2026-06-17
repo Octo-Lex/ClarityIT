@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import './index.css';
 import { AuthProvider, useAuth } from './auth/context';
-import { RefetchProvider } from './hooks/useRefetch';
+import { QueryProvider } from './api/QueryProvider';
+import { ThemeProvider } from './components/theme/ThemeProvider';
+import { Toaster } from './components/Toaster';
+import { useRealtimeInvalidation } from './hooks/useRealtimeInvalidation';
 import { setAccessToken } from './api/client';
 import AppLayout from './components/layout/AppLayout';
 import BootstrapPage from './features/bootstrap/BootstrapPage';
@@ -41,8 +44,10 @@ import { KnowledgeQualityPage } from './features/knowledge/KnowledgeQualityPage'
 import DocumentEditorPage from './features/artifacts/DocumentEditorPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { authenticated, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-[var(--text-muted)]">Loading...</div>;
+  const { authenticated, loading, activeTeamId } = useAuth();
+  // Wire WS → React Query invalidation once authenticated + a team is active.
+  useRealtimeInvalidation(activeTeamId);
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>;
   if (!authenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -69,13 +74,15 @@ function AssetActionRoute() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+      <ThemeProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <Routes>
           <Route path="/bootstrap" element={<BootstrapPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route element={<ProtectedRoute><RefetchProvider><AppLayout /></RefetchProvider></ProtectedRoute>}>
+          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/queue" element={<QueuePage />} />
             <Route path="/board" element={<BoardPage />} />
@@ -109,7 +116,10 @@ createRoot(document.getElementById('root')!).render(
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </AuthProvider>
+          </AuthProvider>
+          <Toaster />
+        </QueryProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
 );
