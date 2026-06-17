@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { api } from '../../api/client';
 import type { AskClarityResponse } from '../../api/client';
 import { AskClaritySourceCard } from './AskClaritySourceCard';
 
@@ -8,20 +9,45 @@ const CONFIDENCE_LABELS: Record<string, { label: string; color: string }> = {
   high: { label: 'High Confidence', color: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' },
 };
 
-export function AskClarityAnswer({ response }: { response: AskClarityResponse }) {
+export function AskClarityAnswer({ response, question }: { response: AskClarityResponse; question: string }) {
   const conf = CONFIDENCE_LABELS[response.confidence] ?? CONFIDENCE_LABELS.low;
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   return (
     <div data-testid="ask-clarity-answer" className="space-y-4">
       {/* Answer text */}
       <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center justify-between gap-2 mb-2">
           <span
             data-testid="ask-confidence-badge"
             className={`text-xs font-medium px-2 py-0.5 rounded-full ${conf.color}`}
           >
             {conf.label}
           </span>
+          <button
+            data-testid="ask-save-answer"
+            onClick={async () => {
+              setSaving(true);
+              try {
+                await api.saveAnswer({
+                  question,
+                  answer: response.answer,
+                  confidence: response.confidence,
+                  sources: response.sources as any[],
+                });
+                setSaved(true);
+              } catch {
+                // Safe degradation
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving || saved}
+            className="text-xs px-2 py-1 rounded-lg bg-indigo-600 text-white disabled:opacity-50"
+          >
+            {saved ? '✓ Saved' : saving ? 'Saving…' : 'Save Answer'}
+          </button>
         </div>
         <p className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
           {response.answer}

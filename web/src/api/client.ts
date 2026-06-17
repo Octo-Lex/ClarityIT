@@ -221,6 +221,49 @@ export interface AskClarityResponse {
   missing_info: string[];
 }
 
+// v1.5 Track 6: Knowledge Collections
+export interface KnowledgeCollection {
+  id: string;
+  team_id: string;
+  name: string;
+  description: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+  item_count: number;
+}
+
+export interface CollectionItem {
+  id: string;
+  collection_id: string;
+  team_id: string;
+  source_type: string;
+  source_id: string;
+  knowledge_item_id?: string;
+  title?: string;
+  summary?: string;
+  note?: string | null;
+  added_by: string | null;
+  added_at: string;
+}
+
+export interface KnowledgeCollectionDetail extends KnowledgeCollection {
+  items: CollectionItem[];
+}
+
+export interface SavedKnowledgeAnswer {
+  id: string;
+  team_id: string;
+  collection_id?: string | null;
+  question: string;
+  answer: string;
+  confidence: 'low' | 'medium' | 'high';
+  sources: AskClaritySource[];
+  created_by: string | null;
+  created_at: string;
+}
+
 // ─── API ───
 export const api = {
   // Bootstrap
@@ -657,4 +700,30 @@ export const api = {
       source_types: sourceTypes,
       max_sources: maxSources,
     }),
+
+  // v1.5 Track 6: Knowledge Collections
+  listCollections: () =>
+    request<{ collections: KnowledgeCollection[] }>(teamPath('/knowledge/collections')),
+  createCollection: (name: string, description?: string) =>
+    mutation<KnowledgeCollection>('POST', teamPath('/knowledge/collections'), { name, description }),
+  getCollection: (collectionId: string) =>
+    request<KnowledgeCollectionDetail>(teamPath(`/knowledge/collections/${collectionId}`)),
+  patchCollection: (collectionId: string, data: { name?: string; description?: string }) =>
+    mutation<KnowledgeCollection>('PATCH', teamPath(`/knowledge/collections/${collectionId}`), data),
+  deleteCollection: (collectionId: string) =>
+    mutation<{ status: string }>('DELETE', teamPath(`/knowledge/collections/${collectionId}`)),
+  addCollectionItem: (collectionId: string, data: { source_type: string; source_id: string; knowledge_item_id?: string; note?: string }) =>
+    mutation<{ item: CollectionItem; duplicate: boolean }>('POST', teamPath(`/knowledge/collections/${collectionId}/items`), data),
+  removeCollectionItem: (collectionId: string, itemId: string) =>
+    mutation<{ status: string }>('DELETE', teamPath(`/knowledge/collections/${collectionId}/items/${itemId}`)),
+
+  // v1.5 Track 6: Saved Answers
+  saveAnswer: (data: { question: string; answer: string; confidence: string; sources: any[]; collection_id?: string }) =>
+    mutation<SavedKnowledgeAnswer>('POST', teamPath('/knowledge/saved-answers'), data),
+  listSavedAnswers: () =>
+    request<{ answers: SavedKnowledgeAnswer[] }>(teamPath('/knowledge/saved-answers')),
+  getSavedAnswer: (answerId: string) =>
+    request<SavedKnowledgeAnswer>(teamPath(`/knowledge/saved-answers/${answerId}`)),
+  deleteSavedAnswer: (answerId: string) =>
+    mutation<{ status: string }>('DELETE', teamPath(`/knowledge/saved-answers/${answerId}`)),
 };

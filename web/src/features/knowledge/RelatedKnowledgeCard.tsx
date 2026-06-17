@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RelatedKnowledgeItem } from '../../api/client';
 import { getStoredTeamId } from '../../api/client';
 import { KnowledgeSourceBadge } from './KnowledgeSourceBadge';
 import { RelatedKnowledgeReasonBadge } from './RelatedKnowledgeReasonBadge';
 import { getSourceRoute } from './sourceRoute';
+import { SaveToCollectionDialog } from './SaveToCollectionDialog';
 
 export function RelatedKnowledgeCard({ item }: { item: RelatedKnowledgeItem }) {
   const navigate = useNavigate();
+  const [showSave, setShowSave] = useState(false);
 
   const handleClick = () => {
     const teamId = getStoredTeamId() ?? undefined;
@@ -40,6 +42,21 @@ export function RelatedKnowledgeCard({ item }: { item: RelatedKnowledgeItem }) {
       <time className="text-xs text-slate-400 mt-1 block">
         {new Date(item.updated_at).toLocaleDateString()}
       </time>
+      <button
+        data-testid="related-save-to-collection"
+        onClick={(e) => { e.stopPropagation(); setShowSave(true); }}
+        className="text-xs text-indigo-600 hover:underline mt-1"
+      >
+        Save to Collection
+      </button>
+      {showSave && (
+        <SaveToCollectionDialog
+          sourceType={item.source_type}
+          sourceId={item.source_id}
+          title={item.title}
+          onClose={() => setShowSave(false)}
+        />
+      )}
     </div>
   );
 }

@@ -124,7 +124,7 @@ export function AskClarityPanel() {
 
       {/* Response */}
       {!loading && !error && response && (
-        <AskClarityAnswer response={response} />
+        <AskClarityAnswer response={response} question={question} />
       )}
     </div>
   );

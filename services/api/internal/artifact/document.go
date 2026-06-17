@@ -483,12 +483,12 @@ func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
 		var contentMD, storageID, fileFmt, lastExported *string
 		var sourceDataRaw any
 
-		var description, sourceType *string
+		var description, sourceType, createdBy, updatedBy *string
 		err := rows.Scan(
 			&doc.ID, &doc.TeamID, &doc.ArtifactType, &doc.Title, &description,
 			&contentMD, &doc.Status, &sourceType, &sourceDataRaw,
 			&storageID, &fileFmt,
-			&doc.CreatedBy, &doc.UpdatedBy,
+			&createdBy, &updatedBy,
 			&doc.CreatedAt, &doc.UpdatedAt,
 			&doc.DocumentType, &doc.DocumentJSON, &doc.SchemaVersion, &doc.WordCount,
 			&lastExported,
@@ -502,6 +502,12 @@ func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
 		}
 		if sourceType != nil {
 			doc.SourceType = *sourceType
+		}
+		if createdBy != nil {
+			doc.CreatedBy = *createdBy
+		}
+		if updatedBy != nil {
+			doc.UpdatedBy = *updatedBy
 		}
 
 		docs = append(docs, doc)
@@ -533,7 +539,7 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 	var contentMD *string
 	var sourceDataRaw any
 	var storageID, fileFmt, lastExported *string
-	var description, sourceType *string
+	var description, sourceType, createdBy, updatedBy *string
 
 	err = h.pool.QueryRow(ctx, `
 		SELECT a.id::text, a.team_id::text, a.artifact_type, a.title, a.description,
@@ -550,7 +556,7 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 		&doc.ID, &doc.TeamID, &doc.ArtifactType, &doc.Title, &description,
 		&contentMD, &doc.Status, &sourceType, &sourceDataRaw,
 		&storageID, &fileFmt,
-		&doc.CreatedBy, &doc.UpdatedBy,
+		&createdBy, &updatedBy,
 		&doc.CreatedAt, &doc.UpdatedAt,
 		&doc.DocumentType, &doc.DocumentJSON, &doc.SchemaVersion, &doc.WordCount,
 		&lastExported,
@@ -564,6 +570,12 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 	}
 	if sourceType != nil {
 		doc.SourceType = *sourceType
+	}
+	if createdBy != nil {
+		doc.CreatedBy = *createdBy
+	}
+	if updatedBy != nil {
+		doc.UpdatedBy = *updatedBy
 	}
 
 	_ = contentMD

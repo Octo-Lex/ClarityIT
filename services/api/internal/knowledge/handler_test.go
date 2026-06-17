@@ -42,7 +42,7 @@ func setupKnowledgeTest(t *testing.T) *knowledgeTestEnv {
 	}
 	t.Cleanup(func() { pool.Close() })
 
-	_, err = pool.Exec(context.Background(), "TRUNCATE knowledge_items, knowledge_chunks CASCADE")
+	_, err = pool.Exec(context.Background(), "TRUNCATE knowledge_items, knowledge_chunks, knowledge_collections, knowledge_collection_items, saved_knowledge_answers CASCADE")
 	if err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
@@ -64,6 +64,33 @@ func setupKnowledgeTest(t *testing.T) *knowledgeTestEnv {
 			Get("/knowledge/related", kh.RelatedHTTP)
 		r.With(middleware.RequirePermission(pool, "knowledge.ask")).
 			Post("/knowledge/ask", kh.AskHTTP)
+
+		// v1.5 Track 6: Collections
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/collections", kh.ListCollections)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.create")).
+			Post("/knowledge/collections", kh.CreateCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/collections/{collectionId}", kh.GetCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Patch("/knowledge/collections/{collectionId}", kh.PatchCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.delete")).
+			Delete("/knowledge/collections/{collectionId}", kh.DeleteCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Post("/knowledge/collections/{collectionId}/items", kh.AddItem)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Delete("/knowledge/collections/{collectionId}/items/{itemId}", kh.RemoveItem)
+
+		// v1.5 Track 6: Saved Answers
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Post("/knowledge/saved-answers", kh.SaveAnswer)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/saved-answers", kh.ListSavedAnswers)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/saved-answers/{answerId}", kh.GetSavedAnswer)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.delete")).
+			Delete("/knowledge/saved-answers/{answerId}", kh.DeleteSavedAnswer)
+
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/{itemId}", kh.GetHTTP)
 	})

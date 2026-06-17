@@ -633,6 +633,33 @@ func main() {
 			Get("/knowledge/related", knowledgeHandler.RelatedHTTP)
 		r.With(middleware.RequirePermission(pool, "knowledge.ask")).
 			Post("/knowledge/ask", knowledgeHandler.AskHTTP)
+
+		// v1.5 Track 6: Knowledge Collections
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/collections", knowledgeHandler.ListCollections)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.create")).
+			Post("/knowledge/collections", knowledgeHandler.CreateCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/collections/{collectionId}", knowledgeHandler.GetCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Patch("/knowledge/collections/{collectionId}", knowledgeHandler.PatchCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.delete")).
+			Delete("/knowledge/collections/{collectionId}", knowledgeHandler.DeleteCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Post("/knowledge/collections/{collectionId}/items", knowledgeHandler.AddItem)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Delete("/knowledge/collections/{collectionId}/items/{itemId}", knowledgeHandler.RemoveItem)
+
+		// v1.5 Track 6: Saved Answers
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Post("/knowledge/saved-answers", knowledgeHandler.SaveAnswer)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/saved-answers", knowledgeHandler.ListSavedAnswers)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/saved-answers/{answerId}", knowledgeHandler.GetSavedAnswer)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.delete")).
+			Delete("/knowledge/saved-answers/{answerId}", knowledgeHandler.DeleteSavedAnswer)
+
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/{itemId}", knowledgeHandler.GetHTTP)
 	})

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { KnowledgeSearchResult } from '../../api/client';
 import { getStoredTeamId } from '../../api/client';
 import { KnowledgeSourceBadge } from './KnowledgeSourceBadge';
 import { KnowledgeSnippet } from './KnowledgeSnippet';
 import { getSourceRoute } from './sourceRoute';
+import { SaveToCollectionDialog } from './SaveToCollectionDialog';
 
 function formatRank(rank: number): string {
   if (rank >= 0.1) return '★★★';
@@ -14,6 +15,7 @@ function formatRank(rank: number): string {
 
 export function SearchResultCard({ result }: { result: KnowledgeSearchResult }) {
   const navigate = useNavigate();
+  const [showSave, setShowSave] = useState(false);
 
   const handleClick = () => {
     const teamId = getStoredTeamId() ?? undefined;
@@ -52,6 +54,23 @@ export function SearchResultCard({ result }: { result: KnowledgeSearchResult }) 
         </p>
       )}
       {result.snippet && <KnowledgeSnippet snippet={result.snippet} />}
+      <div className="mt-2">
+        <button
+          data-testid="save-to-collection-btn"
+          onClick={(e) => { e.stopPropagation(); setShowSave(true); }}
+          className="text-xs text-indigo-600 hover:underline"
+        >
+          Save to Collection
+        </button>
+      </div>
+      {showSave && (
+        <SaveToCollectionDialog
+          sourceType={result.source_type}
+          sourceId={result.source_id}
+          title={result.title}
+          onClose={() => setShowSave(false)}
+        />
+      )}
     </div>
   );
 }
