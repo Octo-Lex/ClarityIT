@@ -150,8 +150,18 @@ func (h *Handler) QualityReportHTTP(w http.ResponseWriter, r *http.Request) {
 		dupRows.Close()
 	}
 
-	// Orphan detection: knowledge items whose source has been deleted
-	// Check artifacts table for artifact/clarity_document/status_report/meeting_summary/presentation types
+	// Orphan detection (v1): knowledge items whose source has been deleted.
+	// v1 scope: checks the artifacts table for artifact/clarity_document/
+	// status_report/meeting_summary/presentation types — these share the
+	// artifacts table via typed extension tables (ADR-013).
+	// Future versions should extend orphan detection to:
+	//   - work_item / incident / project / asset → objects table
+	//   - remediation → remediations table
+	//   - approval → approvals table
+	//   - context_node → context_nodes table
+	//   - template → artifact_templates table
+	// For v1.5.0, artifact-orphan detection covers the highest-risk case
+	// (documents and artifacts deleted while knowledge index retains them).
 	orphanRows, err := h.pool.Query(r.Context(), `
 		SELECT ki.id::text, ki.source_type, ki.source_id::text, ki.title, COALESCE(ki.summary, ''),
 		       ki.indexed_at::text
