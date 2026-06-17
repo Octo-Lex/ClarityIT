@@ -37,6 +37,7 @@ import { KnowledgeCollectionsPage } from './features/knowledge/KnowledgeCollecti
 import { KnowledgeCollectionDetailPage } from './features/knowledge/KnowledgeCollectionDetailPage';
 import { SavedKnowledgeAnswersPage } from './features/knowledge/SavedKnowledgeAnswersPage';
 import { SavedKnowledgeAnswerDetailPage } from './features/knowledge/SavedKnowledgeAnswerDetailPage';
+import { KnowledgeQualityPage } from './features/knowledge/KnowledgeQualityPage';
 import DocumentEditorPage from './features/artifacts/DocumentEditorPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -90,6 +91,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/knowledge/collections/:collectionId" element={<PermissionRoute perm="knowledge.collections.read"><KnowledgeCollectionDetailPage /></PermissionRoute>} />
           <Route path="/knowledge/saved-answers" element={<PermissionRoute perm="knowledge.collections.read"><SavedKnowledgeAnswersPage /></PermissionRoute>} />
           <Route path="/knowledge/saved-answers/:answerId" element={<PermissionRoute perm="knowledge.collections.read"><SavedKnowledgeAnswerDetailPage /></PermissionRoute>} />
+          <Route path="/knowledge/quality" element={<PermissionRoute perm="knowledge.read"><KnowledgeQualityPage /></PermissionRoute>} />
             <Route path="/teams/:teamId/artifacts/documents/:artifactId" element={<DocumentEditorPage />} />
             <Route path="/artifacts/documents/:artifactId" element={<DocumentEditorPage />} />
             <Route path="/account/security" element={<SecurityPage />} />

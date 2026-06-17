@@ -660,6 +660,16 @@ func main() {
 		r.With(middleware.RequirePermission(pool, "knowledge.collections.delete")).
 			Delete("/knowledge/saved-answers/{answerId}", knowledgeHandler.DeleteSavedAnswer)
 
+		// v1.5 Track 7: Quality Controls (read-only)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality", knowledgeHandler.QualityReportHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality/stale", knowledgeHandler.StaleItemsHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality/duplicates", knowledgeHandler.DuplicateItemsHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality/orphans", knowledgeHandler.OrphanItemsHTTP)
+
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/{itemId}", knowledgeHandler.GetHTTP)
 	})

@@ -19,6 +19,7 @@ export default function AppLayout() {
     { path: '/knowledge', label: 'Knowledge', icon: '🔍', perm: 'knowledge.search' },
     { path: '/knowledge/collections', label: 'Collections', icon: '📁', perm: 'knowledge.collections.read' },
     { path: '/knowledge/saved-answers', label: 'Saved Answers', icon: '💾', perm: 'knowledge.collections.read' },
+    { path: '/knowledge/quality', label: 'Quality', icon: '⚡', perm: 'knowledge.read' },
     { path: '/account/security', label: 'Security', icon: '🔐' },
     { path: '/settings/team', label: 'Team', icon: '👥', perm: 'team.settings.view' },
   ];

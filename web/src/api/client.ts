@@ -264,6 +264,37 @@ export interface SavedKnowledgeAnswer {
   created_at: string;
 }
 
+// v1.5 Track 7: Knowledge Quality
+export interface QualityItem {
+  knowledge_item_id: string;
+  source_type: string;
+  source_id: string;
+  title: string;
+  summary: string;
+  indexed_at: string;
+  stale_after?: string;
+  days_stale?: number;
+}
+
+export interface DupGroup {
+  content_hash: string;
+  count: number;
+  items: QualityItem[];
+}
+
+export interface KnowledgeQualityReport {
+  team_id: string;
+  total_items: number;
+  stale_count: number;
+  duplicate_count: number;
+  orphan_count: number;
+  by_type: Record<string, number>;
+  stale_items: QualityItem[];
+  duplicate_groups: DupGroup[];
+  orphan_items: QualityItem[];
+  generated_at: string;
+}
+
 // ─── API ───
 export const api = {
   // Bootstrap
@@ -726,4 +757,14 @@ export const api = {
     request<SavedKnowledgeAnswer>(teamPath(`/knowledge/saved-answers/${answerId}`)),
   deleteSavedAnswer: (answerId: string) =>
     mutation<{ status: string }>('DELETE', teamPath(`/knowledge/saved-answers/${answerId}`)),
+
+  // v1.5 Track 7: Knowledge Quality
+  getQualityReport: () =>
+    request<KnowledgeQualityReport>(teamPath('/knowledge/quality')),
+  getStaleItems: () =>
+    request<{ stale_items: QualityItem[]; count: number }>(teamPath('/knowledge/quality/stale')),
+  getDuplicateItems: () =>
+    request<{ duplicate_groups: DupGroup[]; count: number }>(teamPath('/knowledge/quality/duplicates')),
+  getOrphanItems: () =>
+    request<{ orphan_items: QualityItem[]; count: number }>(teamPath('/knowledge/quality/orphans')),
 };

@@ -91,6 +91,16 @@ func setupKnowledgeTest(t *testing.T) *knowledgeTestEnv {
 		r.With(middleware.RequirePermission(pool, "knowledge.collections.delete")).
 			Delete("/knowledge/saved-answers/{answerId}", kh.DeleteSavedAnswer)
 
+		// v1.5 Track 7: Quality
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality", kh.QualityReportHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality/stale", kh.StaleItemsHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality/duplicates", kh.DuplicateItemsHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality/orphans", kh.OrphanItemsHTTP)
+
 		r.With(middleware.RequirePermission(pool, "knowledge.read")).
 			Get("/knowledge/{itemId}", kh.GetHTTP)
 	})
