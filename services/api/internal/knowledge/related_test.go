@@ -308,6 +308,53 @@ func TestRelated_UsesKnowledgeReadPermission(t *testing.T) {
 	}
 }
 
+func TestRelated_NoOperationalSideEffects(t *testing.T) {
+	e := setupKnowledgeTest(t)
+
+	id1 := insertKnowledgeItemSourceID(t, e.pool, e.teamID, "clarity_document", "SideEffect Doc", "Summary", "Content about auth systems")
+	insertKnowledgeItemSourceID(t, e.pool, e.teamID, "incident", "SideEffect Incident", "Incident", "Authentication incident")
+
+	// Count knowledge_items before
+	var beforeCount int
+	e.pool.QueryRow(context.Background(),
+		"SELECT count(*) FROM knowledge_items WHERE team_id = $1::uuid", e.teamID).Scan(&beforeCount)
+
+	w := doRelated(e, "clarity_document", id1)
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	// Verify no new knowledge_items were created (read-only)
+	var afterCount int
+	e.pool.QueryRow(context.Background(),
+		"SELECT count(*) FROM knowledge_items WHERE team_id = $1::uuid", e.teamID).Scan(&afterCount)
+	if afterCount != beforeCount {
+		t.Errorf("knowledge_items count changed: before=%d after=%d (related must be read-only)", beforeCount, afterCount)
+	}
+
+	// Verify response contains no Python/worker/gateway/proxmox artifacts
+	body := w.Body.String()
+	forbidden := []string{"worker_token", "WORKER_TOKEN", "tool_gateway", "proxmox", "api_key", "secret"}
+	for _, f := range forbidden {
+		if contains(body, f) {
+			t.Errorf("response contains forbidden field: %s", f)
+		}
+	}
+
+	// Verify response is purely read-only metadata (no mutation indicators)
+	var resp RelatedResponse
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	for _, r := range resp.Related {
+		// Every reason must be one of the 6 allowed deterministic values
+		switch r.Reason {
+		case "explicit_link", "context_edge", "shared_reference", "content_similarity", "same_source_family", "recent_related":
+			// ok
+		default:
+			t.Errorf("unexpected reason value: %s", r.Reason)
+		}
+	}
+}
+
 // ─── Helpers ───
 
 func doRelated(e *knowledgeTestEnv, sourceType, sourceID string) *httptest.ResponseRecorder {

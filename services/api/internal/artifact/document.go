@@ -483,8 +483,9 @@ func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
 		var contentMD, storageID, fileFmt, lastExported *string
 		var sourceDataRaw any
 
+		var description *string
 		err := rows.Scan(
-			&doc.ID, &doc.TeamID, &doc.ArtifactType, &doc.Title, &doc.Description,
+			&doc.ID, &doc.TeamID, &doc.ArtifactType, &doc.Title, &description,
 			&contentMD, &doc.Status, &doc.SourceType, &sourceDataRaw,
 			&storageID, &fileFmt,
 			&doc.CreatedBy, &doc.UpdatedBy,
@@ -495,6 +496,9 @@ func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			writeErr(w, 500, "Failed to scan document")
 			return
+		}
+		if description != nil {
+			doc.Description = *description
 		}
 
 		docs = append(docs, doc)
@@ -526,6 +530,7 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 	var contentMD *string
 	var sourceDataRaw any
 	var storageID, fileFmt, lastExported *string
+	var description *string
 
 	err = h.pool.QueryRow(ctx, `
 		SELECT a.id::text, a.team_id::text, a.artifact_type, a.title, a.description,
@@ -539,7 +544,7 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 		JOIN artifact_documents d ON d.artifact_id = a.id
 		WHERE a.id = $1 AND a.team_id = $2 AND a.artifact_type = 'document'
 	`, artifactID, teamID).Scan(
-		&doc.ID, &doc.TeamID, &doc.ArtifactType, &doc.Title, &doc.Description,
+		&doc.ID, &doc.TeamID, &doc.ArtifactType, &doc.Title, &description,
 		&contentMD, &doc.Status, &doc.SourceType, &sourceDataRaw,
 		&storageID, &fileFmt,
 		&doc.CreatedBy, &doc.UpdatedBy,
@@ -550,6 +555,9 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, 404, "Document not found")
 		return
+	}
+	if description != nil {
+		doc.Description = *description
 	}
 
 	_ = contentMD
