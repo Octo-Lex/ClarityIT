@@ -2,11 +2,10 @@
 -- Seed 10 Genesis roles and permissions
 
 -- ─── Platform Roles ───
-INSERT INTO platform_roles (id, name, description) VALUES
-    (gen_random_uuid(), 'platform_owner', 'Full platform administration. Can manage users, teams, settings, and audit.'),
-    (gen_random_uuid(), 'platform_admin', 'Platform administration without owner-level changes.'),
-    (gen_random_uuid(), 'platform_viewer', 'Read-only platform visibility.')
-ON CONFLICT (name) DO NOTHING;
+-- NOTE: platform_roles is created and seeded by 011_iam_platform_roles.sql. The
+-- duplicate seed that previously lived here referenced a table that does not
+-- exist at step 009 (forward reference), breaking fresh-database migration.
+-- Removed; 011 is the single source for platform role seeding.
 
 -- ─── Team Roles ───
 INSERT INTO roles (id, name, description, is_system_role) VALUES
