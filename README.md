@@ -160,4 +160,4 @@ WORKER_TOKEN=<token> TEAM_ID=<uuid> docker compose up -d clarityit-reasoning-wor
 
 ## License
 
-MIT / Apache-2.0
+Licensed under the [Apache License, Version 2.0](LICENSE).
