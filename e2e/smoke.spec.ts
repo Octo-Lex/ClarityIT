@@ -23,9 +23,14 @@ async function uiLogin(page: Page) {
   await expect(page.locator('nav')).toBeVisible({ timeout: 5000 });
 }
 
-// Navigate via sidebar link click (SPA navigation — preserves auth)
+// Navigate via sidebar link click (SPA navigation — preserves auth).
+// The rebuilt AppLayout renders links as <a href> inside <aside> (the sidebar),
+// with an onClick that calls navigate() (preventDefault). The links are real
+// <a> elements with hrefs, so this selector works for both old + new layouts.
 async function navViaSidebar(page: Page, href: string) {
-  await page.locator(`nav a[href="${href}"]`).click();
+  // Try the new layout first (aside a[href]), fall back to old (nav a[href]).
+  const link = page.locator(`aside a[href="${href}"], nav a[href="${href}"]`).first();
+  await link.click();
 }
 
 // Login via API and return token + teamId
@@ -58,17 +63,17 @@ test('1. Login and view dashboard', async ({ page }) => {
 test('2. Create work item', async ({ page }) => {
   await uiLogin(page);
 
-  // Navigate: Queue → "+ New"
+  // Navigate: Queue → "New"
   await navViaSidebar(page, '/queue');
   await page.waitForSelector('table');
-  await page.click('a:has-text("+ New"), button:has-text("+ New")');
+  await page.click('a:has-text("New"), button:has-text("New")');
   await page.waitForURL('/work-items/new');
   await expect(page.locator('main h1')).toContainText('New Work Item');
 
   // Fill and submit
   const title = `E2E Test Item ${Date.now()}`;
-  await page.fill('input[placeholder="Title *"]', title);
-  await page.fill('textarea[placeholder="Summary"]', 'Created by Playwright E2E test');
+  await page.fill('[data-testid="wi-title"]', title);
+  await page.fill('[data-testid="wi-summary"]', 'Created by Playwright E2E test');
   await page.click('button[type="submit"]');
 
   // Should redirect to object detail page
@@ -113,12 +118,12 @@ test('4. Open object detail', async ({ page, request }) => {
   await uiLogin(page);
   await navViaSidebar(page, '/queue');
   // Wait for actual data rows (not "No items found")
-  await page.waitForSelector('table tbody tr[style*="cursor"], table tbody tr.clickable, table tbody tr', { timeout: 5000 });
+  await page.waitForSelector('table tbody tr', { timeout: 5000 });
   await page.locator('table tbody tr').first().click();
   await page.waitForURL('/objects/*', { timeout: 10000 });
 
-  await expect(page.locator('text=Details')).toBeVisible();
-  await expect(page.locator('text=Comments')).toBeVisible();
+  await expect(page.getByText('Details')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Comments/ })).toBeVisible();
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -151,8 +156,8 @@ test('5. Add comment to object', async ({ page, request }) => {
 
   // Add comment
   const commentText = `E2E comment ${Date.now()}`;
-  await page.fill('input[placeholder="Add a comment..."]', commentText);
-  await page.click('button:has-text("Post")');
+  await page.fill('[data-testid="comment-input"]', commentText);
+  await page.click('[data-testid="comment-post"]');
 
   // Comment should appear
   await expect(page.locator(`text=${commentText}`)).toBeVisible({ timeout: 5000 });
