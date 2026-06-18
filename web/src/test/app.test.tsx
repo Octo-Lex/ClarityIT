@@ -51,9 +51,9 @@ describe('Login flow', () => {
     render(<BrowserRouter><LoginPage /></BrowserRouter>);
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText('Email'), 'a@b.c');
-    await user.type(screen.getByPlaceholderText('Password'), 'password12');
-    await user.click(screen.getByText('Login'));
+    await user.type(screen.getByTestId('login-email'), 'a@b.c');
+    await user.type(screen.getByTestId('login-password'), 'password12');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(loginFn).toHaveBeenCalledWith('a@b.c', 'password12');
   });
@@ -66,9 +66,9 @@ describe('Login flow', () => {
     render(<BrowserRouter><LoginPage /></BrowserRouter>);
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText('Email'), 'bad@test.dev');
-    await user.type(screen.getByPlaceholderText('Password'), 'wrongpass');
-    await user.click(screen.getByText('Login'));
+    await user.type(screen.getByTestId('login-email'), 'bad@test.dev');
+    await user.type(screen.getByTestId('login-password'), 'wrongpass');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await waitFor(() => {
       expect(screen.getByText(/Invalid email or password/i)).toBeInTheDocument();
@@ -89,10 +89,11 @@ describe('Register flow', () => {
     render(<BrowserRouter><LoginPage /></BrowserRouter>);
 
     const user = userEvent.setup();
-    await user.click(screen.getByText('Register'));
-    await user.type(screen.getByPlaceholderText('Full Name'), 'New User');
-    await user.type(screen.getByPlaceholderText('Email'), 'new@test.dev');
-    await user.type(screen.getByPlaceholderText('Password'), 'password12');
+    await user.click(screen.getByTestId('auth-mode-toggle'));
+    await user.type(screen.getByTestId('reg-name'), 'New User');
+    await user.type(screen.getByTestId('login-email'), 'new@test.dev');
+    await user.type(screen.getByTestId('login-password'), 'password12');
+    // The submit button is now "Register" (type=submit).
     await user.click(screen.getByRole('button', { name: 'Register' }));
 
     expect(registerFn).toHaveBeenCalledWith('New User', 'new@test.dev', 'password12');
@@ -119,11 +120,11 @@ describe('Bootstrap', () => {
     render(<BrowserRouter><BootstrapPage /></BrowserRouter>);
 
     const user = userEvent.setup();
-    await user.type(screen.getByPlaceholderText('Your Name'), 'Owner');
-    await user.type(screen.getByPlaceholderText('Email'), 'o@t.dev');
-    await user.type(screen.getByPlaceholderText('Password'), 'password12');
-    await user.type(screen.getByPlaceholderText('Team Name'), 'Team1');
-    await user.click(screen.getByText('Bootstrap Platform'));
+    await user.type(screen.getByTestId('boot-name'), 'Owner');
+    await user.type(screen.getByTestId('boot-email'), 'o@t.dev');
+    await user.type(screen.getByTestId('boot-password'), 'password12');
+    await user.type(screen.getByTestId('boot-team'), 'Team1');
+    await user.click(screen.getByTestId('boot-submit'));
 
     await waitFor(() => {
       expect(mockNav).toHaveBeenCalledWith('/login', { replace: true });
