@@ -10,13 +10,16 @@ import { getQueryClient } from './queryClient';
  *
  * The devtools are loaded via a guarded dynamic import so the production bundle
  * never resolves @tanstack/react-query-devtools (which is a devDependency and
- * not installed in the Docker build image).
+ * not installed in the Docker build image). The fallback stub accepts any props
+ * so callers can pass `initialIsOpen` regardless of which branch resolves.
  */
-const ReactQueryDevtools = lazy(() =>
-  import.meta.env.DEV
-    ? import('@tanstack/react-query-devtools').then(m => ({ default: m.ReactQueryDevtools }))
-    : Promise.resolve({ default: () => null }),
-);
+const ReactQueryDevtools = lazy(async () => {
+  if (!import.meta.env.DEV) {
+    return { default: (_props: unknown) => null };
+  }
+  const m = await import('@tanstack/react-query-devtools');
+  return { default: m.ReactQueryDevtools };
+});
 
 export function QueryProvider({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
