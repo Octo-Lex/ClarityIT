@@ -1,235 +1,373 @@
-import { useState, useEffect } from 'react';
-import { api, type Agent, type AgentGrant, type AgentRun, type AgentIntention } from '../../api/client';
-import { usePermissions } from '../../hooks/usePermissions';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, X, Ban } from 'lucide-react';
+import { api } from '@/api/client';
+import { keys } from '@/api/keys';
+import { Perm } from '@/auth/permissions';
+import { useAuth } from '@/auth/context';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from '@/components/ui/table';
+import { notify } from '@/components/Toaster';
+import { InlineSpinner, ErrorState, EmptyState, CardGridSkeleton } from '@/components/PageState';
+import { AUTONOMY_LEVELS, AUTONOMY_DESCRIPTIONS, AutonomyBadge } from './autonomy';
+import { cn } from '@/lib/utils';
+
+function runStatusTone(status: string): 'success' | 'danger' | 'warning' | 'info' {
+  if (status === 'completed') return 'success';
+  if (status === 'failed') return 'danger';
+  if (status === 'running') return 'info';
+  return 'warning';
+}
+function intentionStatusTone(status: string): 'success' | 'danger' | 'warning' | 'info' {
+  if (status === 'executed') return 'success';
+  if (status === 'blocked') return 'danger';
+  if (status === 'pending') return 'warning';
+  return 'info';
+}
 
 export function AgentsPage() {
-  const { hasPermission: has } = usePermissions();
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const { hasPermission, activeTeamId } = useAuth();
+  const teamId = activeTeamId ?? '';
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
-  const [grants, setGrants] = useState<AgentGrant[]>([]);
-  const [runs, setRuns] = useState<AgentRun[]>([]);
-  const [intentions, setIntentions] = useState<AgentIntention[]>([]);
+  const [viewedRun, setViewedRun] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [createName, setCreateName] = useState('');
+  const [createDesc, setCreateDesc] = useState('');
+  const [createAutonomy, setCreateAutonomy] = useState('A3');
 
-  useEffect(() => { loadAgents(); loadRuns(); }, []);
+  // Grant-create form state
+  const [grantTool, setGrantTool] = useState('');
+  const [grantAutonomy, setGrantAutonomy] = useState('A3');
+  const [grantApproval, setGrantApproval] = useState(false);
 
-  async function loadAgents() {
-    try { setAgents(await api.listAgents()); } catch {}
-    setLoading(false);
-  }
+  const canRead = hasPermission(Perm.AgentsRead);
 
-  async function loadRuns() {
-    try { setRuns(await api.listRuns()); } catch {}
-  }
+  const agentsQ = useQuery({
+    queryKey: keys.agents.list(teamId),
+    queryFn: ({ signal }) => api.listAgents(signal),
+    enabled: !!activeTeamId && canRead,
+  });
+  const runsQ = useQuery({
+    queryKey: keys.agentRuns.list(teamId),
+    queryFn: () => api.listRuns(),
+    enabled: !!activeTeamId && canRead,
+  });
+  const grantsQ = useQuery({
+    queryKey: keys.agents.grants(teamId, selected ?? ''),
+    queryFn: () => api.listGrants(selected!),
+    enabled: !!selected,
+  });
+  const intentionsQ = useQuery({
+    queryKey: keys.agentRuns.intentions(teamId, viewedRun ?? ''),
+    queryFn: () => api.listIntentions(viewedRun!),
+    enabled: !!viewedRun,
+  });
 
-  async function selectAgent(id: string) {
-    setSelected(id);
-    try {
-      setGrants(await api.listGrants(id));
-    } catch { setGrants([]); }
-  }
+  const invalidateAgents = () => queryClient.invalidateQueries({ queryKey: keys.agents.list(teamId) });
+  const invalidateGrants = () => queryClient.invalidateQueries({ queryKey: keys.agents.grants(teamId, selected ?? '') });
+  const invalidateIntentions = () => queryClient.invalidateQueries({ queryKey: keys.agentRuns.intentions(teamId, viewedRun ?? '') });
 
-  async function loadIntentions(runId: string) {
-    try { setIntentions(await api.listIntentions(runId)); } catch { setIntentions([]); }
-  }
-
-  async function createAgent(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    try {
-      await api.createAgent({
-        name: fd.get('name') as string,
-        max_autonomy: fd.get('max_autonomy') as string,
-        description: fd.get('description') as string || '',
-      });
+  const createMut = useMutation({
+    mutationFn: () => api.createAgent({ name: createName, max_autonomy: createAutonomy, description: createDesc }),
+    onSuccess: () => {
+      notify.success('Agent created');
+      invalidateAgents();
       setShowCreate(false);
-      loadAgents();
-    } catch {}
+      setCreateName(''); setCreateDesc(''); setCreateAutonomy('A3');
+    },
+    onError: (err) => notify.mutationError('Create agent', err),
+  });
+
+  const disableMut = useMutation({
+    mutationFn: (id: string) => api.disableAgent(id),
+    onSuccess: () => {
+      notify.success('Agent disabled');
+      invalidateAgents();
+      setSelected(null);
+    },
+    onError: (err) => notify.mutationError('Disable agent', err),
+  });
+
+  const createGrantMut = useMutation({
+    mutationFn: () => api.createGrant(selected!, { tool_name: grantTool, max_autonomy_level: grantAutonomy, requires_approval: grantApproval }),
+    onSuccess: () => {
+      notify.success('Grant added');
+      invalidateGrants();
+      setGrantTool(''); setGrantAutonomy('A3'); setGrantApproval(false);
+    },
+    onError: (err) => notify.mutationError('Add grant', err),
+  });
+
+  const revokeGrantMut = useMutation({
+    mutationFn: (grantId: string) => api.revokeGrant(selected!, grantId),
+    onSuccess: () => {
+      notify.success('Grant revoked');
+      invalidateGrants();
+    },
+    onError: (err) => notify.mutationError('Revoke grant', err),
+  });
+
+  if (!canRead) {
+    return <div className="p-8"><EmptyState title="Access denied" description="You don't have permission to view agents." /></div>;
+  }
+  if (agentsQ.isPending) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Agent Console</h1>
+        <CardGridSkeleton count={3} />
+      </div>
+    );
   }
 
-  async function disableAgent(id: string) {
-    if (!confirm('Disable this agent?')) return;
-    try { await api.disableAgent(id); loadAgents(); setSelected(null); } catch {}
-  }
-
-  async function createGrant(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!selected) return;
-    const fd = new FormData(e.currentTarget);
-    try {
-      await api.createGrant(selected, {
-        tool_name: fd.get('tool_name') as string,
-        max_autonomy_level: fd.get('max_autonomy_level') as string,
-        requires_approval: fd.get('requires_approval') === 'on',
-      });
-      setGrants(await api.listGrants(selected));
-      e.currentTarget.reset();
-    } catch {}
-  }
-
-  async function revokeGrant(grantId: string) {
-    if (!selected) return;
-    try { await api.revokeGrant(selected, grantId); setGrants(await api.listGrants(selected)); } catch {}
-  }
-
-  if (!has('agents.read')) return <div className="p-8"><p>Access denied</p></div>;
-  if (loading) return <div className="p-8"><p>Loading agents...</p></div>;
-
+  const agents = agentsQ.data ?? [];
+  const runs = runsQ.data ?? [];
+  const grants = grantsQ.data ?? [];
+  const intentions = intentionsQ.data ?? [];
   const selectedAgent = agents.find(a => a.id === selected);
 
+  const selectAgent = (id: string) => {
+    setSelected(id);
+    setViewedRun(null);
+  };
+  const viewIntentions = (runId: string) => {
+    setViewedRun(runId);
+    // refetch happens via the enabled query; ensure fresh.
+    invalidateIntentions();
+  };
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Agent Console</h1>
-        {has('agents.create') && (
-          <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            + Create Agent
-          </button>
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Agent Console</h1>
+          <p className="text-sm text-muted-foreground">Agents operate under the A0–A4 autonomy ladder (A5 is policy-disabled).</p>
+        </div>
+        {hasPermission(Perm.AgentsCreate) && (
+          <Button size="sm" variant={showCreate ? 'secondary' : 'default'} onClick={() => setShowCreate(s => !s)}>
+            {showCreate ? <><X className="size-4" /> Cancel</> : <><Plus className="size-4" /> Create Agent</>}
+          </Button>
         )}
       </div>
 
       {showCreate && (
-        <form onSubmit={createAgent} className="bg-white border rounded-lg p-4 space-y-3 shadow-sm">
-          <h2 className="font-semibold">New Agent</h2>
-          <input name="name" placeholder="Agent name" required className="w-full border rounded px-3 py-2" />
-          <textarea name="description" placeholder="Description (optional)" className="w-full border rounded px-3 py-2" />
-          <select name="max_autonomy" defaultValue="A3" className="border rounded px-3 py-2">
-            {['A0','A1','A2','A3','A4','A5'].map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <div className="flex gap-2">
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Create</button>
-            <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 border rounded">Cancel</button>
-          </div>
-        </form>
+        <Card className="space-y-4 p-5">
+          <h2 className="font-heading text-sm font-semibold">New Agent</h2>
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (createName.trim()) createMut.mutate(); }}>
+            <div className="space-y-1.5">
+              <Label htmlFor="agent-name">Name</Label>
+              <Input id="agent-name" data-testid="agent-name" value={createName} onChange={e => setCreateName(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="agent-desc">Description</Label>
+              <Textarea id="agent-desc" data-testid="agent-desc" value={createDesc} onChange={e => setCreateDesc(e.target.value)} rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Max autonomy level</Label>
+              <Select value={createAutonomy} onValueChange={(v) => setCreateAutonomy(v ?? 'A3')}>
+                <SelectTrigger data-testid="agent-autonomy"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {AUTONOMY_LEVELS.map(a => (
+                    <SelectItem key={a} value={a} disabled={a === 'A5'}>
+                      {AUTONOMY_DESCRIPTIONS[a]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" data-testid="agent-create" disabled={createMut.isPending || !createName.trim()}>
+                {createMut.isPending ? 'Creating…' : 'Create'}
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+            </div>
+          </form>
+        </Card>
       )}
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* Agent List */}
-        <div className="col-span-1">
-          <h2 className="font-semibold mb-2">Agents</h2>
-          {agents.length === 0 ? <p className="text-gray-500 text-sm">No agents</p> : (
+        <div className="space-y-2">
+          <h2 className="font-heading text-sm font-semibold">Agents</h2>
+          {agentsQ.error ? (
+            <ErrorState message="Failed to load agents" onRetry={() => agentsQ.refetch()} />
+          ) : agents.length === 0 ? (
+            <EmptyState title="No agents" />
+          ) : (
             <ul className="space-y-2">
               {agents.map(a => (
-                <li key={a.id}
-                  onClick={() => selectAgent(a.id)}
-                  className={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${selected === a.id ? 'border-blue-500 bg-blue-50' : ''}`}>
-                  <div className="font-medium">{a.name}</div>
-                  <div className="flex gap-2 text-xs text-gray-500">
-                    <span className={`px-1.5 py-0.5 rounded ${a.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {a.status}
-                    </span>
-                    <span>Max: {a.max_autonomy}</span>
-                  </div>
+                <li key={a.id}>
+                  <button
+                    type="button"
+                    onClick={() => selectAgent(a.id)}
+                    data-testid={`agent-row-${a.id}`}
+                    className={cn(
+                      'w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent/50',
+                      selected === a.id ? 'border-primary bg-primary/5' : 'border-border bg-card',
+                    )}
+                  >
+                    <div className="font-medium">{a.name}</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <StatusBadge tone={a.status === 'active' ? 'success' : 'neutral'}>{a.status}</StatusBadge>
+                      <AutonomyBadge level={a.max_autonomy} />
+                    </div>
+                  </button>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        {/* Agent Detail */}
-        <div className="col-span-2 space-y-4">
+        {/* Detail column */}
+        <div className="space-y-4 lg:col-span-2">
           {selectedAgent ? (
             <>
-              <div className="bg-white border rounded-lg p-4 shadow-sm">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="text-lg font-semibold">{selectedAgent.name}</h2>
-                    <p className="text-sm text-gray-500">{selectedAgent.description || 'No description'}</p>
-                    <p className="text-xs text-gray-400 mt-1">ID: {selectedAgent.id}</p>
+              <Card className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="font-heading text-lg font-semibold">{selectedAgent.name}</h2>
+                    <p className="text-sm text-muted-foreground">{selectedAgent.description || 'No description'}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <StatusBadge tone={selectedAgent.status === 'active' ? 'success' : 'neutral'}>{selectedAgent.status}</StatusBadge>
+                      <AutonomyBadge level={selectedAgent.max_autonomy} />
+                      <span className="text-xs text-muted-foreground">ID: {selectedAgent.id.slice(0, 8)}…</span>
+                    </div>
                   </div>
-                  {has('agents.disable') && selectedAgent.status === 'active' && (
-                    <button onClick={() => disableAgent(selectedAgent.id)} className="px-3 py-1 text-sm border border-red-300 text-red-600 rounded hover:bg-red-50">
-                      Disable
-                    </button>
+                  {hasPermission(Perm.AgentsDisable) && selectedAgent.status === 'active' && (
+                    <Button size="sm" variant="destructive" data-testid="agent-disable" onClick={() => { if (confirm('Disable this agent?')) disableMut.mutate(selectedAgent.id); }}>
+                      <Ban className="size-4" /> Disable
+                    </Button>
                   )}
                 </div>
-              </div>
+              </Card>
 
               {/* Grants */}
-              <div className="bg-white border rounded-lg p-4 shadow-sm">
-                <h3 className="font-semibold mb-2">Tool Grants</h3>
-                {has('agents.grants.create') && (
-                  <form onSubmit={createGrant} className="flex gap-2 mb-3">
-                    <input name="tool_name" placeholder="Tool name" required className="border rounded px-2 py-1 text-sm flex-1" />
-                    <select name="max_autonomy_level" defaultValue="A3" className="border rounded px-2 py-1 text-sm">
-                      {['A0','A1','A2','A3','A4','A5'].map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                    <label className="flex items-center gap-1 text-sm">
-                      <input type="checkbox" name="requires_approval" /> Approval
+              <Card className="p-5">
+                <h3 className="mb-3 font-heading text-sm font-semibold">Tool Grants</h3>
+                {hasPermission(Perm.AgentsGrantsCreate) && (
+                  <form
+                    className="mb-3 flex flex-wrap items-end gap-2"
+                    onSubmit={(e) => { e.preventDefault(); if (grantTool.trim()) createGrantMut.mutate(); }}
+                  >
+                    <div className="min-w-[160px] flex-1 space-y-1">
+                      <Label htmlFor="grant-tool" className="text-xs">Tool</Label>
+                      <Input id="grant-tool" data-testid="grant-tool" value={grantTool} onChange={e => setGrantTool(e.target.value)} required />
+                    </div>
+                    <div className="w-28 space-y-1">
+                      <Label className="text-xs">Autonomy</Label>
+                      <Select value={grantAutonomy} onValueChange={(v) => setGrantAutonomy(v ?? 'A3')}>
+                        <SelectTrigger data-testid="grant-autonomy" className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {AUTONOMY_LEVELS.map(a => <SelectItem key={a} value={a} disabled={a === 'A5'}>{a}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <label className="flex h-8 items-center gap-1.5 text-xs">
+                      <input type="checkbox" data-testid="grant-approval" checked={grantApproval} onChange={e => setGrantApproval(e.target.checked)} />
+                      Approval
                     </label>
-                    <button type="submit" className="px-3 py-1 text-sm bg-blue-600 text-white rounded">Add</button>
+                    <Button type="submit" size="sm" data-testid="grant-add" disabled={createGrantMut.isPending || !grantTool.trim()}>
+                      Add
+                    </Button>
                   </form>
                 )}
-                {grants.length === 0 ? <p className="text-sm text-gray-400">No grants</p> : (
-                  <table className="w-full text-sm">
-                    <thead><tr className="text-left text-gray-500 border-b"><th>Tool</th><th>Autonomy</th><th>Approval</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
+                {grantsQ.isPending ? <InlineSpinner /> : grants.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No grants</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tool</TableHead><TableHead>Autonomy</TableHead><TableHead>Approval</TableHead><TableHead>Status</TableHead><TableHead />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {grants.map(g => (
-                        <tr key={g.id} className="border-b">
-                          <td>{g.tool_name}</td>
-                          <td>{g.max_autonomy_level}</td>
-                          <td>{g.requires_approval ? 'Yes' : 'No'}</td>
-                          <td>{g.revoked_at ? <span className="text-red-500">Revoked</span> : <span className="text-green-600">Active</span>}</td>
-                          <td>{!g.revoked_at && has('agents.grants.revoke') && (
-                            <button onClick={() => revokeGrant(g.id)} className="text-red-500 text-xs hover:underline">Revoke</button>
-                          )}</td>
-                        </tr>
+                        <TableRow key={g.id}>
+                          <TableCell className="font-medium">{g.tool_name}</TableCell>
+                          <TableCell><AutonomyBadge level={g.max_autonomy_level} /></TableCell>
+                          <TableCell>{g.requires_approval ? 'Yes' : 'No'}</TableCell>
+                          <TableCell>
+                            {g.revoked_at ? <StatusBadge tone="neutral">Revoked</StatusBadge> : <StatusBadge tone="success">Active</StatusBadge>}
+                          </TableCell>
+                          <TableCell>
+                            {!g.revoked_at && hasPermission(Perm.AgentsGrantsRevoke) && (
+                              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => revokeGrantMut.mutate(g.id)}>Revoke</Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 )}
-              </div>
+              </Card>
             </>
           ) : (
-            <p className="text-gray-400">Select an agent to view details</p>
+            <EmptyState title="Select an agent" description="Choose an agent from the list to view its details and grants." />
           )}
 
           {/* Runs */}
-          <div className="bg-white border rounded-lg p-4 shadow-sm">
-            <h3 className="font-semibold mb-2">Agent Runs</h3>
-            {runs.length === 0 ? <p className="text-sm text-gray-400">No runs</p> : (
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-gray-500 border-b"><th>ID</th><th>Status</th><th>Created</th><th></th></tr></thead>
-                <tbody>
+          <Card className="p-5">
+            <h3 className="mb-3 font-heading text-sm font-semibold">Agent Runs</h3>
+            {runsQ.isPending ? <InlineSpinner /> : runs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No runs</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow><TableHead>ID</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead><TableHead /></TableRow>
+                </TableHeader>
+                <TableBody>
                   {runs.slice(0, 10).map(r => (
-                    <tr key={r.id} className="border-b">
-                      <td className="font-mono text-xs">{r.id.slice(0, 8)}...</td>
-                      <td><span className={`px-1.5 py-0.5 rounded text-xs ${r.status === 'completed' ? 'bg-green-100 text-green-700' : r.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{r.status}</span></td>
-                      <td className="text-gray-400">{new Date(r.created_at).toLocaleString()}</td>
-                      <td><button onClick={() => loadIntentions(r.id)} className="text-blue-500 text-xs hover:underline">View</button></td>
-                    </tr>
+                    <TableRow key={r.id} className={viewedRun === r.id ? 'bg-accent/50' : ''}>
+                      <TableCell className="font-mono text-xs">{r.id.slice(0, 8)}…</TableCell>
+                      <TableCell><StatusBadge tone={runStatusTone(r.status)}>{r.status}</StatusBadge></TableCell>
+                      <TableCell className="text-muted-foreground">{new Date(r.created_at).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="ghost" onClick={() => viewIntentions(r.id)}>View</Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
-          </div>
+          </Card>
 
           {/* Intentions */}
-          {intentions.length > 0 && (
-            <div className="bg-white border rounded-lg p-4 shadow-sm">
-              <h3 className="font-semibold mb-2">Intentions</h3>
-              <table className="w-full text-sm">
-                <thead><tr className="text-left text-gray-500 border-b"><th>Tool</th><th>Autonomy</th><th>Status</th><th>Reason</th></tr></thead>
-                <tbody>
-                  {intentions.map(i => (
-                    <tr key={i.id} className="border-b">
-                      <td>{i.requested_tool}</td>
-                      <td>{i.autonomy_level}</td>
-                      <td><span className={`px-1.5 py-0.5 rounded text-xs ${
-                        i.status === 'executed' ? 'bg-green-100 text-green-700' :
-                        i.status === 'blocked' ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>{i.status}</span></td>
-                      <td className="text-gray-400">{i.blocked_reason || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {viewedRun && (
+            <Card className="p-5">
+              <h3 className="mb-3 font-heading text-sm font-semibold">Intentions — run {viewedRun.slice(0, 8)}…</h3>
+              {intentionsQ.isPending ? <InlineSpinner /> : intentions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No intentions for this run.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow><TableHead>Tool</TableHead><TableHead>Autonomy</TableHead><TableHead>Status</TableHead><TableHead>Reason</TableHead></TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {intentions.map(i => (
+                      <TableRow key={i.id}>
+                        <TableCell className="font-medium">{i.requested_tool}</TableCell>
+                        <TableCell><AutonomyBadge level={i.autonomy_level} /></TableCell>
+                        <TableCell><StatusBadge tone={intentionStatusTone(i.status)}>{i.status}</StatusBadge></TableCell>
+                        <TableCell className="text-muted-foreground">{i.blocked_reason || '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </Card>
           )}
         </div>
       </div>
     </div>
   );
 }
+
+export default AgentsPage;
