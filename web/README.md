@@ -92,7 +92,7 @@ The container uses a multi-stage build:
 1. **Stage 1**: Node.js 22 builds the Vite production bundle
 2. **Stage 2**: nginx:alpine serves the static files + proxies `/api/` to the Go backend
 
-Frontend accessible at `http://192.168.3.20:3000`.
+Frontend accessible at `http://<your-host>:3000`.
 
 ## Tests
 

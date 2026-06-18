@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': 'http://192.168.3.20:8765',
+      // Point this at your local API instance for development.
+      '/api': process.env.VITE_API_URL ?? 'http://localhost:8765',
     },
   },
   resolve: {

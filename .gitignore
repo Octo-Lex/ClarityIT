@@ -50,3 +50,19 @@ minio-data/
 web/web/
 e2e/test-results/
 e2e/node_modules/
+
+# Test coverage + TS build info
+coverage/
+*.tsbuildinfo
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Database dumps / backups
+*.dump
+*.bak
+*.sqlite
+*.sqlite3
