@@ -113,6 +113,53 @@ intention = gateway.generate_intention(
 
 Placeholders exist for: `OpenAICompatibleGateway`, `LiteLLMGateway`, `LocalOllamaGateway`.
 
+## Compute Integration
+
+ClarityIT manages infrastructure assets through a **provider interface**, not a
+hardcoded binding. Proxmox is the **first implementation** — not the only
+option.
+
+### Provider boundary
+
+```go
+// services/api/internal/proxmox/handler.go
+type ProxmoxClient interface {
+    ListNodes(ctx context.Context) ([]ProxmoxNode, error)
+    ListVMs(ctx context.Context, node string) ([]ProxmoxVM, error)
+    StartVM(ctx context.Context, target MutationTarget) (string, error)
+    ShutdownVM(ctx context.Context, target MutationTarget) (string, error)
+    StopVM(ctx context.Context, target MutationTarget) (string, error)
+    SnapshotVM(ctx context.Context, target MutationTarget, snapName string) (string, error)
+    GetTaskStatus(ctx context.Context, node, taskID string) (*TaskStatus, error)
+}
+```
+
+When `PROXMOX_ENABLED=false` (the default), the platform uses a
+`FakeProxmoxClient` stub — all routes function, no real infrastructure is
+touched. This is how the test suite and local development work.
+
+### Adding a new provider
+
+The provider boundary is the interface. To add support for another platform
+(Hetzner Cloud, Kubernetes, libvirt, AWS, etc.):
+
+1. Implement the client interface (read + the four allowed mutations:
+   start / shutdown / stop / snapshot).
+2. Register routes under `/integrations/<provider>/`.
+3. Wire it in `main.go` behind its own config flag.
+
+No changes to the Tool Gateway, approval workflow, agent runtime, or frontend
+are needed — the safety model (ESAA, A0–A4 autonomy, mutation windows) is
+provider-agnostic and applies to all compute integrations equally.
+
+### Why Proxmox first
+
+Proxmox VE is open-source, self-hostable, and fits the sovereign-hybrid
+deployment model. It provides the full lifecycle (VMs, containers, snapshots,
+storage) through a stable HTTP API — making it the strongest reference
+implementation for a platform designed to run entirely on infrastructure you
+control.
+
 ## Database Schema
 
 18 migrations create 37+ tables across:

@@ -22,3 +22,4 @@
 | [ADR-018](./ADR-018-proxmox-read-rich-action-gated-integration.md) | Proxmox Read-Rich, Action-Gated Integration | Start Proxmox integration with inventory, metrics, backup status, and alert correlation; gate actions. |
 | [ADR-019](./ADR-019-git-for-knowledge-and-config-postgresql-for-operations.md) | Git for Knowledge and Config, PostgreSQL for Operations | Use Git for runbooks, docs, skills, schemas, deployment templates, and config snapshots. |
 | [ADR-020](./ADR-020-golden-thread-scenario-packs.md) | Golden Thread Scenario Packs | Use scenario packs as integration validation, not as MVP scope. |
+| [ADR-021](./ADR-021-compute-provider-interface.md) | Compute Provider Interface | Proxmox is the first provider, not the only provider; the client interface is the extension boundary. |
