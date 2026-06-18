@@ -196,7 +196,7 @@ export const api = {
     if (params?.min_occurrences) qs += `${qs ? '&' : '?'}min_occurrences=${params.min_occurrences}`;
     return request<T.IncidentPatternsResponse>(teamPath(`/incidents/patterns${qs}`), { signal });
   },
-  getIncident: (id: string) => request<T.Incident>(teamPath(`/incidents/${id}`)),
+  getIncident: (id: string, signal?: AbortSignal) => request<T.Incident>(teamPath(`/incidents/${id}`), { signal }),
   updateIncident: (id: string, data: Record<string, unknown>) =>
     mutation<T.MessageResponse>('PATCH', teamPath(`/incidents/${id}`), data),
   addTimeline: (id: string, body: string) =>

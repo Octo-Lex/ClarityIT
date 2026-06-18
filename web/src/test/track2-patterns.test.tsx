@@ -1,24 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, waitFor } from '@testing-library/react';
 
-// Mock the API client
+// Mock the API client (legacy coexisting pattern; the component uses useQuery
+// which calls api.getIncidentPatterns). getStoredTeamId is needed so the auth
+// provider's activeTeamId enables the query.
 vi.mock('../api/client', () => ({
   api: {
     getIncidentPatterns: vi.fn(),
   },
   ApiError: class extends Error { constructor(public status: number, msg: string) { super(msg); } },
+  getStoredTeamId: () => 'team-1',
+  setStoredTeamId: () => {},
+  setAccessToken: () => {},
+  getAccessToken: () => null,
 }));
 
 import PatternCards from '../features/incidents/PatternCards';
 import { api } from '../api/client';
+import { renderWithProviders } from './renderWithProviders';
 
 function renderCards() {
-  return render(
-    <MemoryRouter>
-      <PatternCards />
-    </MemoryRouter>
-  );
+  return renderWithProviders(<PatternCards />, { auth: true });
 }
 
 const mockPatterns = {
