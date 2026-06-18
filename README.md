@@ -5,6 +5,8 @@
 [![Go](https://img.shields.io/badge/Go-1.25-00ADD8.svg)](https://go.dev)
 [![React](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev)
 
+![ClarityIT Dashboard](docs/images/dashboard.png)
+
 **An AI operations platform that runs entirely on infrastructure you control.**
 
 ClarityIT brings AI-assisted incident response, knowledge retrieval, and agent-driven automation to sovereign IT environments — without sending your data to third-party SaaS. Deploy on Proxmox, manage through the web, let agents help under strict human-in-the-loop safety boundaries.
