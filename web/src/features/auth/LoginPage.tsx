@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../auth/context';
+import { useAuth } from '@/auth/context';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { AuthCard } from './AuthCard';
 
 export default function LoginPage() {
   const nav = useNavigate();
@@ -18,35 +22,60 @@ export default function LoginPage() {
     try {
       if (isRegister) { await register(name, email, password); } else { await login(email, password); }
       nav('/', { replace: true });
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="card w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-center">ClarityIT</h1>
-        <h2 className="text-sm text-[var(--text-muted)] mb-4 text-center">{isRegister ? 'Create Account' : 'Sign In'}</h2>
-        {error && <div className="error-msg mb-4">{error}</div>}
-        <form onSubmit={submit} className="space-y-3">
-          {isRegister && <input placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} required />}
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
-          <button type="submit" disabled={loading} className="w-full">{loading ? '...' : (isRegister ? 'Register' : 'Login')}</button>
-        </form>
-        <p className="text-sm text-center mt-4 text-[var(--text-muted)]">
+    <AuthCard
+      title="ClarityIT"
+      subtitle={isRegister ? 'Create your account' : 'Sign in to your account'}
+      footer={
+        <>
           {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button className="text-[var(--primary)] bg-transparent p-0 text-sm" onClick={() => { setRegister(!isRegister); setError(''); }}>
+          <button
+            type="button"
+            data-testid="auth-mode-toggle"
+            className="font-medium text-primary hover:underline"
+            onClick={() => { setRegister(!isRegister); setError(''); }}
+          >
             {isRegister ? 'Sign in' : 'Register'}
           </button>
-        </p>
-        {!isRegister && (
-          <p className="text-sm text-center mt-2">
-            <button className="text-[var(--text-muted)] bg-transparent p-0 text-sm hover:text-white" onClick={() => nav('/forgot-password')}>Forgot password?</button>
-          </p>
+        </>
+      }
+    >
+      {error && (
+        <div role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+      <form onSubmit={submit} className="space-y-4">
+        {isRegister && (
+          <div className="space-y-1.5">
+            <Label htmlFor="reg-name">Full Name</Label>
+            <Input id="reg-name" data-testid="reg-name" value={name} onChange={e => setName(e.target.value)} required />
+          </div>
         )}
-      </div>
-    </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="login-email">Email</Label>
+          <Input id="login-email" type="email" data-testid="login-email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="login-password">Password</Label>
+          <Input id="login-password" type="password" data-testid="login-password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
+        </div>
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? 'Please wait…' : (isRegister ? 'Register' : 'Sign in')}
+        </Button>
+      </form>
+      {!isRegister && (
+        <p className="mt-3 text-center text-sm">
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => nav('/forgot-password')}>
+            Forgot password?
+          </button>
+        </p>
+      )}
+    </AuthCard>
   );
 }

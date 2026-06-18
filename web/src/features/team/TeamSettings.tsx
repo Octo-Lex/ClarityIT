@@ -1,95 +1,176 @@
-import { useEffect, useState } from 'react';
-import { api, type Member, type Invitation } from '../../api/client';
-import { useAuth } from '../../auth/context';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { UserPlus, Trash2 } from 'lucide-react';
+import { api } from '@/api/client';
+import { keys } from '@/api/keys';
+import { Perm } from '@/auth/permissions';
+import { useAuth } from '@/auth/context';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from '@/components/ui/table';
+import { notify } from '@/components/Toaster';
+import { TableSkeleton, ErrorState } from '@/components/PageState';
+
+function roleTone(role: string): 'warning' | 'danger' | 'info' | 'neutral' {
+  if (role === 'owner') return 'warning';
+  if (role === 'admin') return 'danger';
+  if (role === 'manager') return 'info';
+  return 'neutral';
+}
+
+const INVITE_ROLES = [
+  { value: 'member', label: 'Member' },
+  { value: 'viewer', label: 'Viewer' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'admin', label: 'Admin' },
+];
 
 export default function TeamSettings() {
   const { activeTeamId, hasPermission } = useAuth();
-  const [members, setMembers] = useState<Member[]>([]);
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
 
-  const load = () => {
-    if (!activeTeamId) return;
-    Promise.all([api.listMembers(), api.listInvitations()])
-      .then(([m, inv]) => { setMembers(m); setInvitations(inv); }).catch(e => setError(e.message))
-      .finally(() => setLoading(false));
-  };
-  useEffect(load, [activeTeamId]);
+  const teamId = activeTeamId ?? '';
+  const membersQ = useQuery({
+    queryKey: keys.members(teamId),
+    queryFn: () => api.listMembers(),
+    enabled: !!activeTeamId,
+  });
+  const invitationsQ = useQuery({
+    queryKey: keys.invitations(teamId),
+    queryFn: () => api.listInvitations(),
+    enabled: !!activeTeamId,
+  });
 
-  const invite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try { await api.createInvitation(inviteEmail, inviteRole); setInviteEmail(''); load(); }
-    catch (e: any) { setError(e.message); }
-  };
+  const inviteMut = useMutation({
+    mutationFn: () => api.createInvitation(inviteEmail, inviteRole),
+    onSuccess: () => {
+      notify.success('Invitation sent');
+      queryClient.invalidateQueries({ queryKey: keys.invitations(teamId) });
+      setInviteEmail('');
+    },
+    onError: (err) => notify.mutationError('Invite', err),
+  });
 
-  const removeMember = async (userId: string) => {
-    if (!confirm('Remove this member?')) return;
-    try { await api.removeMember(userId); load(); } catch (e: any) { setError(e.message); }
-  };
+  const removeMut = useMutation({
+    mutationFn: (userId: string) => api.removeMember(userId),
+    onSuccess: () => {
+      notify.success('Member removed');
+      queryClient.invalidateQueries({ queryKey: keys.members(teamId) });
+    },
+    onError: (err) => notify.mutationError('Remove member', err),
+  });
 
-  const roleBadge: Record<string, string> = { owner: 'badge-yellow', admin: 'badge-red', manager: 'badge-blue', member: 'badge-gray', viewer: 'badge-gray' };
+  const members = membersQ.data ?? [];
+  const invitations = (invitationsQ.data ?? []).filter(i => !i.accepted_at);
+  const loading = membersQ.isPending || invitationsQ.isPending;
 
-  if (loading) return <p className="text-[var(--text-muted)]">Loading...</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Team Settings</h1>
+        <Card className="p-4"><TableSkeleton rows={4} cols={5} /></Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Team Settings</h1>
-      {error && <div className="error-msg">{error}</div>}
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">Team Settings</h1>
 
-      <div className="card">
-        <h3 className="font-semibold mb-3">Members ({members.length})</h3>
-        <table className="w-full text-sm">
-          <thead><tr className="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
-            <th className="pb-2">Name</th><th className="pb-2">Email</th><th className="pb-2">Role</th><th className="pb-2">Joined</th><th className="pb-2"></th>
-          </tr></thead>
-          <tbody>
-            {members.map(m => (
-              <tr key={m.user_id} className="border-b border-[var(--border)]">
-                <td className="py-2">{m.name}</td>
-                <td className="py-2 text-[var(--text-muted)]">{m.email}</td>
-                <td className="py-2"><span className={`badge ${roleBadge[m.role] || 'badge-gray'}`}>{m.role}</span></td>
-                <td className="py-2 text-[var(--text-muted)]">{new Date(m.joined_at).toLocaleDateString()}</td>
-                <td className="py-2 text-right">
-                  {hasPermission('team.members.remove') && m.role !== 'owner' && (
-                    <button className="btn-danger text-xs px-2 py-1" onClick={() => removeMember(m.user_id)}>Remove</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {hasPermission('team.invitations.create') && (
-        <div className="card">
-          <h3 className="font-semibold mb-3">Invite Member</h3>
-          <form onSubmit={invite} className="flex gap-3">
-            <input type="email" placeholder="Email address" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required className="flex-1" />
-            <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
-              <option value="member">Member</option><option value="viewer">Viewer</option>
-              <option value="manager">Manager</option><option value="admin">Admin</option>
-            </select>
-            <button type="submit">Invite</button>
-          </form>
+      <Card className="p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-heading text-sm font-semibold">Members ({members.length})</h3>
         </div>
+        {membersQ.error ? (
+          <ErrorState message="Failed to load members" onRetry={() => membersQ.refetch()} />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members.map(m => (
+                <TableRow key={m.user_id}>
+                  <TableCell className="font-medium">{m.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{m.email}</TableCell>
+                  <TableCell><StatusBadge tone={roleTone(m.role)}>{m.role}</StatusBadge></TableCell>
+                  <TableCell className="text-muted-foreground">{new Date(m.joined_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right">
+                    {hasPermission(Perm.TeamMembersRemove) && m.role !== 'owner' && (
+                      <Button
+                        size="sm" variant="destructive"
+                        onClick={() => { if (confirm('Remove this member?')) removeMut.mutate(m.user_id); }}
+                      >
+                        <Trash2 className="size-4" /> Remove
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+
+      {hasPermission(Perm.TeamInvitationsCreate) && (
+        <Card className="p-5">
+          <h3 className="mb-3 font-heading text-sm font-semibold">Invite Member</h3>
+          <form
+            className="flex flex-wrap items-end gap-3"
+            onSubmit={(e) => { e.preventDefault(); if (inviteEmail.trim()) inviteMut.mutate(); }}
+          >
+            <div className="min-w-[200px] flex-1 space-y-1.5">
+              <Label htmlFor="invite-email">Email address</Label>
+              <Input
+                id="invite-email" type="email" data-testid="invite-email"
+                value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required
+              />
+            </div>
+            <div className="w-36 space-y-1.5">
+              <Label>Role</Label>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v ?? 'member')}>
+                <SelectTrigger data-testid="invite-role"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {INVITE_ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" data-testid="invite-submit" disabled={inviteMut.isPending || !inviteEmail.trim()}>
+              <UserPlus className="size-4" /> {inviteMut.isPending ? 'Sending…' : 'Invite'}
+            </Button>
+          </form>
+        </Card>
       )}
 
       {invitations.length > 0 && (
-        <div className="card">
-          <h3 className="font-semibold mb-3">Pending Invitations</h3>
-          {invitations.filter(i => !i.accepted_at).map(inv => (
-            <div key={inv.id} className="flex justify-between py-2 border-b border-[var(--border)] last:border-0">
-              <span className="text-sm">{inv.email}</span>
-              <div className="flex gap-2 items-center">
-                <span className="badge badge-gray">{inv.role}</span>
-                <span className="text-xs text-[var(--text-muted)]">Expires {new Date(inv.expires_at).toLocaleDateString()}</span>
+        <Card className="p-5">
+          <h3 className="mb-3 font-heading text-sm font-semibold">Pending Invitations</h3>
+          <div className="divide-y divide-border">
+            {invitations.map(inv => (
+              <div key={inv.id} className="flex items-center justify-between py-2">
+                <span className="text-sm">{inv.email}</span>
+                <div className="flex items-center gap-2">
+                  <StatusBadge tone="neutral">{inv.role}</StatusBadge>
+                  <span className="text-xs text-muted-foreground">Expires {new Date(inv.expires_at).toLocaleDateString()}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Card>
       )}
     </div>
   );

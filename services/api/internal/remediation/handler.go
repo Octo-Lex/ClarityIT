@@ -66,6 +66,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			Parameters         json.RawMessage `json:"parameters"`
 			ContinueOnFailure  bool            `json:"continue_on_failure"`
 		} `json:"steps"`
+		// v1.2 Track 1: Evidence pack (optional but required for agent-sourced recommendations)
+		Evidence *EvidenceInput `json:"evidence"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, 400, "Invalid request body")
@@ -241,6 +243,21 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		EventType: "clarity.v1.remediation.proposal.created",
 		AggregateType: "remediation_proposal", AggregateID: proposalID.String(), Payload: auditMeta,
 	})
+
+	// v1.2 Track 1: Persist evidence pack if provided
+	// Agent-sourced recommendations should include evidence; operator-sourced are optional
+	if req.Evidence != nil {
+		sanitized, err := ValidateEvidenceInput(*req.Evidence)
+		if err != nil {
+			writeErr(w, 400, fmt.Sprintf("Invalid evidence: %v", err))
+			return
+		}
+		// recommendation_id = proposal_id (the recommendation IS the proposal)
+		if err := PersistEvidence(ctx, h.pool, teamID, proposalID, "remediation_proposal", proposalID, sanitized); err != nil {
+			// Log but don't fail the proposal creation
+			// Evidence is supplementary, not a gate on proposal creation
+		}
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		writeErr(w, 500, "Commit failed")

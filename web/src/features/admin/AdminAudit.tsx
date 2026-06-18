@@ -1,38 +1,50 @@
-import { useEffect, useState } from 'react';
-import { api, type AuditEvent } from '../../api/client';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/api/client';
+import { keys } from '@/api/keys';
+import { Card } from '@/components/ui/card';
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from '@/components/ui/table';
+import { TableSkeleton, ErrorState, EmptyState } from '@/components/PageState';
 
 export default function AdminAudit() {
-  const [events, setEvents] = useState<AuditEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: events, isPending, error, refetch } = useQuery({
+    queryKey: keys.admin.audit(),
+    queryFn: () => api.listAudit(),
+  });
 
-  useEffect(() => {
-    setLoading(true);
-    api.listAudit().then(setEvents).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const list = events ?? [];
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Audit Log</h1>
-      {loading ? <p className="text-[var(--text-muted)]">Loading...</p> : (
-        <div className="card">
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
-              <th className="pb-2">Time</th><th className="pb-2">Actor</th><th className="pb-2">Action</th><th className="pb-2">Entity</th>
-            </tr></thead>
-            <tbody>
-              {events.map((e: any) => (
-                <tr key={e.id || e.created_at} className="border-b border-[var(--border)]">
-                  <td className="py-2 text-[var(--text-muted)]">{new Date(e.created_at).toLocaleString()}</td>
-                  <td className="py-2">{e.actor_id?.slice(0,8) || 'system'}…</td>
-                  <td className="py-2">{e.action}</td>
-                  <td className="py-2">{e.entity_type}/{e.entity_id?.slice(0,8)}…</td>
-                </tr>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">Audit Log</h1>
+      <Card className="p-0">
+        {isPending ? (
+          <div className="p-4"><TableSkeleton rows={8} cols={4} /></div>
+        ) : error ? (
+          <div className="p-4"><ErrorState message="Failed to load audit log" onRetry={() => refetch()} /></div>
+        ) : list.length === 0 ? (
+          <div className="p-4"><EmptyState title="No audit events" /></div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Time</TableHead><TableHead>Actor</TableHead><TableHead>Action</TableHead><TableHead>Entity</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {list.map(e => (
+                <TableRow key={e.id || e.created_at}>
+                  <TableCell className="text-muted-foreground">{new Date(e.created_at).toLocaleString()}</TableCell>
+                  <TableCell>{e.actor_id?.slice(0, 8) || 'system'}…</TableCell>
+                  <TableCell className="font-medium">{e.action}</TableCell>
+                  <TableCell className="text-muted-foreground">{e.entity_type}/{e.entity_id?.slice(0, 8)}…</TableCell>
+                </TableRow>
               ))}
-              {!events.length && <tr><td colSpan={4} className="py-4 text-center text-[var(--text-muted)]">No events</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
     </div>
   );
 }

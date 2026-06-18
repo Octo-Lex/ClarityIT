@@ -1,46 +1,79 @@
-import { useEffect, useState } from 'react';
-import { api } from '../../api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/api/client';
+import { keys } from '@/api/keys';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui/status-badge';
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from '@/components/ui/table';
+import { notify } from '@/components/Toaster';
+import { TableSkeleton, ErrorState, EmptyState } from '@/components/PageState';
 
 export default function AdminUsers() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: users, isPending, error, refetch } = useQuery({
+    queryKey: keys.admin.users(),
+    queryFn: () => api.listUsers(),
+  });
 
-  useEffect(() => {
-    setLoading(true);
-    api.listUsers().then(setUsers).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const toggleMut = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      api.updateUser(id, { is_active: !active }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.admin.users() });
+      notify.success('User updated');
+    },
+    onError: (err) => notify.mutationError('Update user', err),
+  });
 
-  const toggleActive = async (id: string, active: boolean) => {
-    try { await api.updateUser(id, { is_active: !active }); api.listUsers().then(setUsers); } catch {}
-  };
+  const list = users ?? [];
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Users</h1>
-      {loading ? <p className="text-[var(--text-muted)]">Loading...</p> : (
-        <div className="card">
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
-              <th className="pb-2">Name</th><th className="pb-2">Email</th><th className="pb-2">Role</th><th className="pb-2">Status</th><th className="pb-2">Actions</th>
-            </tr></thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id} className="border-b border-[var(--border)]">
-                  <td className="py-2">{u.name}</td>
-                  <td className="py-2 text-[var(--text-muted)]">{u.email}</td>
-                  <td className="py-2">{u.is_platform_owner ? <span className="badge badge-yellow">Owner</span> : <span className="badge badge-gray">User</span>}</td>
-                  <td className="py-2">{u.is_active ? <span className="badge badge-green">Active</span> : <span className="badge badge-red">Inactive</span>}</td>
-                  <td className="py-2">
-                    <button className="btn-secondary text-xs px-2 py-1" onClick={() => toggleActive(u.id, u.is_active)}>
-                      {u.is_active ? 'Deactivate' : 'Activate'}
-                    </button>
-                  </td>
-                </tr>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">Users</h1>
+      <Card className="p-0">
+        {isPending ? (
+          <div className="p-4"><TableSkeleton rows={5} cols={5} /></div>
+        ) : error ? (
+          <div className="p-4"><ErrorState message="Failed to load users" onRetry={() => refetch()} /></div>
+        ) : list.length === 0 ? (
+          <div className="p-4"><EmptyState title="No users" /></div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {list.map(u => (
+                <TableRow key={u.id}>
+                  <TableCell className="font-medium">{u.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                  <TableCell>
+                    <StatusBadge tone={(u as { is_platform_owner?: boolean }).is_platform_owner ? 'warning' : 'neutral'}>
+                      {(u as { is_platform_owner?: boolean }).is_platform_owner ? 'Owner' : 'User'}
+                    </StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge tone={u.active ? 'success' : 'danger'}>{u.active ? 'Active' : 'Inactive'}</StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm" variant="secondary"
+                      data-testid={`user-toggle-${u.id}`}
+                      onClick={() => toggleMut.mutate({ id: u.id, active: u.active })}
+                    >
+                      {u.active ? 'Deactivate' : 'Activate'}
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
     </div>
   );
 }

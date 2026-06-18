@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, setAccessToken } from '../../api/client';
+import { Rocket } from 'lucide-react';
+import { api, setAccessToken } from '@/api/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { AuthCard } from '../auth/AuthCard';
 
 export default function BootstrapPage() {
   const nav = useNavigate();
@@ -18,26 +23,48 @@ export default function BootstrapPage() {
       const r = await api.bootstrap({ name, email, password, team_name: team });
       setAccessToken(r.access_token);
       nav('/', { replace: true });
-    } catch (err: any) {
-      if (err?.status === 409) { nav('/login', { replace: true }); return; }
-      setError(err.message || 'Bootstrap failed');
+    } catch (err) {
+      // 409 = already bootstrapped → send to login (preserved behavior).
+      if (err instanceof Error && 'status' in err && err.status === 409) {
+        nav('/login', { replace: true });
+        return;
+      }
+      setError(err instanceof Error ? err.message : 'Bootstrap failed');
     } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="card w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">🚀 Bootstrap ClarityIT</h1>
-        <p className="text-sm text-[var(--text-muted)] mb-6 text-center">Create the first platform owner and initial team.</p>
-        {error && <div className="error-msg mb-4">{error}</div>}
-        <form onSubmit={submit} className="space-y-4">
-          <input placeholder="Your Name" value={name} onChange={e => setName(e.target.value)} required />
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
-          <input placeholder="Team Name" value={team} onChange={e => setTeam(e.target.value)} required />
-          <button type="submit" disabled={loading} className="w-full">{loading ? 'Creating...' : 'Bootstrap Platform'}</button>
-        </form>
-      </div>
-    </div>
+    <AuthCard
+      title="Bootstrap ClarityIT"
+      subtitle="Create the first platform owner and initial team."
+      maxWidth="max-w-md"
+    >
+      {error && (
+        <div role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+      <form onSubmit={submit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="boot-name">Your Name</Label>
+          <Input id="boot-name" data-testid="boot-name" value={name} onChange={e => setName(e.target.value)} required />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="boot-email">Email</Label>
+          <Input id="boot-email" type="email" data-testid="boot-email" value={email} onChange={e => setEmail(e.target.value)} required />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="boot-password">Password</Label>
+          <Input id="boot-password" type="password" data-testid="boot-password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="boot-team">Team Name</Label>
+          <Input id="boot-team" data-testid="boot-team" value={team} onChange={e => setTeam(e.target.value)} required />
+        </div>
+        <Button type="submit" className="w-full" disabled={loading} data-testid="boot-submit">
+          <Rocket className="size-4" /> {loading ? 'Creating…' : 'Bootstrap Platform'}
+        </Button>
+      </form>
+    </AuthCard>
   );
 }

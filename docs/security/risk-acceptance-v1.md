@@ -1,10 +1,28 @@
 # ClarityIT v1.0 Risk Acceptance — Dev-Only Dependency Vulnerabilities
 
 ## Document Status
-- **Version**: 1.0.0
-- **Date**: 2026-06-14
+- **Version**: 1.3.0
+- **Date**: 2026-06-16
 - **Owner**: Platform Engineering
-- **Target Remediation Release**: v1.1.0 (post-launch maintenance)
+- **Status**: CLOSED — Remediated in v1.1.0
+- **Target Remediation Release**: ~~v1.1.0~~ → **COMPLETED**
+
+> **v1.4.0 Update**: No new security risks introduced. ClarityDocs is an internal productivity feature with no public sharing, no external document engine dependency, and no operational control path changes. v1.4.0 adds document assist/generation worker endpoints (port 9100, internal-only), but these follow the same isolation model as the reasoning worker. `npm audit --audit-level=high` and `npm audit --omit=dev --audit-level=high` both report 0 vulnerabilities. `go vet ./...` is clean.
+>
+> **ClarityDocs Risk**: Accepted as low-risk. Key boundaries:
+> - No SuperDoc dependency, no copied code, no external document engine
+> - PostgreSQL JSONB is source of truth (DOCX is export-only)
+> - Python worker has zero DB/MinIO/NATS/Redis access
+> - No raw prompts stored in `source_data`
+> - No `chain_of_thought` fields accepted or rendered
+> - Exports are streaming-only (no storage mutation)
+> - Version history is non-destructive (no delete path)
+> - Save conflict protection via If-Match (409 on stale save)
+> - No A5/autonomy expansion, no Tool Gateway changes, no Proxmox changes
+>
+> **v1.3.0 Update**: No new open high-risk items. v1.3.0 is accepted with **zero carried-forward security debt**. The original vulnerability was fully remediated in v1.1.0. v1.3.0 adds `github.com/minio/minio-go/v7 v7.2.0` (no known vulnerabilities) and the optional Presenton container (profile-isolated, pinned by digest, no ClarityIT data access). `npm audit --audit-level=high` and `npm audit --omit=dev --audit-level=high` both report 0 vulnerabilities.
+>
+> **Presenton Risk**: Accepted as low-risk. Presenton is profile-isolated (`profiles: ["presenton"]`), image pinned by digest (`v0.8.7-beta@sha256:d855169e...`), bound to localhost only, has no ClarityIT DB/NATS/Redis/MinIO credentials, and `CAN_CHANGE_KEYS=false`. ClarityIT proxies all requests. No raw ClarityIT data flows to Presenton.
 
 ---
 
@@ -12,7 +30,7 @@
 
 `npm audit --audit-level=high` reports 6 high-severity vulnerabilities in the ClarityIT frontend development toolchain. All affected packages are in `devDependencies` — none are present in the production Docker image. Production runtime dependencies are clean (`npm audit --omit=dev --audit-level=high` → 0 vulnerabilities).
 
-This document constitutes a formal risk acceptance per the v1.0 Track 7 closure requirements.
+This document constituted a formal risk acceptance per the v1.0 Track 7 closure requirements. **The exception is now closed** — the Vite/Vitest/esbuild toolchain was upgraded in v1.1.0 Track 1, resolving all 6 high-severity findings.
 
 ## 2. Affected Packages
 
@@ -115,15 +133,23 @@ vite, vitest, vite-node (transitive)
 
 | Action | Target Release | Status |
 |--------|---------------|--------|
-| Upgrade to `vite@8` (fixes esbuild chain) | v1.1.0 | Planned |
-| Upgrade `vitest` to v5+ (compatible with vite@8) | v1.1.0 | Planned |
-| Re-run `npm audit --audit-level=high` (expect clean) | v1.1.0 | Pending |
-| Remove this risk acceptance document | v1.1.0 | Pending |
+| Upgrade to `vite@8` (fixes esbuild chain) | v1.1.0 | ✅ Done — vite@8.0.16 |
+| Upgrade `vitest` to v4+ (compatible with vite@8) | v1.1.0 | ✅ Done — vitest@4.1.8 |
+| Upgrade `@vitejs/plugin-react` to v6 | v1.1.0 | ✅ Done — @vitejs/plugin-react@6.0.2 |
+| Re-run `npm audit --audit-level=high` (expect clean) | v1.1.0 | ✅ Done — 0 vulnerabilities |
+| Close this risk acceptance document | v1.1.0 | ✅ Done |
 
 ## 8. Acceptance
 
-This risk acceptance is valid for v1.0.0 only. It must be remediated in v1.1.0 by upgrading the Vite/Vitest toolchain to versions that include the esbuild binary integrity fix.
+This risk acceptance was valid for v1.0.0 only. It has been remediated in v1.1.0 by upgrading the Vite/Vitest toolchain to versions that use Rolldown/Oxc instead of esbuild.
+
+**Remediation verified**:
+```
+npm audit --audit-level=high → 0 vulnerabilities
+npm audit --omit=dev --audit-level=high → 0 vulnerabilities
+```
 
 - **Accepted by**: Platform Engineering
-- **Date**: 2026-06-14
-- **Review date**: v1.1.0 release planning
+- **Date**: 2026-06-14 (v1.0.0)
+- **Closed**: 2026-06-14 (v1.1.0 Track 1)
+- **Closure verified by**: 33 Vitest tests pass, 19 Playwright E2E pass, production image contains no node/npm

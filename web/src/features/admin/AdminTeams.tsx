@@ -1,26 +1,42 @@
-import { useEffect, useState } from 'react';
-import { api } from '../../api/client';
+import { useQuery } from '@tanstack/react-query';
+import { Building2 } from 'lucide-react';
+import { api } from '@/api/client';
+import { keys } from '@/api/keys';
+import { Card } from '@/components/ui/card';
+import { CardGridSkeleton, ErrorState, EmptyState } from '@/components/PageState';
 
 export default function AdminTeams() {
-  const [teams, setTeams] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    api.listTeams().then(setTeams).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const { data: teams, isPending, error, refetch } = useQuery({
+    queryKey: keys.admin.teams(),
+    queryFn: () => api.listTeams(),
+  });
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Teams</h1>
-      {loading ? <p className="text-[var(--text-muted)]">Loading...</p> : (
-        <div className="grid grid-cols-2 gap-4">
-          {teams.map(t => (
-            <div key={t.id} className="card">
-              <h3 className="font-semibold">{t.name}</h3>
-              <p className="text-sm text-[var(--text-muted)]">{t.slug}</p>
-              {t.description && <p className="text-sm mt-1">{t.description}</p>}
-            </div>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">Teams</h1>
+      {isPending ? (
+        <CardGridSkeleton count={4} />
+      ) : error ? (
+        <ErrorState message="Failed to load teams" onRetry={() => refetch()} />
+      ) : (teams ?? []).length === 0 ? (
+        <EmptyState title="No teams" />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(teams ?? []).map(t => (
+            <Card key={t.id} className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Building2 className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-heading font-semibold">{t.name}</h3>
+                  <p className="text-sm text-muted-foreground">{t.slug}</p>
+                  {(t as { description?: string }).description && (
+                    <p className="mt-1 text-sm">{(t as { description?: string }).description}</p>
+                  )}
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
       )}

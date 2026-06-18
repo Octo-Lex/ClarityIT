@@ -62,6 +62,12 @@ var snapshotNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,40}$`)
 
 // ─── Create Action ───
 
+// DryRunRequest is the parsed body for action creation (supports dry_run).
+type DryRunRequest struct {
+	DryRun       bool   `json:"dry_run"`
+	SnapshotName string `json:"snapshot_name"`
+}
+
 func (h *ActionHandler) CreateAction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	teamIDStr := chi.URLParam(r, "teamId")
@@ -93,19 +99,17 @@ func (h *ActionHandler) CreateAction(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, _ := uuid.Parse(cl.UserID)
 
-	// Parse optional snapshot name
-	var body struct {
-		SnapshotName string `json:"snapshot_name"`
-	}
+	// Parse request body (supports dry_run field)
+	var body DryRunRequest
 	json.NewDecoder(r.Body).Decode(&body)
 
 	// Validate snapshot name if applicable
 	if actionType == "proxmox.snapshot" {
-		if body.SnapshotName == "" {
-			// Auto-generate a safe name
+		if body.SnapshotName == "" && !body.DryRun {
+			// Auto-generate a safe name for real execution
 			body.SnapshotName = fmt.Sprintf("clar-%d", time.Now().Unix())
 		}
-		if !snapshotNameRegex.MatchString(body.SnapshotName) {
+		if body.SnapshotName != "" && !snapshotNameRegex.MatchString(body.SnapshotName) {
 			writeErr(w, 400, "Invalid snapshot name: only alphanumeric, hyphens, and underscores allowed (max 40 chars)")
 			return
 		}
@@ -134,6 +138,12 @@ func (h *ActionHandler) CreateAction(w http.ResponseWriter, r *http.Request) {
 	target, err := parseMutationTarget(externalID, assetType)
 	if err != nil {
 		writeErr(w, 400, fmt.Sprintf("Asset missing required metadata: %v", err))
+		return
+	}
+
+	// ─── DRY RUN: Return preview without side effects ───
+	if body.DryRun {
+		h.handleDryRun(ctx, w, teamIDStr, teamID, userID, assetID, actionType, req, body.SnapshotName, hostname, target)
 		return
 	}
 
@@ -215,6 +225,104 @@ func (h *ActionHandler) CreateAction(w http.ResponseWriter, r *http.Request) {
 		"requires_mfa": req.requiresMFA,
 		"hostname":     hostname,
 	})
+}
+
+// ─── Dry Run Handler ───
+
+// handleDryRun computes what would happen if the action were executed,
+// but does NOT create any rows, approvals, or call the Proxmox API.
+// It validates asset ownership, provider, metadata, action type, and
+// snapshot name, then returns a preview of risk/approval/MFA requirements.
+func (h *ActionHandler) handleDryRun(
+	ctx context.Context,
+	w http.ResponseWriter,
+	teamIDStr string,
+	teamID uuid.UUID,
+	userID uuid.UUID,
+	assetID uuid.UUID,
+	actionType string,
+	req struct {
+		riskLevel    string
+		requiresMFA  bool
+		minApprovers int
+	},
+	snapshotName string,
+	hostname string,
+	target MutationTarget,
+) {
+	// Check mutation window and feature flag state
+	featureFlagEnabled := h.cfg.ProxmoxMutationEnabled
+	mutationWindowActive := HasActiveMutationWindow(ctx, h.pool)
+
+	// Validate snapshot name for snapshot action
+	snapshotNameValid := true
+	if actionType == "proxmox.snapshot" {
+		if snapshotName == "" {
+			// For dry-run, empty is acceptable (would auto-generate)
+			snapshotNameValid = true
+		} else {
+			snapshotNameValid = snapshotNameRegex.MatchString(snapshotName)
+		}
+	}
+
+	// Build preview response
+	preview := map[string]any{
+		"dry_run":                  true,
+		"action_type":              actionType,
+		"target": map[string]any{
+			"asset_id":  assetID.String(),
+			"name":      hostname,
+			"provider":  "proxmox",
+			"node":      target.Node,
+			"vmid":      target.VMID,
+			"vm_type":   target.VMType,
+		},
+		"risk_level":               req.riskLevel,
+		"risk_score":               computeRiskScoreSummary(ctx, h.pool, h.cfg, teamID, assetID, actionType),
+		"requires_approval":        true,
+		"requires_mfa":             req.requiresMFA,
+		"min_approvers":            req.minApprovers,
+		"mutation_window_required": true,
+		"mutation_window_active":   mutationWindowActive,
+		"feature_flag_enabled":     featureFlagEnabled,
+		"would_create_approval":    true,
+		"would_create_asset_action": false,
+		"would_call_proxmox":       false,
+		"validation": map[string]any{
+			"asset_valid":         true,
+			"target_valid":        true,
+			"snapshot_name_valid": snapshotNameValid,
+			"policy_valid":        true,
+		},
+	}
+
+	// Write low-risk preview audit event (optional but useful)
+	auditMeta, _ := json.Marshal(map[string]any{
+		"action_type": actionType,
+		"asset_id":    assetID.String(),
+		"hostname":    hostname,
+		"risk_level":  req.riskLevel,
+		"dry_run":     true,
+	})
+	_ = database.WithTx(ctx, h.pool, func(ctx context.Context, tx pgx.Tx) error {
+		_ = audit.Write(ctx, tx, audit.Event{
+			TeamID:     &teamID,
+			ActorID:    userID,
+			Action:     "asset.action.previewed",
+			EntityType: "asset",
+			EntityID:   assetID,
+			NewValue:   auditMeta,
+		})
+		_ = outbox.Write(ctx, tx, &teamIDStr, outbox.Event{
+			EventType:     "clarity.v1.asset.action.previewed",
+			AggregateType: "asset",
+			AggregateID:   assetID.String(),
+			Payload:       auditMeta,
+		})
+		return nil
+	})
+
+	writeJSON(w, 200, preview)
 }
 
 // ─── List Actions ───
@@ -343,6 +451,13 @@ func (h *ActionHandler) ExecuteAction(w http.ResponseWriter, r *http.Request) {
 	if !h.cfg.ProxmoxMutationEnabled {
 		h.recordActionBlock(ctx, teamIDStr, teamID, userID, actionID, "mutation_disabled")
 		writeErr(w, 403, "Proxmox mutation is not enabled")
+		return
+	}
+
+	// Guardrail 7b: Active mutation window required (v1.1 Track 2)
+	if !HasActiveMutationWindow(ctx, h.pool) {
+		h.recordActionBlock(ctx, teamIDStr, teamID, userID, actionID, "no_active_mutation_window")
+		writeErr(w, 403, "No active Proxmox mutation window. Open a change window first.")
 		return
 	}
 

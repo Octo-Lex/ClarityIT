@@ -1,8 +1,8 @@
 # ClarityIT v1.0 Agent Autonomy Boundary
 
 ## Document Status
-- **Version**: 1.0.0
-- **Date**: 2026-06-14
+- **Version**: 1.3.0
+- **Date**: 2026-06-16
 - **Scope**: Agent runtime, tool gateway, policy enforcement, autonomy ladder, reasoning worker isolation
 
 ---
@@ -226,3 +226,163 @@ Even denied/blocked actions produce audit + outbox records — full traceability
 5. ❌ No "act now review later" — approval before execution
 6. ❌ Python workers never mutate directly
 7. ✅ A5 disabled (hardcoded, fails before DB lookup)
+
+## 9. v1.2 Additions — Evaluation Mode and Advisory Intelligence
+
+v1.2.0 adds operational intelligence capabilities that are explicitly **non-executing**:
+
+### 9.1 Agent Recommendation Evaluation Harness (Track 7)
+
+- Evaluation runs use **controlled golden scenario fixtures only** — never live incident/action/remediation records
+- Evaluation mode is non-executing:
+  - ❌ Does not call Tool Gateway
+  - ❌ Does not call Proxmox mutation client
+  - ❌ Does not create approval_requests
+  - ❌ Does not create asset_actions
+  - ❌ Does not create remediation_proposals
+  - ❌ Does not create action_outcomes
+  - ❌ Does not mutate incidents/assets/context graph
+  - ❌ Does not emit operational execution events
+  - ❌ Does not expose chain_of_thought
+- The single event `clarity.v1.agent.evaluation.run` is evaluation-domain telemetry, not an execution event
+- Go control plane persists results — Python worker has no DB write path
+- Sensitive fields (password, secret, token, action_target, tool_parameters) are redacted
+- Results are deterministic for fixture scenarios
+
+### 9.2 Advisory-Only Intelligence Features
+
+The following v1.2 features do NOT expand autonomous execution authority:
+
+| Feature | Track | What it does | What it does NOT do |
+|---------|-------|-------------|-------------------|
+| Risk scoring | 4 | Computes advisory 0–100 score | Does not bypass approval/MFA/policy/mutation-window |
+| Policy simulation | 3 | Computes what-if policy outcomes | Does not mutate live policies or create approvals |
+| Pattern detection | 2 | Surfaces incident patterns from DB | Does not auto-remediate or auto-link |
+| Outcome tracking | 5 | Captures post-action results | Does not trigger retries or follow-up execution |
+| Context quality | 6 | Surfaces stale/weak/conflicting relations | Does not delete or rewrite graph data |
+| Evidence packs | 1 | Persists recommendation evidence | Does not change remediation execution semantics |
+
+### 9.3 v1.2 Constraint Summary
+
+1. ❌ No A5 (unchanged)
+2. ❌ No new mutation classes (unchanged)
+3. ❌ No autonomous remediation expansion (unchanged)
+4. ❌ No execution without MFA + approval + policy + Tool Gateway (unchanged)
+5. ✅ Advisory intelligence features are non-executing
+6. ✅ Evaluation mode is non-executing
+7. ✅ All new endpoints are read-only or advisory
+
+## 10. v1.3 Additions — Team Productivity (Non-Operational)
+
+v1.3.0 adds team productivity features (documents, presentations, meeting summaries, status reports, templates, storage, download/export) that are explicitly **non-operational**:
+
+### 10.1 No Operational Control Path
+
+- ❌ v1.3 adds NO operational mutations, NO approval workflows, NO agent execution expansion
+- ❌ v1.3 adds NO Tool Gateway calls, NO Proxmox mutation changes, NO Python worker calls
+- ❌ A5 remains disabled (hardcoded)
+- ❌ Allowed mutations remain: start/shutdown/stop/snapshot only
+- ✅ All v1.3 endpoints are artifact CRUD, read-only search/summary, or file download/export
+
+### 10.2 Presenton Isolation
+
+Presenton is an optional, profile-isolated service:
+- Image pinned by digest: `ghcr.io/presenton/presenton:v0.8.7-beta@sha256:d855169e...`
+- Behind `profiles: ["presenton"]` — does not start by default
+- Has NO ClarityIT database, NATS, Redis, or MinIO credentials
+- `CAN_CHANGE_KEYS=false`, `no-new-privileges:true`
+- Port bound to `127.0.0.1:5000` only
+- ClarityIT proxies all requests — Presenton never receives raw ClarityIT data
+
+### 10.3 Artifact Download/Export Safety
+
+- Presigned URLs expire in ≤ 900 seconds (15 minutes)
+- No bucket names, object keys, or filesystem paths in any API response
+- All download/export endpoints are authenticated and team-scoped
+- Cross-team access → 404
+- Archived artifacts denied download/export (403)
+- PDF export is pure Go — no external rendering service, no JavaScript execution
+- No public links, no external sharing, no email delivery
+
+### 10.4 v1.3 Constraint Summary
+
+1. ❌ No A5 (unchanged)
+2. ❌ No new mutation classes (unchanged)
+3. ❌ No operational control path (new features are artifact productivity only)
+4. ❌ No Presenton/Python/Tool Gateway calls for artifact operations
+5. ✅ All artifact operations are team-scoped and authenticated
+6. ✅ Presenton is profile-isolated with no ClarityIT data access
+7. ✅ No public/external sharing — internal-only
+
+## 11. v1.4 Additions — ClarityDocs Agent Assist
+
+### 11.1 Document Assist Isolation
+
+The document assist feature (`POST /api/teams/{teamId}/artifacts/{artifactId}/document-assist`)
+is a read-only advisory path with strict isolation:
+
+- **No document mutation**: The agent generates suggestions only; the user applies them manually.
+  The Go API does NOT persist suggested blocks to the document. No auto-save.
+- **No persistence of suggestions**: Suggestions are returned in the HTTP response and discarded.
+  They are never stored in artifacts, artifact_documents, versions, or any table.
+- **Python worker HTTP endpoint (port 9100)**: Internal-only, not published to host.
+  Not routed through Cloudflare or any external proxy.
+- **WORKER_TOKEN shared auth**: Both the Go API and reasoning worker read the same `WORKER_TOKEN`
+  env var for Bearer auth. No second token.
+- **No content logging**: The worker suppresses `log_message()` entirely. Gateway errors log
+  the mode name only — never `selected_text`, `instruction`, or generated content.
+- **Bounded request**: 100KB max body, 60s timeout, max_words 20–2000.
+- **No chain_of_thought**: The `validate_assist_response()` function rejects any response
+  containing `chain_of_thought`, `thinking`, `reasoning_trace`, or `internal_notes`.
+
+### 11.2 Document Generation Isolation
+
+The document generation feature (`POST /api/teams/{teamId}/artifacts/generate-document`)
+follows the same isolation model:
+
+- **Go API owns persistence**: The Python worker returns structured `document_json` only.
+  All validation, word count computation, and database writes happen in the Go API.
+- **No raw prompt storage**: `source_data` records `{document_type, tone, sections, generation}`
+  but does NOT include the user's raw prompt text.
+- **Worker reuses port 9100**: Same internal-only endpoint as document assist.
+- **Bounded request**: 200KB max body, 90s timeout.
+- **No chain_of_thought**: `validate_generate_response()` rejects forbidden fields.
+
+### 11.3 Document Export Isolation
+
+All three export formats (Markdown, PDF, DOCX) are pure Go server-side rendering:
+
+- **No external document engine**: No SuperDoc, no LibreOffice, no browser export.
+- **Streaming-only**: Exports stream directly to the HTTP response. No MinIO writes.
+- **`last_exported_storage_object_id` intentionally unused**: Track 6 does not persist
+  export artifacts. The column remains NULL by design.
+- **DOCX is pure Go OOXML**: Built with `archive/zip` + XML templates. All user content
+  is XML-escaped.
+- **No JavaScript execution in PDF**: The Go PDF writer does not evaluate scripts.
+
+### 11.4 Version History Isolation
+
+Document version history (`artifact_document_versions`) is non-destructive:
+
+- **No version deletion endpoint**: No DELETE route exists for version rows.
+- **Restore is non-destructive**: Creates a new version with old content. Old versions
+  are never overwritten or deleted.
+- **Save conflict protection**: PATCH with stale `If-Match` header returns 409.
+- **No Python/export/Tool Gateway interaction**: Version operations are Go-only.
+- **No operational side effects**: Version operations do not create approval requests,
+  asset actions, or remediation proposals.
+
+### 11.5 v1.4 Constraint Summary
+
+1. ❌ No A5 (unchanged)
+2. ❌ No new mutation classes (unchanged)
+3. ❌ No operational control path (document features are advisory/productivity only)
+4. ❌ No DB/MinIO/NATS/Redis access from worker assist/generate endpoint
+5. ✅ Worker assist/generate endpoint is internal-only (port 9100 not published to host)
+6. ✅ No content logged — only mode/type name on errors
+7. ✅ No chain_of_thought/thinking fields in responses
+8. ✅ No raw prompts stored in source_data
+9. ✅ No SuperDoc dependency, no copied code, no external document engine
+10. ✅ Exports are streaming-only, no storage mutation
+11. ✅ Version history is non-destructive with no delete path
+12. ✅ Save conflict protection via If-Match precondition (409)

@@ -1,13 +1,21 @@
-# ClarityIT v1.0 MFA and Approval Model
+# ClarityIT v1.1 MFA and Approval Model
 
 ## Document Status
-- **Version**: 1.0.0
+- **Version**: 1.1.0
 - **Date**: 2026-06-14
-- **Scope**: TOTP MFA implementation, approval workflow, and their interaction
-
----
+- **Scope**: TOTP MFA, WebAuthn/FIDO2 MFA, approval workflow, and their interaction
 
 ## 1. MFA Implementation
+
+### 1.0 WebAuthn Scope
+
+WebAuthn/FIDO2 is an **MFA step-up verification only** (v1.1 Track 5).
+
+- WebAuthn is used to refresh `recent_mfa_at` after an authenticated session exists.
+- WebAuthn is **not** integrated into the primary login flow.
+- WebAuthn does **not** replace password-based authentication.
+- WebAuthn does **not** change approval, Tool Gateway, Proxmox mutation, or autonomy semantics.
+- `RequireRecentMFA` accepts any MFA verification (TOTP, recovery code, or WebAuthn) because all three set `recent_mfa_at` on the user's session.
 
 ### 1.1 TOTP Enrollment
 
@@ -247,3 +255,51 @@ Action Request
 | POST | `/{approvalId}/approve` | approvals.approve | Required |
 | POST | `/{approvalId}/reject` | approvals.approve | Required |
 | POST | `/{approvalId}/cancel` | approvals.create | Required |
+
+## 5. v1.2 Confirmation — Risk Scoring and Policy Simulation Do Not Bypass
+
+v1.2.0 adds advisory intelligence features that **do not alter** the MFA/approval enforcement model.
+
+### 5.1 Change-Risk Scoring (Track 4)
+
+- Risk score is **advisory only** — it provides a 0–100 score to help operators assess risk
+- Risk score **does not bypass**:
+  - Approval requirements (high-risk still needs 1+ approver)
+  - MFA requirements (high/critical still needs recent MFA within 5 minutes)
+  - Policy enforcement (PolicyEvaluator 13-check chain still runs)
+  - Mutation window requirements (active `proxmox_mutation_window` still required)
+  - Tool Gateway risk enforcement
+- Risk score is computed at request time and returned to the caller — it has no enforcement side effects
+- The dry-run preview includes the risk score alongside existing requirement checks, but does not waive any of them
+
+### 5.2 Approval Policy Simulation (Track 3)
+
+- Policy simulation is **pure computation** — no live policy mutation
+- `simulation_only=true` and `live_policy_changed=false` are always returned
+- Simulation **does not**:
+  - Create or modify `approval_policies` rows
+  - Create `approval_requests` or `approval_decisions`
+  - Call the Tool Gateway
+  - Emit audit or outbox events
+  - Change approval semantics for any existing or future approval
+
+### 5.3 Outcome Tracking (Track 5)
+
+- Outcome recording is **feedback capture only**
+- Recording an outcome **does not**:
+  - Trigger automatic retry of the action
+  - Create a follow-up execution
+  - Call the Tool Gateway
+  - Create a new approval request
+  - Modify the original action's status
+
+### 5.4 Unchanged Enforcement Model
+
+| Control | v1.0/v1.1 | v1.2 |
+|---------|-----------|------|
+| Approval required for high-risk | ✅ | ✅ (unchanged) |
+| MFA required for high/critical | ✅ (5-min window) | ✅ (unchanged) |
+| Mutation window required | ✅ (v1.1) | ✅ (unchanged) |
+| Critical needs 2 distinct approvers | ✅ | ✅ (unchanged) |
+| Self-approval prevented | ✅ | ✅ (unchanged) |
+| Risk score bypasses any control | N/A | ❌ Does not bypass |

@@ -14,14 +14,18 @@ import (
 	"github.com/clarityit/api/internal/admin"
 	"github.com/clarityit/api/internal/agent"
 	"github.com/clarityit/api/internal/approval"
+	"github.com/clarityit/api/internal/artifact"
 	"github.com/clarityit/api/internal/config"
+	"github.com/clarityit/api/internal/contextx"
 	"github.com/clarityit/api/internal/database"
 	"github.com/clarityit/api/internal/domain"
 	"github.com/clarityit/api/internal/iam"
 	"github.com/clarityit/api/internal/middleware"
+	"github.com/clarityit/api/internal/presenton"
 	"github.com/clarityit/api/internal/health"
 	"github.com/clarityit/api/internal/mfa"
 	"github.com/clarityit/api/internal/integration"
+	"github.com/clarityit/api/internal/knowledge"
 	"github.com/clarityit/api/internal/proxmox"
 	"github.com/clarityit/api/internal/remediation"
 	"github.com/clarityit/api/internal/storage"
@@ -65,6 +69,7 @@ func main() {
 	teamHandler := team.NewHandler(pool, cfg)
 	adminHandler := admin.NewHandler(pool, cfg)
 	domainHandler := domain.NewHandler(pool, cfg)
+	patternsHandler := domain.NewPatternsHandler(pool)
 
 	wsHub := wsx.NewHub()
 
@@ -77,10 +82,24 @@ func main() {
 		log.Printf("NATS not available: %v", err)
 	}
 
-	// MinIO health checker
+	// MinIO health checker + real S3 client
 	var minioChecker health.S3BucketChecker
+	var s3Client storage.S3Client // nil unless MinIO configured
 	if cfg.MinioEndpoint != "" {
 		minioChecker = health.NewMinIOHealthChecker(cfg.MinioEndpoint, cfg.MinioUseSSL)
+		// Create real MinIO S3 client
+		mc, s3err := storage.NewMinIOClient(cfg.MinioEndpoint, cfg.MinioAccessKey, cfg.MinioSecretKey, cfg.MinioUseSSL)
+		if s3err != nil {
+			config.Warn("failed to create MinIO S3 client", map[string]any{"error": s3err.Error()})
+		} else {
+			// Ensure bucket exists
+			if berr := mc.EnsureBucket(ctx, cfg.MinioBucket); berr != nil {
+				config.Warn("failed to ensure MinIO bucket", map[string]any{"bucket": cfg.MinioBucket, "error": berr.Error()})
+			} else {
+				config.Info("MinIO S3 client connected", map[string]any{"endpoint": cfg.MinioEndpoint, "bucket": cfg.MinioBucket})
+				s3Client = mc
+			}
+		}
 	}
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		log.Printf("Redis not available, WebSocket fanout disabled: %v", err)
@@ -147,6 +166,15 @@ func main() {
 
 		// MFA routes (Track 1: Real MFA)
 		r.Mount("/api/auth/mfa", mfaHandler.Routes())
+
+		// WebAuthn routes (v1.1 Track 5)
+		webAuthnHandler, err := mfa.NewWebAuthnHandler(pool, cfg)
+		if err != nil {
+			log.Printf("WebAuthn init error: %v", err)
+		}
+		if webAuthnHandler != nil && webAuthnHandler.IsWebAuthnEnabled() {
+			r.Mount("/api/auth/mfa", webAuthnHandler.Routes())
+		}
 	})
 
 	// ─── Team Management ───
@@ -155,6 +183,10 @@ func main() {
 	// Phase 8: Webhook rate limiter (outside JWT auth)
 	webhookRL := middleware.NewRateLimiter(middleware.RateLimiterConfig{HMACKey: cfg.HMACKey, MaxRequests: 60, Window: 1 * time.Minute})
 	r.Post("/api/webhooks/{source}", webhookRL.Middleware(http.HandlerFunc(integrationHandler.ReceiveWebhook)).ServeHTTP)
+
+	// v1.5 Knowledge handler (outer scope — used in both team and admin routes)
+	knowledgeHandler := knowledge.NewHandler(pool)
+
 	r.Route("/api/teams/{teamId}", func(r chi.Router) {
 		r.Use(middleware.RequireAuth)
 		r.With(middleware.RequirePermission(pool, "team.settings.read")).Get("/settings", teamHandler.GetSettings)
@@ -237,6 +269,8 @@ func main() {
 			With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 			Post("/incidents", domainHandler.CreateIncident)
 		r.With(middleware.RequirePermission(pool, "incidents.read")).Get("/incidents", domainHandler.ListIncidents)
+		// v1.2 Track 2: Incident Pattern Detection — must be before {objectId}
+		r.With(middleware.RequirePermission(pool, "incidents.read")).Get("/incidents/patterns", patternsHandler.GetPatterns)
 		r.With(middleware.RequirePermission(pool, "incidents.read")).Get("/incidents/{objectId}", domainHandler.GetIncident)
 		r.With(middleware.RequirePermission(pool, "incidents.update")).
 			With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
@@ -375,6 +409,18 @@ func main() {
 				Post("/{assetId}/actions/proxmox/stop", actionHandler.CreateAction)
 			r.With(middleware.RequirePermission(pool, "assets.actions.create")).
 				Post("/{assetId}/actions/proxmox/snapshot", actionHandler.CreateAction)
+			// v1.2 Track 4: Change-Risk Scoring
+			riskScoreHandler := proxmox.NewRiskScoreHandler(pool, cfg)
+			r.With(middleware.RequirePermission(pool, "assets.read")).
+				Get("/{assetId}/risk-score", riskScoreHandler.GetRiskScore)
+
+			// v1.2 Track 5: Post-Action Outcome Tracking
+			outcomeHandler := proxmox.NewOutcomeHandler(pool, cfg)
+			r.With(middleware.RequirePermission(pool, "assets.actions.read")).
+				Post("/asset-actions/{actionId}/outcome", outcomeHandler.CreateOrUpdateAssetActionOutcome)
+			r.With(middleware.RequirePermission(pool, "assets.actions.read")).
+				Get("/asset-actions/{actionId}/outcome", outcomeHandler.GetAssetActionOutcome)
+
 			r.With(middleware.RequirePermission(pool, "assets.actions.read")).Get("/asset-actions", actionHandler.ListActions)
 			r.With(middleware.RequirePermission(pool, "assets.actions.read")).Get("/asset-actions/{actionId}", actionHandler.GetAction)
 			r.With(middleware.RequirePermission(pool, "assets.actions.execute")).
@@ -383,7 +429,7 @@ func main() {
 		})
 
 		// ─── Phase 8: Object Attachments ───
-		storageHandler := storage.NewHandler(pool, nil, cfg.MinioBucket) // S3 client nil until MinIO wired
+		storageHandler := storage.NewHandler(pool, s3Client, cfg.MinioBucket)
 		r.Route("/objects/{objectId}/attachments", func(r chi.Router) {
 			r.With(middleware.RequirePermission(pool, "objects.attachments.create")).Post("/", storageHandler.Upload)
 			r.With(middleware.RequirePermission(pool, "objects.attachments.read")).Get("/", storageHandler.List)
@@ -407,7 +453,225 @@ func main() {
 			r.With(middleware.RequirePermission(pool, "remediations.cancel")).
 				With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 				Post("/{remediationId}/cancel", remediationHandler.Cancel)
+
+			// v1.2 Track 5: Post-Action Outcome Tracking (remediation)
+			remOutcomeHandler := proxmox.NewOutcomeHandler(pool, cfg)
+			r.With(middleware.RequirePermission(pool, "remediations.read")).
+				Post("/{remediationId}/outcome", remOutcomeHandler.CreateOrUpdateRemediationOutcome)
+			r.With(middleware.RequirePermission(pool, "remediations.read")).
+				Get("/{remediationId}/outcome", remOutcomeHandler.GetRemediationOutcome)
 		})
+
+		// v1.2 Track 1: Recommendation Evidence Packs
+		evidenceHandler := remediation.NewEvidenceHandler(pool)
+		r.Route("/recommendations", func(r chi.Router) {
+			r.With(middleware.RequirePermission(pool, "remediations.read")).
+				Get("/{recommendationId}/evidence", evidenceHandler.GetEvidence)
+		})
+
+		// v1.2 Track 6: Context Graph Quality Controls
+		qualityHandler := contextx.NewQualityHandler(pool)
+		r.Route("/context", func(r chi.Router) {
+			r.With(middleware.RequirePermission(pool, "assets.read")).
+				Get("/quality", qualityHandler.GetQuality)
+			r.With(middleware.RequirePermission(pool, "assets.read")).
+				Post("/relations/{relationId}/confirm", qualityHandler.ConfirmRelation)
+			r.With(middleware.RequirePermission(pool, "assets.read")).
+				Post("/relations/{relationId}/dismiss", qualityHandler.DismissRelation)
+		})
+
+		// v1.5 Knowledge (handler declared in outer scope)
+		artifactHandler := artifact.NewHandler(pool)
+		// Wire S3 storage for download/export endpoints (Track 7)
+		if s3Client != nil {
+			artifactHandler.SetStorage(s3Client, cfg.MinioBucket)
+		}
+		// v1.4 Track 3: Wire worker assist for document-assist
+		workerAssistURL := os.Getenv("WORKER_ASSIST_URL")
+		if workerAssistURL != "" {
+			artifactHandler.SetWorkerAssist(artifact.WorkerAssistConfig{
+				URL:   workerAssistURL,
+				Token: os.Getenv("WORKER_TOKEN"),
+			})
+		}
+
+		// v1.5 Knowledge index hook: re-extract and index on mutation
+		kIndexer := knowledge.NewIndexer(pool)
+
+		// v1.5 Track 5: Wire worker for knowledge-ask
+		if workerAssistURL != "" {
+			knowledgeHandler.SetWorker(knowledge.WorkerConfig{
+				URL:   workerAssistURL,
+				Token: os.Getenv("WORKER_TOKEN"),
+			})
+		}
+		artifactHandler.SetIndexHook(func(ctx context.Context, teamID, sourceType, sourceID string) {
+			go func() {
+				var docs []knowledge.SourceDocument
+				var err error
+				switch sourceType {
+				case "clarity_document":
+					docs, err = knowledge.ExtractClarityDocuments(ctx, pool, teamID)
+				case "meeting_summary":
+					docs, err = knowledge.ExtractMeetingSummaries(ctx, pool, teamID)
+				case "template":
+					docs, err = knowledge.ExtractTemplates(ctx, pool, teamID)
+				default:
+					docs, err = knowledge.ExtractArtifacts(ctx, pool, teamID)
+				}
+				if err != nil {
+					return
+				}
+				for _, doc := range docs {
+					if doc.SourceID == sourceID {
+						kIndexer.IndexSource(ctx, doc)
+						break
+					}
+				}
+			}()
+		})
+		// v1.3 Track 2: Presenton handler
+		presentonClient := presenton.NewClient(cfg.PresentonURL, cfg.PresentonAdminUser, cfg.PresentonAdminPass, cfg.PresentonGenerationTimeout)
+		presentonCfg := presenton.Config{
+			Enabled:      cfg.PresentonEnabled,
+			URL:          cfg.PresentonURL,
+			AdminUser:    cfg.PresentonAdminUser,
+			AdminPass:    cfg.PresentonAdminPass,
+			Timeout:      cfg.PresentonGenerationTimeout,
+			MaxFileBytes: cfg.PresentonMaxFileBytes,
+		}
+		presentonHandler := presenton.NewHandler(pool, presentonClient, s3Client, cfg.MinioBucket, presentonCfg)
+		r.Route("/artifacts", func(r chi.Router) {
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/", artifactHandler.Create)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/", artifactHandler.List)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/{artifactId}", artifactHandler.Get)
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Patch("/{artifactId}", artifactHandler.Patch)
+			r.With(middleware.RequirePermission(pool, "artifacts.delete")).
+				Delete("/{artifactId}", artifactHandler.Delete)
+
+			// v1.3 Track 2: Presenton
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/presenton/status", presentonHandler.Status)
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/generate-presentation", presentonHandler.Generate)
+
+			// v1.3 Track 3: Meeting Summaries
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/meeting-summaries", artifactHandler.CreateMeetingSummary)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/meeting-summaries", artifactHandler.ListMeetingSummaries)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/meeting-summaries/{id}", artifactHandler.GetMeetingSummary)
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Patch("/meeting-summaries/{id}", artifactHandler.PatchMeetingSummary)
+
+			// v1.3 Track 4: Status Report Generator
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/status-reports/generate", artifactHandler.GenerateStatusReport)
+
+			// v1.3 Track 5: Template Library
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/artifact-templates", artifactHandler.ListTemplates)
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/artifact-templates", artifactHandler.CreateTemplate)
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/artifact-templates/{templateId}/instantiate", artifactHandler.InstantiateTemplate)
+
+			// v1.3 Track 6: Artifact Storage and Recent Files
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/recent", artifactHandler.Recent)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/search", artifactHandler.Search)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/storage-summary", artifactHandler.StorageSummary)
+
+			// v1.3 Track 7: Download and Export
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/{artifactId}/download", artifactHandler.Download)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/{artifactId}/export/markdown", artifactHandler.ExportMarkdown)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/{artifactId}/export/pdf", artifactHandler.ExportPDF)
+
+			// v1.4 Track 1: Native Document Artifacts
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/documents", artifactHandler.CreateDocument)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/documents", artifactHandler.ListDocuments)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/documents/{artifactId}", artifactHandler.GetDocument)
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Patch("/documents/{artifactId}", artifactHandler.PatchDocument)
+			// v1.4 Track 3: Agent Assist
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Post("/documents/{artifactId}/document-assist", artifactHandler.DocumentAssist)
+			// v1.4 Track 4: Document Generation
+			r.With(middleware.RequirePermission(pool, "artifacts.create")).
+				Post("/artifacts/generate-document", artifactHandler.GenerateDocument)
+			// v1.4 Track 6: DOCX Export
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/{artifactId}/export/docx", artifactHandler.ExportDOCX)
+			// v1.4 Track 7: Document Version History
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/documents/{artifactId}/versions", artifactHandler.ListVersions)
+			r.With(middleware.RequirePermission(pool, "artifacts.read")).
+				Get("/documents/{artifactId}/versions/{versionId}", artifactHandler.GetVersion)
+			r.With(middleware.RequirePermission(pool, "artifacts.update")).
+				Post("/documents/{artifactId}/versions/{versionId}/restore", artifactHandler.RestoreVersion)
+		})
+
+		// v1.5 Knowledge
+		r.With(middleware.RequirePermission(pool, "knowledge.search")).
+			Get("/knowledge/search", knowledgeHandler.SearchHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/index-status", knowledgeHandler.IndexStatusHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/related", knowledgeHandler.RelatedHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.ask")).
+			Post("/knowledge/ask", knowledgeHandler.AskHTTP)
+
+		// v1.5 Track 6: Knowledge Collections
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/collections", knowledgeHandler.ListCollections)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.create")).
+			Post("/knowledge/collections", knowledgeHandler.CreateCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/collections/{collectionId}", knowledgeHandler.GetCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Patch("/knowledge/collections/{collectionId}", knowledgeHandler.PatchCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.delete")).
+			Delete("/knowledge/collections/{collectionId}", knowledgeHandler.DeleteCollection)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Post("/knowledge/collections/{collectionId}/items", knowledgeHandler.AddItem)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Delete("/knowledge/collections/{collectionId}/items/{itemId}", knowledgeHandler.RemoveItem)
+
+		// v1.5 Track 6: Saved Answers
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.update")).
+			Post("/knowledge/saved-answers", knowledgeHandler.SaveAnswer)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/saved-answers", knowledgeHandler.ListSavedAnswers)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.read")).
+			Get("/knowledge/saved-answers/{answerId}", knowledgeHandler.GetSavedAnswer)
+		r.With(middleware.RequirePermission(pool, "knowledge.collections.delete")).
+			Delete("/knowledge/saved-answers/{answerId}", knowledgeHandler.DeleteSavedAnswer)
+
+		// v1.5 Track 7: Quality Controls (read-only)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality", knowledgeHandler.QualityReportHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality/stale", knowledgeHandler.StaleItemsHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality/duplicates", knowledgeHandler.DuplicateItemsHTTP)
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/quality/orphans", knowledgeHandler.OrphanItemsHTTP)
+
+		r.With(middleware.RequirePermission(pool, "knowledge.read")).
+			Get("/knowledge/{itemId}", knowledgeHandler.GetHTTP)
 	})
 
 	// ─── Platform Admin ───
@@ -425,6 +689,16 @@ func main() {
 		r.With(middleware.Idempotency(middleware.IdempotencyConfig{Pool: pool, Scope: "user", Expiry: 1 * time.Hour})).
 			Patch("/settings", adminHandler.UpdateSettings)
 
+		// v1.5 Knowledge admin
+		r.Post("/knowledge/reindex", knowledgeHandler.AdminReindexHTTP)
+		r.Get("/knowledge/index-status", knowledgeHandler.AdminIndexStatusAllHTTP)
+
+		// v1.1 Track 2: Proxmox Mutation Change-Window
+		mwHandler := proxmox.NewMutationWindowHandler(pool, cfg)
+		r.Post("/proxmox/mutation-window", mwHandler.OpenWindow)
+		r.Get("/proxmox/mutation-window", mwHandler.GetActiveWindow)
+		r.Post("/proxmox/mutation-window/{windowId}/close", mwHandler.CloseWindow)
+
 		// Ops dashboard (read-only)
 		r.Route("/ops", func(r chi.Router) {
 			r.Get("/summary", opsHandler.Summary)
@@ -434,9 +708,34 @@ func main() {
 			r.Get("/webhooks/rejections", opsHandler.WebhookRejections)
 			r.Get("/agent-blocks", opsHandler.AgentBlocks)
 		})
+
+		// v1.1 Track 3: Backup Status (read-only)
+		backupStatusHandler := admin.NewBackupStatusHandler(pool)
+		r.Get("/backup-status", backupStatusHandler.GetBackupStatus)
+
+		// v1.1 Track 7: Operational Metrics (read-only)
+		metricsHandler := admin.NewMetricsHandler(pool)
+		r.Get("/metrics", metricsHandler.Metrics)
+
+		// v1.2 Track 3: Approval Policy Simulation
+		simHandler := approval.NewSimulationHandler(pool)
+		r.Post("/approval-policy/simulate", simHandler.Simulate)
+
+		// v1.2 Track 7: Agent Recommendation Evaluation Harness
+		evalHandler := agent.NewEvalHandler(pool)
+		r.Route("/agent-evaluation", func(r chi.Router) {
+			r.Post("/run", evalHandler.RunEvaluation)
+			r.Get("/results", evalHandler.GetLatestResults)
+			r.Get("/runs/{runId}", evalHandler.GetRunDetail)
+		})
 	})
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%s", cfg.Port), Handler: r}
+
+	// Start approval expiry monitor
+	approvalMonitor := approval.NewMonitor(pool, cfg)
+	go approvalMonitor.Start(context.Background())
+
 	go func() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

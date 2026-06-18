@@ -114,3 +114,32 @@ docker compose logs clarityit-reasoning-worker --tail=20
 # If worker is restarting, check WORKER_TOKEN and TEAM_ID
 docker exec clarityit-reasoning-worker env | grep -E 'WORKER_TOKEN|TEAM_ID'
 ```
+
+## ⚠ Never Run `docker system prune -af --volumes`
+
+Never run `docker system prune -af --volumes` on the ClarityIT host unless a
+full backup exists **and** service downtime/data loss is explicitly intended.
+
+This command deletes **all** Docker volumes, including:
+- `pgdata` — PostgreSQL data (all users, teams, objects, events)
+- `miniodata` — MinIO object storage
+- `natsdata` — NATS JetStream persistence
+- `redisdata` — Redis data
+
+A full recovery from backup is required after this command.
+
+## DNS Resolution Failures
+
+If containers or host package operations fail due to DNS errors:
+
+```bash
+# Check /etc/resolv.conf
+cat /etc/resolv.conf
+
+# If empty or broken, restore expected resolvers
+echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+echo "nameserver 192.168.3.1" >> /etc/resolv.conf
+
+# Verify
+nslookup registry-1.docker.io
+```

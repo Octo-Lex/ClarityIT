@@ -34,6 +34,9 @@ vi.mock('../api/client', () => ({
     approveRemediation: vi.fn().mockResolvedValue({ status: 'approved' }),
     executeRemediation: vi.fn().mockResolvedValue({ status: 'completed' }),
     cancelRemediation: vi.fn().mockResolvedValue({ status: 'cancelled' }),
+    getEvidence: vi.fn().mockResolvedValue({ available: false, message: 'Evidence unavailable' }),
+    getRemediationOutcome: vi.fn().mockResolvedValue({ available: false }),
+    saveRemediationOutcome: vi.fn().mockResolvedValue({ available: true, outcome_status: 'successful' }),
   },
   setAccessToken: vi.fn(),
   getStoredTeamId: vi.fn().mockReturnValue('t1'),
@@ -42,6 +45,16 @@ vi.mock('../api/client', () => ({
 }));
 
 import { api } from '../api/client';
+
+// Mock useRefetch
+vi.mock('../hooks/useRefetch', () => ({
+  useRefetch: () => ({ bump: vi.fn(), version: 0 }),
+}));
+
+// Mock useWebSocket
+vi.mock('../hooks/useWebSocket', () => ({
+  useWebSocketInvalidation: () => ({ lastEvent: null, connected: true }),
+}));
 
 function renderWithProviders(ui: React.ReactElement) {
   return render(

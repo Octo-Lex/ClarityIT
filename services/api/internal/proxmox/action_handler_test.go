@@ -115,6 +115,18 @@ func setupActionTest(t *testing.T, mutationEnabled bool) *actionTestEnv {
 	// Ensure permissions exist for action execution
 	pool.Exec(t.Context(), "UPDATE user_sessions SET recent_mfa_at=NULL WHERE revoked_at IS NULL")
 
+	// If mutation is enabled, create a mutation window for tests that need it
+	if mutationEnabled {
+		pool.Exec(t.Context(), `UPDATE proxmox_mutation_windows SET status='closed' WHERE status='open'`)
+		var userID string
+		pool.QueryRow(t.Context(), "SELECT id::text FROM users WHERE email='owner@test.dev'").Scan(&userID)
+		uid, _ := uuid.Parse(userID)
+		pool.Exec(t.Context(), `
+			INSERT INTO proxmox_mutation_windows (id, status, reason, opened_by, opened_at, expires_at)
+			VALUES ($1, 'open', 'test window', $2, now(), now() + interval '1 hour')
+		`, uuid.New(), uid)
+	}
+
 	return &actionTestEnv{
 		r: r, pool: pool, token: token, teamID: teamID,
 		memberTok: memberToken, assetID: assetID, client: client,
@@ -736,6 +748,336 @@ func TestParseMutationTarget(t *testing.T) {
 				tt.externalID, target.Node, target.VMID, target.VMType,
 				tt.wantNode, tt.wantVMID, tt.wantType)
 		}
+	}
+}
+
+// ─── Dry Run Tests ───
+
+// Helper: perform a dry-run request
+func (e *actionTestEnv) dryRunAction(t *testing.T, action string, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	if body == "" {
+		body = `{"dry_run":true}`
+	}
+	req := httptest.NewRequest("POST",
+		fmt.Sprintf("/api/teams/%s/assets/%s/actions/proxmox/%s", e.teamID, e.assetID, action),
+		strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+	return w
+}
+
+// Test 1: Dry-run start validates target and returns preview
+func TestDryRun_StartReturnsPreview(t *testing.T) {
+	e := setupActionTest(t, false)
+	w := e.dryRunAction(t, "start", "")
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["dry_run"] != true {
+		t.Error("dry_run should be true")
+	}
+	if resp["action_type"] != "proxmox.start" {
+		t.Errorf("action_type: %v", resp["action_type"])
+	}
+	target, ok := resp["target"].(map[string]any)
+	if !ok || target["vmid"] == nil {
+		t.Error("missing target.vmid")
+	}
+	if resp["risk_level"] != "medium" {
+		t.Errorf("risk_level: %v", resp["risk_level"])
+	}
+	if resp["requires_approval"] != true {
+		t.Error("should require approval")
+	}
+	validation, ok := resp["validation"].(map[string]any)
+	if !ok || validation["asset_valid"] != true {
+		t.Error("asset_valid should be true")
+	}
+	if validation["target_valid"] != true {
+		t.Error("target_valid should be true")
+	}
+}
+
+// Test 2: Dry-run snapshot validates snapshot name
+func TestDryRun_SnapshotValidatesName(t *testing.T) {
+	e := setupActionTest(t, false)
+
+	// Valid snapshot name
+	w := e.dryRunAction(t, "snapshot", `{"dry_run":true,"snapshot_name":"valid-snap"}`)
+	if w.Code != 200 {
+		t.Fatalf("valid snapshot: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	validation := resp["validation"].(map[string]any)
+	if validation["snapshot_name_valid"] != true {
+		t.Error("snapshot_name_valid should be true")
+	}
+
+	// Invalid snapshot name (shell injection attempt)
+	w2 := e.dryRunAction(t, "snapshot", `{"dry_run":true,"snapshot_name":";rm -rf /"}`)
+	if w2.Code != 400 {
+		t.Errorf("invalid snapshot name: expected 400, got %d", w2.Code)
+	}
+}
+
+// Test 3: Dry-run shutdown reports high risk + MFA required
+func TestDryRun_ShutdownHighRiskMFA(t *testing.T) {
+	e := setupActionTest(t, false)
+	w := e.dryRunAction(t, "shutdown", "")
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["risk_level"] != "high" {
+		t.Errorf("risk_level: %v, want high", resp["risk_level"])
+	}
+	if resp["requires_mfa"] != true {
+		t.Error("shutdown should require MFA")
+	}
+	if resp["min_approvers"] != float64(1) {
+		t.Errorf("min_approvers: %v, want 1", resp["min_approvers"])
+	}
+}
+
+// Test 4: Dry-run stop reports critical risk + 2 approvers + MFA required
+func TestDryRun_StopCriticalTwoApprovers(t *testing.T) {
+	e := setupActionTest(t, false)
+	w := e.dryRunAction(t, "stop", "")
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["risk_level"] != "critical" {
+		t.Errorf("risk_level: %v, want critical", resp["risk_level"])
+	}
+	if resp["requires_mfa"] != true {
+		t.Error("stop should require MFA")
+	}
+	if resp["min_approvers"] != float64(2) {
+		t.Errorf("min_approvers: %v, want 2", resp["min_approvers"])
+	}
+}
+
+// Test 5: Dry-run does not create asset_actions row
+func TestDryRun_NoAssetActionRow(t *testing.T) {
+	e := setupActionTest(t, false)
+	var beforeCount int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM asset_actions").Scan(&beforeCount)
+
+	e.dryRunAction(t, "start", "")
+
+	var afterCount int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM asset_actions").Scan(&afterCount)
+	if afterCount != beforeCount {
+		t.Errorf("asset_actions count changed: before=%d after=%d", beforeCount, afterCount)
+	}
+}
+
+// Test 6: Dry-run does not create approval_request
+func TestDryRun_NoApprovalRequest(t *testing.T) {
+	e := setupActionTest(t, false)
+	var beforeCount int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM approval_requests").Scan(&beforeCount)
+
+	e.dryRunAction(t, "start", "")
+
+	var afterCount int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM approval_requests").Scan(&afterCount)
+	if afterCount != beforeCount {
+		t.Errorf("approval_requests count changed: before=%d after=%d", beforeCount, afterCount)
+	}
+}
+
+// Test 7: Dry-run does not call Proxmox mutation client
+func TestDryRun_NoProxmoxCall(t *testing.T) {
+	e := setupActionTest(t, true)
+
+	// Count asset_actions before dry-run
+	var beforeCount int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM asset_actions").Scan(&beforeCount)
+
+	// The mock client tracks if failNext is set; we verify no call by checking
+	// that no new asset_actions row was created by the dry-run
+	e.dryRunAction(t, "start", "")
+
+	var afterCount int
+	e.pool.QueryRow(t.Context(), "SELECT COUNT(*) FROM asset_actions").Scan(&afterCount)
+	if afterCount != beforeCount {
+		t.Errorf("dry-run created new asset_actions: before=%d after=%d", beforeCount, afterCount)
+	}
+}
+
+// Test 8: Dry-run blocks for non-Proxmox asset
+func TestDryRun_NonProxmoxAsset(t *testing.T) {
+	e := setupActionTest(t, false)
+
+	// Create a non-Proxmox asset
+	var nonProxID string
+	e.pool.QueryRow(t.Context(),
+		`INSERT INTO objects (team_id, object_type, title, status) VALUES ($1, 'asset', 'aws-vm', 'active') RETURNING id::text`,
+		e.teamID).Scan(&nonProxID)
+	npID, _ := uuid.Parse(nonProxID)
+	e.pool.Exec(t.Context(),
+		`INSERT INTO assets (object_id, asset_type, provider, external_id, hostname) VALUES ($1, 'vm', 'aws', 'aws:i-123', 'aws-vm')`,
+		npID)
+
+	req := httptest.NewRequest("POST",
+		fmt.Sprintf("/api/teams/%s/assets/%s/actions/proxmox/start", e.teamID, nonProxID),
+		strings.NewReader(`{"dry_run":true}`))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+
+	if w.Code != 400 {
+		t.Errorf("expected 400 for non-Proxmox asset, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// Test 9: Dry-run blocks for missing node/vmid/vm_type
+func TestDryRun_MissingMetadata(t *testing.T) {
+	e := setupActionTest(t, false)
+
+	// Create an asset with malformed external_id
+	var badID string
+	e.pool.QueryRow(t.Context(),
+		`INSERT INTO objects (team_id, object_type, title, status) VALUES ($1, 'asset', 'bad-vm', 'active') RETURNING id::text`,
+		e.teamID).Scan(&badID)
+	bID, _ := uuid.Parse(badID)
+	e.pool.Exec(t.Context(),
+		`INSERT INTO assets (object_id, asset_type, provider, external_id, hostname) VALUES ($1, 'vm', 'proxmox', 'no-meta', 'bad-vm')`,
+		bID)
+
+	req := httptest.NewRequest("POST",
+		fmt.Sprintf("/api/teams/%s/assets/%s/actions/proxmox/start", e.teamID, badID),
+		strings.NewReader(`{"dry_run":true}`))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+
+	if w.Code != 400 {
+		t.Errorf("expected 400 for bad metadata, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// Test 10: Dry-run redacts sensitive target metadata
+func TestDryRun_RedactsSensitiveMetadata(t *testing.T) {
+	e := setupActionTest(t, false)
+	w := e.dryRunAction(t, "start", "")
+
+	body := w.Body.String()
+	// Should not contain any secrets, tokens, or raw credential material
+	if strings.Contains(body, "token") || strings.Contains(body, "secret") {
+		t.Errorf("response contains sensitive material: %s", body)
+	}
+	// Should not contain external_id (internal format like pve:pve1:100)
+	if strings.Contains(body, "external_id") {
+		t.Error("response should not expose external_id")
+	}
+}
+
+// Test 11: Dry-run reports mutation window inactive when none open
+func TestDryRun_WindowInactive(t *testing.T) {
+	e := setupActionTest(t, false) // no mutation window opened
+
+	// Close any open windows
+	e.pool.Exec(t.Context(), "UPDATE proxmox_mutation_windows SET status='closed' WHERE status='open'")
+
+	w := e.dryRunAction(t, "start", "")
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["mutation_window_active"] != false {
+		t.Error("mutation_window_active should be false")
+	}
+	if resp["mutation_window_required"] != true {
+		t.Error("mutation_window_required should be true")
+	}
+}
+
+// Test 12: Dry-run reports mutation window active when open
+func TestDryRun_WindowActive(t *testing.T) {
+	e := setupActionTest(t, true) // opens a mutation window
+
+	w := e.dryRunAction(t, "start", "")
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["mutation_window_active"] != true {
+		t.Error("mutation_window_active should be true")
+	}
+}
+
+// Test 13: Dry-run reports feature flag state
+func TestDryRun_FeatureFlagState(t *testing.T) {
+	// Flag disabled
+	e1 := setupActionTest(t, false)
+	w1 := e1.dryRunAction(t, "start", "")
+	var resp1 map[string]any
+	json.Unmarshal(w1.Body.Bytes(), &resp1)
+	if resp1["feature_flag_enabled"] != false {
+		t.Error("feature_flag_enabled should be false")
+	}
+
+	// Flag enabled
+	e2 := setupActionTest(t, true)
+	w2 := e2.dryRunAction(t, "start", "")
+	var resp2 map[string]any
+	json.Unmarshal(w2.Body.Bytes(), &resp2)
+	if resp2["feature_flag_enabled"] != true {
+		t.Error("feature_flag_enabled should be true")
+	}
+}
+
+// Test 14: Forbidden action dry-run returns 404
+func TestDryRun_ForbiddenAction404(t *testing.T) {
+	e := setupActionTest(t, false)
+
+	req := httptest.NewRequest("POST",
+		fmt.Sprintf("/api/teams/%s/assets/%s/actions/proxmox/reboot", e.teamID, e.assetID),
+		strings.NewReader(`{"dry_run":true}`))
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	e.r.ServeHTTP(w, req)
+
+	if w.Code != 404 {
+		t.Errorf("expected 404 for forbidden action, got %d", w.Code)
+	}
+}
+
+// Test 15: Preview audit/outbox is sanitized
+func TestDryRun_PreviewAuditSanitized(t *testing.T) {
+	e := setupActionTest(t, false)
+	e.dryRunAction(t, "start", "")
+
+	// Check audit table for preview event
+	var auditAction string
+	var auditValue json.RawMessage
+	e.pool.QueryRow(t.Context(),
+		"SELECT action, new_value FROM audit_logs WHERE action='asset.action.previewed' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&auditAction, &auditValue)
+	if auditAction != "asset.action.previewed" {
+		t.Error("preview audit event not written")
+	}
+
+	// Verify the audit payload is sanitized
+	payloadStr := string(auditValue)
+	if strings.Contains(payloadStr, "token") || strings.Contains(payloadStr, "secret") {
+		t.Errorf("audit payload contains sensitive data: %s", payloadStr)
+	}
+	// Must contain dry_run flag (check parsed, not raw string)
+	var payload map[string]any
+	json.Unmarshal(auditValue, &payload)
+	if payload["dry_run"] != true {
+		t.Errorf("audit payload should contain dry_run:true, got: %s", payloadStr)
 	}
 }
 

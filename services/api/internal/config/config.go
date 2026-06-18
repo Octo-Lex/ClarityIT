@@ -45,6 +45,17 @@ type Config struct {
 	MinioBucket     string
 	MinioUseSSL     bool
 
+	// Approval monitor
+	ApprovalMonitorEnabled          bool
+	ApprovalMonitorIntervalSeconds  int
+	ApprovalExpiringThresholdPercent int
+
+	// WebAuthn
+	WebAuthnEnabled       bool
+	WebAuthnRPID          string
+	WebAuthnRPOrigin      string
+	WebAuthnRPDisplayName string
+
 	// SMTP (optional)
 	SMTPHost     string
 	SMTPPort     int
@@ -55,6 +66,14 @@ type Config struct {
 
 	// Email
 	EmailMode string // "dev", "smtp", "disabled"
+
+	// Presenton (optional)
+	PresentonEnabled           bool
+	PresentonURL               string
+	PresentonAdminUser         string
+	PresentonAdminPass         string
+	PresentonGenerationTimeout time.Duration
+	PresentonMaxFileBytes      int64
 
 	// Build info (set via ldflags)
 	Version   string
@@ -96,6 +115,22 @@ func Load() (*Config, error) {
 		SMTPFrom:     getEnv("SMTP_FROM", ""),
 		SMTPTLSMode:  getEnv("SMTP_TLS_MODE", "starttls"),
 		EmailMode:    getEnv("EMAIL_MODE", "dev"),
+
+		ApprovalMonitorEnabled:           getEnvBoolDefault("APPROVAL_MONITOR_ENABLED", env == EnvProduction),
+		ApprovalMonitorIntervalSeconds:   getEnvIntClamped("APPROVAL_MONITOR_INTERVAL_SECONDS", 60, 5, 3600),
+		ApprovalExpiringThresholdPercent: getEnvIntClamped("APPROVAL_EXPIRING_THRESHOLD_PERCENT", 25, 1, 90),
+
+		WebAuthnEnabled:       getEnvBoolDefault("WEBAUTHN_ENABLED", false),
+		WebAuthnRPID:          getEnv("WEBAUTHN_RP_ID", ""),
+		WebAuthnRPOrigin:      getEnv("WEBAUTHN_RP_ORIGIN", ""),
+		WebAuthnRPDisplayName: getEnv("WEBAUTHN_RP_DISPLAY_NAME", "ClarityIT"),
+
+		PresentonEnabled:           getEnvBool("PRESENTON_ENABLED", false),
+		PresentonURL:               getEnv("PRESENTON_URL", "http://presenton:80"),
+		PresentonAdminUser:         getEnv("PRESENTON_ADMIN_USER", "clarityit"),
+		PresentonAdminPass:         getEnv("PRESENTON_ADMIN_PASS", ""),
+		PresentonGenerationTimeout: time.Duration(getEnvIntClamped("PRESENTON_GENERATION_TIMEOUT_SECONDS", 120, 10, 600)) * time.Second,
+		PresentonMaxFileBytes:      int64(getEnvIntClamped("PRESENTON_MAX_FILE_BYTES", 52428800, 1048576, 104857600)), // 1MB-100MB, default 50MB
 
 		Version:   getEnv("CLARITY_VERSION", "dev"),
 		GitCommit: getEnv("CLARITY_GIT_COMMIT", ""),
@@ -220,6 +255,41 @@ func (c *Config) Validate() error {
 		errs = append(errs, "SMTP_HOST is required when EMAIL_MODE=smtp")
 	}
 
+	// WebAuthn validation
+	if c.WebAuthnEnabled {
+		if c.WebAuthnRPID == "" {
+			errs = append(errs, "WEBAUTHN_RP_ID is required when WEBAUTHN_ENABLED=true")
+		}
+		if c.WebAuthnRPOrigin == "" {
+			errs = append(errs, "WEBAUTHN_RP_ORIGIN is required when WEBAUTHN_ENABLED=true")
+		}
+		// Production requires HTTPS origin
+		if c.IsProd() {
+			if !strings.HasPrefix(c.WebAuthnRPOrigin, "https://") {
+				errs = append(errs, "WEBAUTHN_RP_ORIGIN must use https:// in production")
+			}
+		}
+		// Dev allows localhost http
+		if c.IsDev() {
+			if !strings.HasPrefix(c.WebAuthnRPOrigin, "http://") && !strings.HasPrefix(c.WebAuthnRPOrigin, "https://") {
+				errs = append(errs, "WEBAUTHN_RP_ORIGIN must start with http:// or https://")
+			}
+		}
+	}
+
+	// Presenton validation (optional, but if enabled must have valid config)
+	if c.PresentonEnabled {
+		if c.PresentonAdminPass == "" {
+			errs = append(errs, "PRESENTON_ADMIN_PASS is required when PRESENTON_ENABLED=true")
+		}
+		if c.PresentonAdminPass == "changeme" {
+			errs = append(errs, "PRESENTON_ADMIN_PASS must not be the default 'changeme'")
+		}
+		if c.PresentonURL == "" || (!strings.HasPrefix(c.PresentonURL, "http://") && !strings.HasPrefix(c.PresentonURL, "https://")) {
+			errs = append(errs, "PRESENTON_URL must be a valid http:// or https:// URL")
+		}
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("configuration errors:\n  - %s", strings.Join(errs, "\n  - "))
 	}
@@ -291,4 +361,26 @@ func getEnvBool(key string, fallback bool) bool {
 	}
 	b, _ := strconv.ParseBool(v)
 	return b
+}
+
+func getEnvBoolDefault(key string, fallback bool) bool {
+	return getEnvBool(key, fallback)
+}
+
+func getEnvIntClamped(key string, fallback, min, max int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	if n < min {
+		return min
+	}
+	if n > max {
+		return max
+	}
+	return n
 }

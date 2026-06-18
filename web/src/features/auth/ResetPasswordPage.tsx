@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { api } from '../../api/client';
+import { CheckCircle2 } from 'lucide-react';
+import { api } from '@/api/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { AuthCard } from './AuthCard';
 
 export default function ResetPasswordPage() {
   const nav = useNavigate();
@@ -21,34 +26,43 @@ export default function ResetPasswordPage() {
     try {
       await api.resetPassword(token, password);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message || 'Reset failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reset failed');
     } finally { setLoading(false); }
   };
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="card w-full max-w-sm">
-          <h1 className="text-2xl font-bold mb-4 text-center">Password Reset</h1>
-          <p className="text-sm text-[var(--text-muted)] text-center mb-4">Your password has been reset successfully.</p>
-          <button onClick={() => nav('/login')} className="w-full">Sign In</button>
+      <AuthCard title="Password Reset">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <CheckCircle2 className="size-10 text-success" />
+          <p className="text-sm text-muted-foreground">Your password has been reset successfully.</p>
+          <Button className="mt-2 w-full" onClick={() => nav('/login')}>Sign In</Button>
         </div>
-      </div>
+      </AuthCard>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="card w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-4 text-center">Reset Password</h1>
-        {error && <div className="error-msg mb-4">{error}</div>}
-        <form onSubmit={submit} className="space-y-3">
-          <input type="password" placeholder="New Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
-          <input type="password" placeholder="Confirm Password" value={confirm} onChange={e => setConfirm(e.target.value)} required minLength={8} />
-          <button type="submit" disabled={loading} className="w-full">{loading ? 'Resetting...' : 'Reset Password'}</button>
-        </form>
-      </div>
-    </div>
+    <AuthCard title="Reset Password">
+      {error && (
+        <div role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+      <form onSubmit={submit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="reset-password">New Password</Label>
+          <Input id="reset-password" type="password" data-testid="reset-password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="reset-confirm">Confirm Password</Label>
+          <Input id="reset-confirm" type="password" data-testid="reset-confirm" value={confirm} onChange={e => setConfirm(e.target.value)} required minLength={8} />
+        </div>
+        <Button type="submit" className="w-full" disabled={loading} data-testid="reset-submit">
+          {loading ? 'Resetting…' : 'Reset Password'}
+        </Button>
+      </form>
+    </AuthCard>
   );
 }

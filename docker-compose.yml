@@ -1,8 +1,17 @@
 # Core profile (default): API, web, workers, infrastructure
 # Agent profile (optional): reasoning worker — requires WORKER_TOKEN
 #   Enable with: docker compose --profile agent up -d
+
+# Shared log rotation to prevent container logs from filling disk
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   clarityit-api:
+    logging: *default-logging
     build:
       context: ./services/api
       dockerfile: Dockerfile
@@ -29,15 +38,24 @@ services:
       PROXMOX_TOKEN_SECRET: ${PROXMOX_TOKEN_SECRET:-}
       PROXMOX_VERIFY_TLS: ${PROXMOX_VERIFY_TLS:-false}
       PROXMOX_MUTATION_ENABLED: ${PROXMOX_MUTATION_ENABLED:-false}
+      APPROVAL_MONITOR_ENABLED: ${APPROVAL_MONITOR_ENABLED:-true}
+      APPROVAL_MONITOR_INTERVAL_SECONDS: ${APPROVAL_MONITOR_INTERVAL_SECONDS:-60}
+      APPROVAL_EXPIRING_THRESHOLD_PERCENT: ${APPROVAL_EXPIRING_THRESHOLD_PERCENT:-25}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      BACKUP_DIR: /var/lib/clarityit/backups
+      # v1.4 Track 3: Document assist worker (internal-only, no host port)
+      WORKER_ASSIST_URL: http://clarityit-reasoning-worker:9100
+      WORKER_TOKEN: ${WORKER_TOKEN:-}
       PORT: "8765"
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - /opt/clarityit/backups:/var/lib/clarityit/backups:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8765/health"]
       interval: 30s
@@ -58,6 +76,7 @@ services:
       dockerfile: Dockerfile
       args:
         BINARY: outbox-worker
+    logging: *default-logging
     container_name: clarityit-outbox-worker
     restart: unless-stopped
     environment:
@@ -84,6 +103,7 @@ services:
       dockerfile: Dockerfile
       args:
         BINARY: context-worker
+    logging: *default-logging
     container_name: clarityit-context-worker
     restart: unless-stopped
     environment:
@@ -108,6 +128,7 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+    logging: *default-logging
     container_name: clarityit-web
     restart: unless-stopped
     ports:
@@ -126,6 +147,7 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    logging: *default-logging
     container_name: clarityit-postgres-1
     restart: unless-stopped
     environment:
@@ -144,6 +166,7 @@ services:
 
   nats:
     image: nats:2-alpine
+    logging: *default-logging
     container_name: clarityit-nats-1
     restart: unless-stopped
     command: "--jetstream --store_dir /data"
@@ -154,6 +177,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    logging: *default-logging
     container_name: clarityit-redis-1
     restart: unless-stopped
     volumes:
@@ -165,6 +189,7 @@ services:
     build:
       context: ./services/workers/reasoning
       dockerfile: Dockerfile
+    logging: *default-logging
     container_name: clarityit-reasoning-worker
     restart: unless-stopped
     profiles: [agent]
@@ -182,6 +207,7 @@ services:
 
   minio:
     image: minio/minio
+    logging: *default-logging
     container_name: clarityit-minio-1
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -193,11 +219,34 @@ services:
     networks:
       - clarityit-net
 
+  # Presenton — optional presentation generation service
+  # Enable with: docker compose --profile presenton up -d
+  presenton:
+    image: ghcr.io/presenton/presenton:v0.8.7-beta@sha256:d855169e643f13f082ea1272173e0988a67d63a345ca6f5b912c9475cd1d2465
+    logging: *default-logging
+    container_name: clarityit-presenton
+    profiles: ["presenton"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:80"
+    volumes:
+      - presenton_data:/app_data
+    environment:
+      AUTH_USERNAME: ${PRESENTON_ADMIN_USER:-clarityit}
+      AUTH_PASSWORD: ${PRESENTON_ADMIN_PASS}
+      LLM: ${PRESENTON_LLM:-ollama}
+      CAN_CHANGE_KEYS: "false"
+    networks:
+      - clarityit-net
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   pgdata:
   natsdata:
   redisdata:
   miniodata:
+  presenton_data:
 
 networks:
   clarityit-net:

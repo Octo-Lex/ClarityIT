@@ -1,79 +1,81 @@
-import { useEffect, useState, useCallback } from 'react';
-import { api } from '../../api/client';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, X, Copy, Check, KeyRound, AlertTriangle, RotateCw, Ban } from 'lucide-react';
+import { api, getStoredTeamId } from '@/api/client';
+import { keys } from '@/api/keys';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { StatusBadge } from '@/components/ui/status-badge';
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from '@/components/ui/table';
+import { notify } from '@/components/Toaster';
+import { TableSkeleton, ErrorState, EmptyState } from '@/components/PageState';
+
+interface CreatedSecret { key: string; signing_secret: string; id: string }
+
+function keyStatus(k: Record<string, unknown>) {
+  if (k.revoked_at) return { label: 'Revoked', tone: 'danger' as const };
+  if (k.rotation_required) return { label: 'Rotation Required', tone: 'warning' as const };
+  const expiresAt = k.expires_at as string | undefined;
+  if (expiresAt && new Date(expiresAt) < new Date()) return { label: 'Expired', tone: 'danger' as const };
+  return { label: 'Active', tone: 'success' as const };
+}
 
 export default function AdminIntegrations() {
-  const [keys, setKeys] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const teamId = getStoredTeamId();
+  const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [createdKey, setCreatedKey] = useState<{ key: string; signing_secret: string; id: string } | null>(null);
+  const [createdKey, setCreatedKey] = useState<CreatedSecret | null>(null);
   const [copied, setCopied] = useState('');
-
-  // Create form state
   const [name, setName] = useState('');
   const [sources, setSources] = useState('');
   const [scopes, setScopes] = useState('');
   const [allowUnsigned, setAllowUnsigned] = useState(false);
-  const [creating, setCreating] = useState(false);
 
-  const teamId = typeof localStorage !== 'undefined' ? localStorage.getItem('clarityit_team') : null;
+  const keysQ = useQuery({
+    queryKey: keys.integrationKeys(teamId ?? ''),
+    queryFn: () => api.listIntegrationKeys(teamId!),
+    enabled: !!teamId,
+  });
 
-  const load = useCallback(async () => {
-    if (!teamId) { setError('No active team'); return; }
-    try {
-      const data = await api.listIntegrationKeys(teamId);
-      setKeys(data);
-      setError('');
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [teamId]);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: keys.integrationKeys(teamId ?? '') });
 
-  useEffect(() => { load(); }, [load]);
-
-  const handleCreate = async () => {
-    if (!teamId) return;
-    setCreating(true);
-    try {
-      const result = await api.createIntegrationKey(teamId, {
-        name,
-        allowed_sources: sources.split(',').map(s => s.trim()).filter(Boolean),
-        allowed_scopes: scopes.split(',').map(s => s.trim()).filter(Boolean),
-        allow_unsigned_dev: allowUnsigned,
-      });
-      setCreatedKey(result);
+  const createMut = useMutation({
+    mutationFn: () => api.createIntegrationKey(teamId!, {
+      name,
+      allowed_sources: sources.split(',').map(s => s.trim()).filter(Boolean),
+      allowed_scopes: scopes.split(',').map(s => s.trim()).filter(Boolean),
+      allow_unsigned_dev: allowUnsigned,
+    }),
+    onSuccess: (result) => {
+      // Secret is shown ONCE — surface the reveal modal immediately.
+      setCreatedKey({ key: result.key, signing_secret: result.signing_secret, id: result.id });
       setShowCreate(false);
       setName(''); setSources(''); setScopes(''); setAllowUnsigned(false);
-      load();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setCreating(false);
-    }
-  };
+      invalidate();
+      notify.success('Integration key created');
+    },
+    onError: (err) => notify.mutationError('Create key', err),
+  });
 
-  const handleRevoke = async (keyId: string) => {
-    if (!teamId || !confirm('Revoke this integration key? This cannot be undone.')) return;
-    try {
-      await api.revokeIntegrationKey(teamId, keyId);
-      load();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
+  const revokeMut = useMutation({
+    mutationFn: (keyId: string) => api.revokeIntegrationKey(teamId!, keyId),
+    onSuccess: () => { invalidate(); notify.success('Key revoked'); },
+    onError: (err) => notify.mutationError('Revoke key', err),
+  });
 
-  const handleRotate = async (keyId: string) => {
-    if (!teamId || !confirm('Rotate this key? The old key will be revoked immediately and a new key + signing secret will be generated.')) return;
-    try {
-      const result = await api.rotateIntegrationKey(teamId, keyId);
+  const rotateMut = useMutation({
+    mutationFn: (keyId: string) => api.rotateIntegrationKey(teamId!, keyId),
+    onSuccess: (result) => {
       setCreatedKey({ key: result.key, signing_secret: result.signing_secret, id: result.id });
-      load();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
+      invalidate();
+      notify.success('Key rotated');
+    },
+    onError: (err) => notify.mutationError('Rotate key', err),
+  });
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -81,155 +83,155 @@ export default function AdminIntegrations() {
     setTimeout(() => setCopied(''), 2000);
   };
 
-  if (loading) return <div className="text-[var(--text-muted)]">Loading integrations...</div>;
+  if (keysQ.isPending) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Integration Management</h1>
+        <Card className="p-4"><TableSkeleton rows={4} cols={7} /></Card>
+      </div>
+    );
+  }
+  if (keysQ.error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Integration Management</h1>
+        <ErrorState message="Failed to load integration keys" onRetry={() => keysQ.refetch()} />
+      </div>
+    );
+  }
+
+  const list = keysQ.data ?? [];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Integration Management</h1>
-        <button onClick={() => setShowCreate(!showCreate)} className="px-3 py-1.5 rounded bg-[var(--primary)] text-white text-sm">
-          {showCreate ? 'Cancel' : '+ Create Key'}
-        </button>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Integration Management</h1>
+        <Button size="sm" variant={showCreate ? 'secondary' : 'default'} onClick={() => setShowCreate(s => !s)}>
+          {showCreate ? <><X className="size-4" /> Cancel</> : <><Plus className="size-4" /> Create Key</>}
+        </Button>
       </div>
 
-      {error && <div className="card p-3 text-[var(--danger)]">{error}</div>}
-
-      {/* Created Key Modal */}
+      {/* Created-secret reveal modal — shown once after create/rotate */}
       {createdKey && (
-        <div className="card p-4 border-2 border-[var(--warning)]">
-          <h3 className="text-lg font-bold text-[var(--warning)]">⚠️ Save These Credentials — Shown Only Once</h3>
-          <p className="text-sm text-[var(--text-muted)] mt-1 mb-3">Copy and store securely. These cannot be retrieved again.</p>
+        <Card className="border-2 border-warning/50 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertTriangle className="size-5 text-warning" />
+            <h3 className="font-heading text-sm font-semibold text-warning">Save These Credentials — Shown Only Once</h3>
+          </div>
+          <p className="mb-3 text-sm text-muted-foreground">Copy and store securely. These cannot be retrieved again.</p>
           <div className="space-y-2">
             <div>
-              <label className="text-xs text-[var(--text-muted)]">Integration Key</label>
+              <Label className="text-xs">Integration Key</Label>
               <div className="flex gap-2">
-                <code className="flex-1 p-2 bg-[var(--border)] rounded text-xs break-all">{createdKey.key}</code>
-                <button onClick={() => copyToClipboard(createdKey.key, 'key')} className="px-2 py-1 text-xs bg-[var(--card)] rounded border border-[var(--border)]">
-                  {copied === 'key' ? '✓' : 'Copy'}
-                </button>
+                <code className="flex-1 break-all rounded bg-muted p-2 text-xs">{createdKey.key}</code>
+                <Button size="sm" variant="secondary" onClick={() => copyToClipboard(createdKey.key, 'key')}>
+                  {copied === 'key' ? <Check className="size-4" /> : <Copy className="size-4" />}
+                </Button>
               </div>
             </div>
             <div>
-              <label className="text-xs text-[var(--text-muted)]">Signing Secret</label>
+              <Label className="text-xs">Signing Secret</Label>
               <div className="flex gap-2">
-                <code className="flex-1 p-2 bg-[var(--border)] rounded text-xs break-all">{createdKey.signing_secret}</code>
-                <button onClick={() => copyToClipboard(createdKey.signing_secret, 'secret')} className="px-2 py-1 text-xs bg-[var(--card)] rounded border border-[var(--border)]">
-                  {copied === 'secret' ? '✓' : 'Copy'}
-                </button>
-                </div>
+                <code className="flex-1 break-all rounded bg-muted p-2 text-xs">{createdKey.signing_secret}</code>
+                <Button size="sm" variant="secondary" onClick={() => copyToClipboard(createdKey.signing_secret, 'secret')}>
+                  {copied === 'secret' ? <Check className="size-4" /> : <Copy className="size-4" />}
+                </Button>
+              </div>
             </div>
           </div>
-          <button onClick={() => setCreatedKey(null)} className="mt-3 px-3 py-1 text-sm bg-[var(--border)] rounded">I've saved them</button>
-        </div>
+          <Button className="mt-3" size="sm" variant="secondary" onClick={() => setCreatedKey(null)}>I've saved them</Button>
+        </Card>
       )}
 
-      {/* Create Form */}
       {showCreate && (
-        <div className="card p-4 space-y-3">
-          <h3 className="font-semibold">Create Integration Key</h3>
-          <div>
-            <label className="text-xs text-[var(--text-muted)]">Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Grafana Alerts"
-              className="w-full mt-1 p-2 bg-[var(--border)] rounded text-sm" />
+        <Card className="space-y-4 p-5">
+          <h3 className="font-heading text-sm font-semibold">Create Integration Key</h3>
+          <div className="space-y-1.5">
+            <Label htmlFor="ik-name">Name</Label>
+            <Input id="ik-name" data-testid="ik-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Grafana Alerts" />
           </div>
-          <div>
-            <label className="text-xs text-[var(--text-muted)]">Allowed Sources (comma-separated)</label>
-            <input value={sources} onChange={e => setSources(e.target.value)} placeholder="grafana, prometheus, or *"
-              className="w-full mt-1 p-2 bg-[var(--border)] rounded text-sm" />
+          <div className="space-y-1.5">
+            <Label htmlFor="ik-sources">Allowed Sources (comma-separated)</Label>
+            <Input id="ik-sources" data-testid="ik-sources" value={sources} onChange={e => setSources(e.target.value)} placeholder="grafana, prometheus, or *" />
           </div>
-          <div>
-            <label className="text-xs text-[var(--text-muted)]">Allowed Scopes (comma-separated)</label>
-            <input value={scopes} onChange={e => setScopes(e.target.value)} placeholder="webhooks:ingest, alerts:create, or *"
-              className="w-full mt-1 p-2 bg-[var(--border)] rounded text-sm" />
+          <div className="space-y-1.5">
+            <Label htmlFor="ik-scopes">Allowed Scopes (comma-separated)</Label>
+            <Input id="ik-scopes" data-testid="ik-scopes" value={scopes} onChange={e => setScopes(e.target.value)} placeholder="webhooks:ingest, alerts:create, or *" />
           </div>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={allowUnsigned} onChange={e => setAllowUnsigned(e.target.checked)} />
+            <input type="checkbox" data-testid="ik-unsigned" checked={allowUnsigned} onChange={e => setAllowUnsigned(e.target.checked)} />
             Allow unsigned webhooks (dev only)
           </label>
-          <button onClick={handleCreate} disabled={creating || !name || !sources || !scopes}
-            className="px-4 py-2 rounded bg-[var(--primary)] text-white text-sm disabled:opacity-50">
-            {creating ? 'Creating...' : 'Create Key'}
-          </button>
-        </div>
+          <Button data-testid="ik-create" disabled={createMut.isPending || !name || !sources || !scopes} onClick={() => createMut.mutate()}>
+            <KeyRound className="size-4" /> {createMut.isPending ? 'Creating…' : 'Create Key'}
+          </Button>
+        </Card>
       )}
 
-      {/* Keys Table */}
       <div>
-        <h2 className="text-lg font-semibold mb-2">Integration Keys ({keys.length})</h2>
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
-                <th className="pb-2 pr-4">Name</th>
-                <th className="pb-2 pr-4">Prefix</th>
-                <th className="pb-2 pr-4">Sources</th>
-                <th className="pb-2 pr-4">Scopes</th>
-                <th className="pb-2 pr-4">Status</th>
-                <th className="pb-2 pr-4">Created</th>
-                <th className="pb-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {keys.map(k => (
-                <tr key={k.id} className={`border-b border-[var(--border)] ${k.revoked_at ? 'opacity-50' : ''}`}>
-                  <td className="py-2 pr-4 font-medium">{k.name}</td>
-                  <td className="py-2 pr-4 font-mono text-xs">{k.prefix}…</td>
-                  <td className="py-2 pr-4 text-xs">{Array.isArray(k.allowed_sources) ? k.allowed_sources.join(', ') : k.allowed_sources}</td>
-                  <td className="py-2 pr-4 text-xs">{Array.isArray(k.allowed_scopes) ? k.allowed_scopes.join(', ') : k.allowed_scopes}</td>
-                  <td className="py-2 pr-4">
-                    {k.revoked_at ? (
-                      <span className="text-xs text-[var(--danger)]">Revoked</span>
-                    ) : k.rotation_required ? (
-                      <span className="text-xs px-2 py-0.5 rounded bg-[var(--warning)] text-black font-medium">⚠ Rotation Required</span>
-                    ) : k.expires_at && new Date(k.expires_at) < new Date() ? (
-                      <span className="text-xs text-[var(--danger)]">Expired</span>
-                    ) : (
-                      <span className="text-xs text-[var(--success)]">Active</span>
-                    )}
-                  </td>
-                  <td className="py-2 pr-4 text-xs text-[var(--text-muted)]">{k.created_at ? new Date(k.created_at).toLocaleDateString() : '—'}</td>
-                  <td className="py-2 flex gap-2">
-                    {!k.revoked_at && (
-                      <>
-                        <button onClick={() => handleRotate(k.id)} className="text-xs text-[var(--warning)] hover:underline">Rotate</button>
-                        <button onClick={() => handleRevoke(k.id)} className="text-xs text-[var(--danger)] hover:underline">Revoke</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {!keys.length && (
-                <tr><td colSpan={7} className="py-4 text-center text-[var(--text-muted)]">No integration keys yet</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <h2 className="mb-2 font-heading text-lg font-semibold">Integration Keys ({list.length})</h2>
+        <Card className="p-0">
+          {list.length === 0 ? (
+            <div className="p-4"><EmptyState title="No integration keys yet" /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead><TableHead>Prefix</TableHead><TableHead>Sources</TableHead><TableHead>Scopes</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead><TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {list.map(k => {
+                  const st = keyStatus(k);
+                  return (
+                    <TableRow key={k.id} className={k.revoked_at ? 'opacity-50' : ''}>
+                      <TableCell className="font-medium">{k.name}</TableCell>
+                      <TableCell className="font-mono text-xs">{k.prefix}…</TableCell>
+                      <TableCell className="text-xs">{Array.isArray(k.allowed_sources) ? k.allowed_sources.join(', ') : String(k.allowed_sources ?? '')}</TableCell>
+                      <TableCell className="text-xs">{Array.isArray(k.allowed_scopes) ? k.allowed_scopes.join(', ') : String(k.allowed_scopes ?? '')}</TableCell>
+                      <TableCell><StatusBadge tone={st.tone}>{st.label}</StatusBadge></TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{k.created_at ? new Date(k.created_at).toLocaleDateString() : '—'}</TableCell>
+                      <TableCell>
+                        {!k.revoked_at && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="ghost" className="text-warning" data-testid={`ik-rotate-${k.id}`} onClick={() => { if (confirm('Rotate this key? The old key is revoked immediately.')) rotateMut.mutate(k.id); }}>
+                              <RotateCw className="size-3.5" /> Rotate
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-destructive" data-testid={`ik-revoke-${k.id}`} onClick={() => { if (confirm('Revoke this integration key? This cannot be undone.')) revokeMut.mutate(k.id); }}>
+                              <Ban className="size-3.5" /> Revoke
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
       </div>
 
-      {/* Integration Status */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="card p-4">
-          <h3 className="font-semibold mb-2">Webhook Signing</h3>
-          <p className="text-sm text-[var(--text-muted)]">
-            New keys include a signing secret for HMAC-SHA256 webhook verification.
-            Keys marked <span className="text-[var(--warning)]">⚠ Rotation Required</span> lack signing secrets
-            and must be rotated for production webhook use.
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="p-5">
+          <h3 className="mb-2 font-heading text-sm font-semibold">Webhook Signing</h3>
+          <p className="text-sm text-muted-foreground">
+            New keys include a signing secret for HMAC-SHA256 webhook verification. Keys marked
+            <StatusBadge tone="warning">Rotation Required</StatusBadge> lack signing secrets and must be rotated for production.
           </p>
-        </div>
-        <div className="card p-4">
-          <h3 className="font-semibold mb-2">Proxmox Integration</h3>
-          <p className="text-sm text-[var(--text-muted)]">
-            Status: <span className="text-[var(--text-muted)]">Configure via PROXMOX_ENABLED env var</span><br />
-            Mode: read-only (no mutation endpoints)
+        </Card>
+        <Card className="p-5">
+          <h3 className="mb-2 font-heading text-sm font-semibold">Proxmox Integration</h3>
+          <p className="text-sm text-muted-foreground">
+            Status: Configure via <code className="rounded bg-muted px-1">PROXMOX_ENABLED</code> env var. Mode: read-only (no mutation endpoints).
           </p>
-        </div>
-        <div className="card p-4">
-          <h3 className="font-semibold mb-2">Email Delivery</h3>
-          <p className="text-sm text-[var(--text-muted)]">
-            Configure via EMAIL_MODE (dev/smtp/disabled) and SMTP_* env vars.
-            Dev mode returns preview links. SMTP mode sends real email.
+        </Card>
+        <Card className="p-5">
+          <h3 className="mb-2 font-heading text-sm font-semibold">Email Delivery</h3>
+          <p className="text-sm text-muted-foreground">
+            Configure via <code className="rounded bg-muted px-1">EMAIL_MODE</code> (dev/smtp/disabled) and <code className="rounded bg-muted px-1">SMTP_*</code> env vars.
           </p>
-        </div>
+        </Card>
       </div>
     </div>
   );
