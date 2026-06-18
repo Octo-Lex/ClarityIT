@@ -1,5 +1,10 @@
 .PHONY: build test test-iam test-team deploy audit audit-prod verify-deployment
 
+# Deployment target — override for your environment: make deploy DEPLOY_HOST=10.0.0.5
+DEPLOY_HOST ?= localhost
+API_PORT    ?= 8765
+WEB_PORT    ?= 3000
+
 # Docker run helper for Go commands
 GO_TEST = docker run --rm -v /opt/clarityit/services/api:/app -w /app --network clarityit_clarityit-net golang:1.25-alpine
 
@@ -60,7 +65,7 @@ verify-pipeline:
 
 # Verify docker compose deployment
 verify-deploy:
-	curl -sf http://192.168.3.20:8765/health
+	curl -sf http://$(DEPLOY_HOST):$(API_PORT)/health
 	docker logs clarityit-outbox-worker 2>&1 | tail -3
 	docker logs clarityit-context-worker 2>&1 | tail -3
 
@@ -91,21 +96,21 @@ audit-prod:
 # Full deployment verification
 verify-deployment:
 	@echo "=== Web Frontend ==="
-	@curl -sf http://192.168.3.20:3000 | head -c 100 && echo "... OK" || echo "FAIL"
+	@curl -sf http://$(DEPLOY_HOST):$(WEB_PORT) | head -c 100 && echo "... OK" || echo "FAIL"
 	@echo "=== API Health ==="
-	@curl -sf http://192.168.3.20:8765/health || echo "FAIL"
+	@curl -sf http://$(DEPLOY_HOST):$(API_PORT)/health || echo "FAIL"
 	@echo ""
 	@echo "=== Deep Health (requires token) ==="
-	@TOKEN=$$(curl -sf -X POST http://192.168.3.20:8765/api/auth/login -H 'Content-Type: application/json' -d '{"email":"owner@test.dev","password":"password12"}' | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])') && curl -sf http://192.168.3.20:8765/api/health/deep -H "Authorization: Bearer $$TOKEN" | python3 -m json.tool || echo "FAIL"
+	@TOKEN=$$(curl -sf -X POST http://$(DEPLOY_HOST):$(API_PORT)/api/auth/login -H 'Content-Type: application/json' -d "{\"email\":\"$$CLARITY_TEST_EMAIL\",\"password\":\"$$CLARITY_TEST_PASSWORD\"}" | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])') && curl -sf http://$(DEPLOY_HOST):$(API_PORT)/api/health/deep -H "Authorization: Bearer $$TOKEN" | python3 -m json.tool || echo "FAIL"
 	@echo "=== Docker Services ==="
 	@docker compose -f /opt/clarityit/docker-compose.yml ps --format "table {{.Name}}\t{{.Status}}"
 	@echo "=== Port Exposure Check ==="
-	@echo "PostgreSQL:" && (curl -sf --max-time 2 http://192.168.3.20:5432 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
-	@echo "NATS:" && (curl -sf --max-time 2 http://192.168.3.20:4222 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
-	@echo "Redis:" && (curl -sf --max-time 2 http://192.168.3.20:6379 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
-	@echo "MinIO:" && (curl -sf --max-time 2 http://192.168.3.20:9000 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
+	@echo "PostgreSQL:" && (curl -sf --max-time 2 http://$(DEPLOY_HOST):5432 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
+	@echo "NATS:" && (curl -sf --max-time 2 http://$(DEPLOY_HOST):4222 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
+	@echo "Redis:" && (curl -sf --max-time 2 http://$(DEPLOY_HOST):6379 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
+	@echo "MinIO:" && (curl -sf --max-time 2 http://$(DEPLOY_HOST):9000 2>/dev/null && echo "EXPOSED (WARN)" || echo "private (OK)")
 	@echo "=== Backup Status ==="
-	@TOKEN=$$(curl -sf -X POST http://192.168.3.20:8765/api/auth/login -H 'Content-Type: application/json' -d '{"email":"owner@test.dev","password":"password12"}' | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])') && curl -sf http://192.168.3.20:8765/api/admin/backup-status -H "Authorization: Bearer $$TOKEN" | python3 -m json.tool || echo "FAIL"
+	@TOKEN=$$(curl -sf -X POST http://$(DEPLOY_HOST):$(API_PORT)/api/auth/login -H 'Content-Type: application/json' -d "{\"email\":\"$$CLARITY_TEST_EMAIL\",\"password\":\"$$CLARITY_TEST_PASSWORD\"}" | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])') && curl -sf http://$(DEPLOY_HOST):$(API_PORT)/api/admin/backup-status -H "Authorization: Bearer $$TOKEN" | python3 -m json.tool || echo "FAIL"
 
 # Playwright E2E smoke tests
 test-e2e:

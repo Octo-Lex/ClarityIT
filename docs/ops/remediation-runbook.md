@@ -24,7 +24,7 @@ draft → proposed → approved → executing → {completed, failed, cancelled}
 
 ### By Operator
 ```bash
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/remediations \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/remediations \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $(uuidgen)" \
@@ -66,7 +66,7 @@ Agent-created proposals are always `draft` status. An operator must review and a
 ## Approving
 
 ```bash
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/remediations/$REMEDIATION_ID/approve \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/remediations/$REMEDIATION_ID/approve \
   -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: $(uuidgen)"
 ```
@@ -78,7 +78,7 @@ Rules:
 ## Executing
 
 ```bash
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/remediations/$REMEDIATION_ID/execute \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/remediations/$REMEDIATION_ID/execute \
   -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: $(uuidgen)"
 ```
@@ -99,7 +99,7 @@ If you call execute on a `completed` proposal, the same result is returned witho
 ## Cancelling
 
 ```bash
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/remediations/$REMEDIATION_ID/cancel \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/remediations/$REMEDIATION_ID/cancel \
   -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: $(uuidgen)"
 ```
@@ -111,7 +111,7 @@ Cancelled proposals cannot be executed (returns 409).
 Navigate to `/incidents/{id}/remediation` for incident-scoped proposals, or use the API to list all:
 
 ```bash
-curl http://192.168.3.20:8765/api/teams/$TEAM/remediations \
+curl http://<your-host>:8765/api/teams/$TEAM/remediations \
   -H "Authorization: Bearer $TOKEN"
 ```
 

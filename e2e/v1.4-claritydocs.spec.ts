@@ -2,12 +2,12 @@ import { test, expect, type Page, type APIRequestContext } from '@playwright/tes
 
 // ═══════════════════════════════════════════════════════════
 // ClarityIT v1.4 Track 8 — ClarityDocs E2E Smoke Tests
-// Run against live deployment at http://192.168.3.20:3000
+// Run against live deployment at http://localhost:3000
 // ═══════════════════════════════════════════════════════════
 
 const TEST_EMAIL = 'owner@test.dev';
 const TEST_PASSWORD = 'password12';
-const API_BASE = process.env.E2E_API_URL || 'http://192.168.3.20:8765';
+const API_BASE = process.env.E2E_API_URL || 'http://localhost:8765';
 
 async function uiLogin(page: Page) {
   await page.goto('/login');

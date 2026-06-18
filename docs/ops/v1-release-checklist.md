@@ -34,8 +34,8 @@
 ### Core Services
 - [ ] `docker compose up -d --build` completes
 - [ ] All 8 core services healthy (api, web, postgres, nats, redis, minio, outbox-worker, context-worker)
-- [ ] `curl -sf http://192.168.3.20:8765/health` returns OK
-- [ ] `curl -sf http://192.168.3.20:3000/` returns HTML
+- [ ] `curl -sf http://<your-host>:8765/health` returns OK
+- [ ] `curl -sf http://<your-host>:3000/` returns HTML
 - [ ] Deep health check passes (authenticated)
 
 ### Agent Profile
@@ -52,7 +52,7 @@
 - [ ] Only ports 8765 and 3000 publicly exposed
 
 ### Proxmox Integration
-- [ ] Read-only sync works against 192.168.3.5
+- [ ] Read-only sync works against <proxmox-host>
 - [ ] `PROXMOX_MUTATION_ENABLED=false` by default
 - [ ] Mutation validation completed safely (snapshot/start/shutdown)
 - [ ] `PROXMOX_MUTATION_ENABLED` reset to false after validation

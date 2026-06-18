@@ -15,7 +15,7 @@ import { test, expect, type Page, type APIRequestContext } from '@playwright/tes
 
 const TEST_EMAIL = 'owner@test.dev';
 const TEST_PASSWORD = 'password12';
-const API_BASE = process.env.E2E_API_URL || 'http://192.168.3.20:8765';
+const API_BASE = process.env.E2E_API_URL || 'http://localhost:8765';
 
 // ─── Helpers ───
 

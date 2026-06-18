@@ -5,7 +5,7 @@
 ```
 Internet → Cloudflare Edge → cloudflared → [nginx:3000 | api:8765]
                                                      ↓
-                            Proxmox LXC (192.168.3.20)
+                            Proxmox LXC (<your-host>)
                             ┌──────────────────────────┐
                             │  nginx (port 3000)        │
                             │  Go API (port 8765)       │

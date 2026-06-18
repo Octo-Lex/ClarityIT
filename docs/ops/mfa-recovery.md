@@ -23,12 +23,12 @@ ClarityIT uses RFC 6238 TOTP (Time-based One-Time Password) for multi-factor aut
 ### API Enrollment
 ```bash
 # Step 1: Enroll
-curl -X POST http://192.168.3.20:8765/api/auth/mfa/totp/enroll \
+curl -X POST http://<your-host>:8765/api/auth/mfa/totp/enroll \
   -H "Authorization: Bearer $TOKEN"
 # Returns: factor_id, secret (base32), provisioning_uri
 
 # Step 2: Verify with TOTP code
-curl -X POST http://192.168.3.20:8765/api/auth/mfa/totp/verify-enrollment \
+curl -X POST http://<your-host>:8765/api/auth/mfa/totp/verify-enrollment \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"code": "123456"}'
 # Returns: recovery_codes (10 codes — SAVE THESE)
@@ -49,12 +49,12 @@ curl -X POST http://192.168.3.20:8765/api/auth/mfa/totp/verify-enrollment \
 ### Using a Recovery Code
 ```bash
 # Step 1: Create MFA challenge
-curl -X POST http://192.168.3.20:8765/api/auth/mfa/challenge \
+curl -X POST http://<your-host>:8765/api/auth/mfa/challenge \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"password": "your-password"}'
 
 # Step 2: Verify with recovery code instead of TOTP
-curl -X POST http://192.168.3.20:8765/api/auth/mfa/verify \
+curl -X POST http://<your-host>:8765/api/auth/mfa/verify \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"challenge_id": "...", "recovery_code": "your-recovery-code"}'
 ```
@@ -62,7 +62,7 @@ curl -X POST http://192.168.3.20:8765/api/auth/mfa/verify \
 ### Regenerating Recovery Codes
 Requires recent MFA verification (within 5 minutes):
 ```bash
-curl -X POST http://192.168.3.20:8765/api/auth/mfa/recovery-codes/regenerate \
+curl -X POST http://<your-host>:8765/api/auth/mfa/recovery-codes/regenerate \
   -H "Authorization: Bearer $TOKEN"
 # Returns: new set of 10 recovery codes (old codes invalidated)
 ```
@@ -109,7 +109,7 @@ These actions require recent MFA (within 5 minutes):
 
 ### Verifying MFA Status
 ```bash
-curl http://192.168.3.20:8765/api/auth/mfa/status \
+curl http://<your-host>:8765/api/auth/mfa/status \
   -H "Authorization: Bearer $TOKEN"
 # Returns: { "enrolled": true, "recent_mfa_at": "...", "mfa_valid": true/false }
 ```

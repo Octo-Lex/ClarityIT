@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 // ═══════════════════════════════════════════════════════════
 // ClarityIT v1.0 Track 8 — Operator UI E2E Smoke Tests
-// Run against live deployment at http://192.168.3.20:3000
+// Run against live deployment at http://localhost:3000
 //
 // Auth tokens are in-memory only, so we use SPA navigation
 // (sidebar link clicks) instead of page.goto() after login.

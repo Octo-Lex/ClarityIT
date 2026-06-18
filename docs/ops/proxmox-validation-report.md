@@ -6,7 +6,7 @@
 
 | Parameter | Value |
 |-----------|-------|
-| Proxmox Host | `192.168.3.5` |
+| Proxmox Host | `<proxmox-host>` |
 | API Port | `8006` |
 | API Token ID | `root@pam!test` |
 | Token Scope | Read-only (privsep=1) |
@@ -19,7 +19,7 @@
 ### 1. Token Creation
 
 ```bash
-# On Proxmox host (192.168.3.5)
+# On Proxmox host (<proxmox-host>)
 pvesh create /access/users/root@pam/token/test -comment 'ClarityIT read-only'
 # Result: Token created with value 966a69b7-...
 ```
@@ -28,7 +28,7 @@ pvesh create /access/users/root@pam/token/test -comment 'ClarityIT read-only'
 
 ```bash
 curl -sk -H 'Authorization: PVEAPIToken=root@pam!test=<secret>' \
-  https://192.168.3.5:8006/api2/json/nodes
+  https://<proxmox-host>:8006/api2/json/nodes
 # Result: 1 node "pve" returned, status "online"
 ```
 
@@ -38,7 +38,7 @@ Set the following environment variables:
 
 ```ini
 PROXMOX_ENABLED=true
-PROXMOX_URL=https://192.168.3.5:8006
+PROXMOX_URL=https://<proxmox-host>:8006
 PROXMOX_TOKEN_ID=root@pam!test
 PROXMOX_TOKEN_SECRET=<token-value>
 PROXMOX_VERIFY_TLS=false
@@ -100,6 +100,6 @@ No POST/PUT/DELETE calls are made to the Proxmox API.
 
 ## Conclusion
 
-Real Proxmox read-only integration is **validated** against the production environment at 192.168.3.5.
+Real Proxmox read-only integration is **validated** against the production environment at <proxmox-host>.
 
 The integration successfully reads cluster nodes and guest VMs/containers. No mutation operations are available in the interface or codebase.

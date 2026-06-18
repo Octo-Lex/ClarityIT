@@ -10,7 +10,7 @@
 | Backup timestamp | 20260613_152736 |
 | PostgreSQL backup | `postgresql_20260613_152736.sql.gz` (176K) |
 | MinIO backup | `minio_20260613_152736.tar.gz` (8.0K) |
-| Source host | CT 150 (192.168.3.20) |
+| Source host | CT 150 (<your-host>) |
 
 ## Restore Target
 

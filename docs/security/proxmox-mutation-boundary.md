@@ -12,7 +12,7 @@
 ```
 ┌──────────────┐     HTTP API      ┌──────────────┐
 │ ClarityIT    │ ─────────────────→│ Proxmox VE   │
-│ API :8765    │  Token: root@pam  │ 192.168.3.5  │
+│ API :8765    │  Token: <token-id>  │ <proxmox-host>  │
 │              │                   │ :8006         │
 │ [Read-Only]  │                   │               │
 │ [Mutation]   │                   │               │

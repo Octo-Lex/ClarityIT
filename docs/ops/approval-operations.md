@@ -37,7 +37,7 @@ When an operator requests a Proxmox action (start/shutdown/stop/snapshot), an ap
 TOKEN=<your_access_token>
 TEAM=<team_id>
 
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/approvals \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/approvals \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $(uuidgen)" \
@@ -53,7 +53,7 @@ curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/approvals \
 
 ### Approve
 ```bash
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/approvals/$APPROVAL_ID/approve \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/approvals/$APPROVAL_ID/approve \
   -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{"reason": "Approved by operator"}'
@@ -61,7 +61,7 @@ curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/approvals/$APPROVAL_ID/app
 
 ### Reject
 ```bash
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/approvals/$APPROVAL_ID/reject \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/approvals/$APPROVAL_ID/reject \
   -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{"reason": "Risk too high"}'
@@ -87,7 +87,7 @@ curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/approvals/$APPROVAL_ID/rej
 
 ### List Pending Approvals (API)
 ```bash
-curl http://192.168.3.20:8765/api/teams/$TEAM/approvals?status=pending \
+curl http://<your-host>:8765/api/teams/$TEAM/approvals?status=pending \
   -H "Authorization: Bearer $TOKEN"
 ```
 

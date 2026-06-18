@@ -9,7 +9,7 @@ ClarityIT integrates with Proxmox VE for infrastructure visibility and controlle
 ### Environment Variables
 ```ini
 PROXMOX_ENABLED=true
-PROXMOX_URL=https://192.168.3.5:8006
+PROXMOX_URL=https://<proxmox-host>:8006
 PROXMOX_TOKEN_ID=root@pam!test
 PROXMOX_TOKEN_SECRET=<your-token-secret>
 PROXMOX_VERIFY_TLS=false
@@ -27,20 +27,20 @@ PROXMOX_MUTATION_ENABLED=false   # Default: off. Set true only when operating.
 
 ### Sync Assets
 ```bash
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/integrations/proxmox/sync \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/integrations/proxmox/sync \
   -H "Authorization: Bearer $TOKEN"
 ```
 Pulls nodes, VMs, and CTs from Proxmox into ClarityIT assets.
 
 ### List Assets
 ```bash
-curl http://192.168.3.20:8765/api/teams/$TEAM/assets \
+curl http://<your-host>:8765/api/teams/$TEAM/assets \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Check Status
 ```bash
-curl http://192.168.3.20:8765/api/teams/$TEAM/integrations/proxmox/status \
+curl http://<your-host>:8765/api/teams/$TEAM/integrations/proxmox/status \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -71,7 +71,7 @@ curl http://192.168.3.20:8765/api/teams/$TEAM/integrations/proxmox/status \
 #### Via API
 ```bash
 # Create action + approval request
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/assets/$ASSET_ID/actions/proxmox/snapshot \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/assets/$ASSET_ID/actions/proxmox/snapshot \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"snapshot_name": "pre-patch-2026-06-14"}'
@@ -82,7 +82,7 @@ curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/assets/$ASSET_ID/actions/p
 
 Medium/High risk:
 ```bash
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/approvals/$APPROVAL_ID/approve \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/approvals/$APPROVAL_ID/approve \
   -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{"reason": "Approved for maintenance window"}'
@@ -96,7 +96,7 @@ For high/critical risk, the approver must have recent MFA (within 5 minutes).
 
 ```bash
 # Ensure PROXMOX_MUTATION_ENABLED=true on the API
-curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/assets/asset-actions/$ACTION_ID/execute \
+curl -X POST http://<your-host>:8765/api/teams/$TEAM/assets/asset-actions/$ACTION_ID/execute \
   -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: $(uuidgen)"
 # Returns: { "status": "succeeded", "proxmox_task_id": "UPID:..." }
@@ -106,11 +106,11 @@ curl -X POST http://192.168.3.20:8765/api/teams/$TEAM/assets/asset-actions/$ACTI
 
 ```bash
 # List all actions
-curl http://192.168.3.20:8765/api/teams/$TEAM/assets/asset-actions \
+curl http://<your-host>:8765/api/teams/$TEAM/assets/asset-actions \
   -H "Authorization: Bearer $TOKEN"
 
 # Get specific action detail
-curl http://192.168.3.20:8765/api/teams/$TEAM/assets/asset-actions/$ACTION_ID \
+curl http://<your-host>:8765/api/teams/$TEAM/assets/asset-actions/$ACTION_ID \
   -H "Authorization: Bearer $TOKEN"
 ```
 

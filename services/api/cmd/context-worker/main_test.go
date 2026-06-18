@@ -17,7 +17,7 @@ import (
 // domain event → NATS → context worker consumes → context graph updated
 func TestPhase5_LivePipeline(t *testing.T) {
 	dbURL := "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
-	natsURL := "nats://192.168.3.20:4222"
+	natsURL := "nats://localhost:4222"
 
 	ctx := t.Context()
 	pool, err := pgxpool.New(ctx, dbURL)

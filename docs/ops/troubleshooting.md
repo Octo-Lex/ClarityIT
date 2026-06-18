@@ -138,7 +138,7 @@ cat /etc/resolv.conf
 
 # If empty or broken, restore expected resolvers
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
-echo "nameserver 192.168.3.1" >> /etc/resolv.conf
+echo "nameserver <gateway>" >> /etc/resolv.conf
 
 # Verify
 nslookup registry-1.docker.io
