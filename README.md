@@ -1,6 +1,68 @@
 # ClarityIT — AI-Native IT Operations OS
 
-Sovereign hybrid IT operations platform: Go control plane + Python reasoning workers, PostgreSQL canonical truth, NATS JetStream events, universal object spine, A0–A5 agent autonomy.
+[![CI](https://github.com/Octo-Lex/ClarityIT/actions/workflows/ci.yml/badge.svg)](https://github.com/Octo-Lex/ClarityIT/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8.svg)](https://go.dev)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev)
+
+**An AI operations platform that runs entirely on infrastructure you control.**
+
+ClarityIT brings AI-assisted incident response, knowledge retrieval, and agent-driven automation to sovereign IT environments — without sending your data to third-party SaaS. Deploy on Proxmox, manage through the web, let agents help under strict human-in-the-loop safety boundaries.
+
+### Who it's for
+
+- **IT operations teams** who want AI assistance without surrendering data to external clouds
+- **Sovereign / on-prem deployments** that need full control of the stack (Proxmox origin, self-hosted everything)
+- **Platform engineers** building internal tooling who want a structured agent autonomy model, not a chatbot bolted onto a dashboard
+
+### Why it's different
+
+- **Sovereign by design** — no external AI SaaS, no vector DB dependency, no external search service. PostgreSQL FTS + pgvector handle retrieval; the reasoning worker is isolated and has no database access.
+- **Agents that can't run wild** — the ESAA model (Structured Agent Intentions) caps autonomy at A4 (A5 is hardcoded-disabled). Agents emit *intentions* through a 13-check Tool Gateway; destructive mutations are impossible by construction.
+- **The worker is air-gapped** — the Python reasoning worker has no `DATABASE_URL`, `NATS_URL`, `REDIS_URL`, or `MINIO_ENDPOINT`. It fails closed if any are set. It talks to the Go API over HTTP only.
+- **Proxmox-first, not Proxmox-only** — the compute provider is behind an interface ([ADR-021](docs/adr/ADR-021-compute-provider-interface.md)). Proxmox is the first implementation; adding another provider is additive.
+
+### Quick start
+
+```bash
+git clone https://github.com/Octo-Lex/ClarityIT.git
+cd ClarityIT
+
+# Configure your environment
+cp .env.example .env   # edit with your local values
+
+# Launch the full stack (API + web + worker + Postgres + NATS + Redis + MinIO)
+docker compose up -d
+
+# Bootstrap the platform owner + first team
+curl -X POST http://localhost:8765/api/bootstrap \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Owner","email":"owner@example.com","password":"change-me-now","team_name":"Platform"}'
+
+# Open the UI
+open http://localhost:3000
+```
+
+**Prerequisites:** Docker + Docker Compose. That's it — the stack is self-contained.
+
+> **Frontend development:** `cd web && npm install && npm run dev` (set `VITE_API_URL` to point the dev proxy at your API instance).
+
+### Roadmap
+
+| Area | Status | Next |
+|---|---|---|
+| **Core platform** (IAM, objects, work items, incidents) | ✅ v1.0 | Stable |
+| **Agent runtime** (ESAA, Tool Gateway, A0–A4) | ✅ v1.1 | Stable |
+| **Operational intelligence** (remediation, risk scoring, dry-run) | ✅ v1.2 | Stable |
+| **Team productivity** (documents, templates, presentations) | ✅ v1.3 | Stable |
+| **Document productivity** (block editor, versions, export) | ✅ v1.4 | Stable |
+| **Knowledge productivity** (FTS search, Ask Clarity, collections) | ✅ v1.5 | Stable |
+| **Web UI rebuild** (React Query, design system, 427 tests) | ✅ unreleased | Merging to main |
+| **Additional compute providers** (Hetzner, K8s, libvirt) | 🔜 | Design phase — see [ADR-021](docs/adr/ADR-021-compute-provider-interface.md) |
+| **OpenAPI spec publication** | 🔜 | In progress |
+| **Plugin/provider SDK** | 🔜 | Post-second-provider |
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and [`docs/releases/`](docs/releases/) for detailed release notes.
 
 ## Architecture
 
