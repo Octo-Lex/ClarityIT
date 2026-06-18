@@ -1,142 +1,128 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, ApiError, type KnowledgeCollection } from '../../api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Archive } from 'lucide-react';
+import { api, ApiError } from '@/api/client';
+import { keys } from '@/api/keys';
+import { useAuth } from '@/auth/context';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { notify } from '@/components/Toaster';
+import { TableSkeleton, ErrorState, EmptyState } from '@/components/PageState';
 
 export function KnowledgeCollectionsPage() {
   const navigate = useNavigate();
-  const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { activeTeamId } = useAuth();
+  const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await api.listCollections();
-      setCollections(resp.collections);
-    } catch (e) {
-      setError('Failed to load collections');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const collectionsQ = useQuery({
+    queryKey: keys.knowledge.collections.list(activeTeamId ?? ''),
+    queryFn: () => api.listCollections(),
+  });
 
-  useEffect(() => { load(); }, []);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: keys.knowledge.collections.list(activeTeamId ?? '') });
 
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    setCreating(true);
-    try {
-      await api.createCollection(newName.trim(), newDesc.trim() || undefined);
-      setNewName('');
-      setNewDesc('');
-      setShowCreate(false);
-      await load();
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        setError('A collection with this name already exists');
+  const createMut = useMutation({
+    mutationFn: () => api.createCollection(newName.trim(), newDesc.trim() || undefined),
+    onSuccess: () => {
+      setNewName(''); setNewDesc(''); setShowCreate(false); setCreateError(null);
+      invalidate();
+      notify.success('Collection created');
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 409) {
+        setCreateError('A collection with this name already exists');
       } else {
-        setError('Failed to create collection');
+        setCreateError('Failed to create collection');
       }
-    } finally {
-      setCreating(false);
-    }
-  };
+    },
+  });
 
-  const handleArchive = async (id: string) => {
-    try {
-      await api.deleteCollection(id);
-      await load();
-    } catch {
-      setError('Failed to archive collection');
-    }
-  };
+  const archiveMut = useMutation({
+    mutationFn: (id: string) => api.deleteCollection(id),
+    onSuccess: () => { invalidate(); notify.success('Collection archived'); },
+    onError: () => notify.error('Failed to archive collection'),
+  });
 
-  if (loading) return <div data-testid="collections-loading" className="p-8 text-center text-gray-500">Loading collections…</div>;
-  if (error) return <div data-testid="collections-error" className="p-8 text-center text-red-500">{error}</div>;
+  if (collectionsQ.isPending) {
+    return <div data-testid="collections-loading" className="p-4"><TableSkeleton rows={4} cols={1} /></div>;
+  }
+  if (collectionsQ.isError) {
+    return <div data-testid="collections-error" className="p-4"><ErrorState message="Failed to load collections" onRetry={() => collectionsQ.refetch()} /></div>;
+  }
+
+  const collections = collectionsQ.data?.collections ?? [];
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Knowledge Collections</h1>
-        <button
-          data-testid="create-collection-btn"
-          onClick={() => setShowCreate(!showCreate)}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-        >
-          New Collection
-        </button>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Knowledge Collections</h1>
+        <Button data-testid="create-collection-btn" onClick={() => setShowCreate(!showCreate)}>
+          <Plus className="size-4" /> New Collection
+        </Button>
       </div>
 
       {showCreate && (
-        <div data-testid="create-collection-dialog" className="mb-6 p-4 border rounded-lg bg-gray-50">
-          <input
+        <Card data-testid="create-collection-dialog" className="space-y-3 p-4">
+          <Input
             data-testid="collection-name-input"
             type="text"
             placeholder="Collection name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             maxLength={200}
-            className="w-full px-3 py-2 mb-2 border rounded-lg"
           />
-          <textarea
+          <Textarea
             data-testid="collection-desc-input"
             placeholder="Description (optional)"
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
             maxLength={2000}
             rows={2}
-            className="w-full px-3 py-2 mb-2 border rounded-lg"
           />
+          {createError && <p className="text-sm text-destructive">{createError}</p>}
           <div className="flex gap-2">
-            <button
-              data-testid="collection-create-confirm"
-              onClick={handleCreate}
-              disabled={!newName.trim() || creating}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
-            >
-              Create
-            </button>
-            <button
-              onClick={() => setShowCreate(false)}
-              className="px-4 py-2 border rounded-lg"
-            >
-              Cancel
-            </button>
+            <Button data-testid="collection-create-confirm" onClick={() => createMut.mutate()} disabled={!newName.trim() || createMut.isPending}>
+              {createMut.isPending ? 'Creating…' : 'Create'}
+            </Button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {collections.length === 0 ? (
-        <div data-testid="collections-empty" className="text-center py-16 text-gray-400">
-          No collections yet. Create one to organize important knowledge.
+        <div data-testid="collections-empty">
+          <EmptyState title="No collections yet" description="Create one to organize important knowledge." />
         </div>
       ) : (
         <div className="space-y-3">
           {collections.map((c) => (
-            <div
+            <Card
               key={c.id}
               data-testid="collection-card"
-              className="p-4 border rounded-lg hover:border-indigo-300 cursor-pointer flex items-center justify-between"
+              className="flex cursor-pointer items-center justify-between p-4 transition-colors hover:border-primary/50"
               onClick={() => navigate(`/knowledge/collections/${c.id}`)}
             >
               <div>
-                <h3 className="font-semibold text-lg">{c.name}</h3>
-                {c.description && <p className="text-gray-500 text-sm">{c.description}</p>}
-                <p className="text-gray-400 text-xs mt-1">{c.item_count} item{c.item_count !== 1 ? 's' : ''}</p>
+                <h3 className="font-heading text-lg font-semibold">{c.name}</h3>
+                {c.description && <p className="text-sm text-muted-foreground">{c.description}</p>}
+                <p className="mt-1 text-xs text-muted-foreground">{c.item_count} item{c.item_count !== 1 ? 's' : ''}</p>
               </div>
-              <button
+              <Button
+                variant="ghost"
                 data-testid={`archive-collection-${c.id}`}
-                onClick={(e) => { e.stopPropagation(); handleArchive(c.id); }}
-                className="text-gray-400 hover:text-red-500 text-sm"
+                onClick={(e) => { e.stopPropagation(); archiveMut.mutate(c.id); }}
+                className="text-muted-foreground hover:text-destructive"
               >
-                Archive
-              </button>
-            </div>
+                <Archive className="size-4" /> Archive
+              </Button>
+            </Card>
           ))}
         </div>
       )}

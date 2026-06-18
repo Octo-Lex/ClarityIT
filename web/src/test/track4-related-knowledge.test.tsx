@@ -1,29 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { legacyApiMethods, legacyApiExports } from './legacyApiMock';
+import { renderWithProviders } from './renderWithProviders';
 
 // Mock the API client
 vi.mock('../api/client', () => ({
   api: {
     getRelatedKnowledge: vi.fn(),
+    ...legacyApiMethods(),
   },
-  ApiError: class extends Error {
-    constructor(public status: number, msg: string) { super(msg); }
-  },
-  getStoredTeamId: () => 'team-123',
+  ...legacyApiExports(),
 }));
 
 import { RelatedKnowledgePanel } from '../features/knowledge/RelatedKnowledgePanel';
 import { api } from '../api/client';
 
 function renderPanel(props?: Partial<{ sourceType: string; sourceId: string }>) {
-  return render(
-    <MemoryRouter>
-      <RelatedKnowledgePanel
-        sourceType={props?.sourceType ?? 'clarity_document'}
-        sourceId={props?.sourceId ?? 'doc-1'}
-      />
-    </MemoryRouter>
+  return renderWithProviders(
+    <RelatedKnowledgePanel
+      sourceType={props?.sourceType ?? 'clarity_document'}
+      sourceId={props?.sourceId ?? 'doc-1'}
+    />,
+    { auth: true },
   );
 }
 

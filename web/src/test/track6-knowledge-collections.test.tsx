@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { legacyApiMethods, legacyApiExports } from './legacyApiMock';
+import { renderWithProviders } from './renderWithProviders';
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -25,11 +26,9 @@ vi.mock('../api/client', () => ({
     deleteSavedAnswer: vi.fn(),
     askClarity: vi.fn(),
     knowledgeSearch: vi.fn(),
+    ...legacyApiMethods(),
   },
-  ApiError: class extends Error {
-    constructor(public status: number, msg: string) { super(msg); }
-  },
-  getStoredTeamId: () => 'test-team-id',
+  ...legacyApiExports(),
 }));
 
 import { useParams } from 'react-router-dom';
@@ -42,7 +41,7 @@ import { AskClarityAnswer } from '../features/knowledge/AskClarityAnswer';
 import { AskClaritySourceCard } from '../features/knowledge/AskClaritySourceCard';
 
 function renderWithRouter(el: React.ReactElement, path = '/') {
-  return render(<MemoryRouter initialEntries={[path]}>{el}</MemoryRouter>);
+  return renderWithProviders(el, { auth: true, route: path });
 }
 
 describe('Track 6 — Knowledge Collections', () => {

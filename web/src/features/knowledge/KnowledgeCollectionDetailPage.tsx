@@ -1,134 +1,117 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, ApiError, type KnowledgeCollectionDetail } from '../../api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Trash2 } from 'lucide-react';
+import { api, ApiError } from '@/api/client';
+import { keys } from '@/api/keys';
+import { useAuth } from '@/auth/context';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { notify } from '@/components/Toaster';
+import { InlineSpinner, ErrorState, EmptyState } from '@/components/PageState';
 import { KnowledgeSourceBadge } from './KnowledgeSourceBadge';
 
 export function KnowledgeCollectionDetailPage() {
   const { collectionId } = useParams<{ collectionId: string }>();
   const navigate = useNavigate();
-  const [detail, setDetail] = useState<KnowledgeCollectionDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { activeTeamId } = useAuth();
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
 
-  const load = async () => {
-    if (!collectionId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await api.getCollection(collectionId);
-      setDetail(resp);
-      setEditName(resp.name);
-      setEditDesc(resp.description || '');
-    } catch {
-      setError('Failed to load collection');
-    } finally {
-      setLoading(false);
-    }
+  const detailQ = useQuery({
+    queryKey: keys.knowledge.collections.detail(activeTeamId ?? '', collectionId ?? ''),
+    queryFn: () => api.getCollection(collectionId!),
+    enabled: !!collectionId,
+  });
+
+  // Seed the edit fields once the detail loads.
+  useEffect(() => {
+    if (detailQ.data) { setEditName(detailQ.data.name); setEditDesc(detailQ.data.description || ''); }
+  }, [detailQ.data]);
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: keys.knowledge.collections.detail(activeTeamId ?? '', collectionId ?? '') });
+    queryClient.invalidateQueries({ queryKey: keys.knowledge.collections.list(activeTeamId ?? '') });
   };
 
-  useEffect(() => { load(); }, [collectionId]);
+  const saveEditMut = useMutation({
+    mutationFn: () => api.patchCollection(collectionId!, { name: editName.trim(), description: editDesc.trim() || undefined }),
+    onSuccess: () => { setEditing(false); setEditError(null); invalidate(); notify.success('Collection updated'); },
+    onError: (err) => {
+      setEditError(err instanceof ApiError && err.status === 409 ? 'A collection with this name already exists' : 'Failed to update collection');
+    },
+  });
 
-  const handleSaveEdit = async () => {
-    if (!collectionId || !editName.trim()) return;
-    try {
-      await api.patchCollection(collectionId, {
-        name: editName.trim(),
-        description: editDesc.trim() || undefined,
-      });
-      setEditing(false);
-      await load();
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        setError('A collection with this name already exists');
-      } else {
-        setError('Failed to update collection');
-      }
-    }
-  };
+  const removeItemMut = useMutation({
+    mutationFn: (itemId: string) => api.removeCollectionItem(collectionId!, itemId),
+    onSuccess: () => { invalidate(); notify.success('Item removed'); },
+    onError: () => notify.error('Failed to remove item'),
+  });
 
-  const handleRemoveItem = async (itemId: string) => {
-    if (!collectionId) return;
-    try {
-      await api.removeCollectionItem(collectionId, itemId);
-      await load();
-    } catch {
-      setError('Failed to remove item');
-    }
-  };
-
-  if (loading) return <div data-testid="collection-detail-loading" className="p-8 text-center text-gray-500">Loading…</div>;
-  if (error) return <div data-testid="collection-detail-error" className="p-8 text-center text-red-500">{error}</div>;
-  if (!detail) return <div data-testid="collection-detail-error" className="p-8 text-center text-red-500">Collection not found</div>;
+  if (detailQ.isPending) return <div data-testid="collection-detail-loading"><InlineSpinner /></div>;
+  if (detailQ.isError) return <div data-testid="collection-detail-error" className="p-4"><ErrorState message="Failed to load collection" onRetry={() => detailQ.refetch()} /></div>;
+  const detail = detailQ.data;
+  if (!detail) return <div data-testid="collection-detail-error"><ErrorState message="Collection not found" /></div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <button onClick={() => navigate('/knowledge/collections')} className="text-indigo-600 mb-4 hover:underline">
-        ← Back to Collections
+    <div className="mx-auto max-w-4xl space-y-6">
+      <button onClick={() => navigate('/knowledge/collections')} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="size-4" /> Back to Collections
       </button>
 
       {editing ? (
-        <div className="mb-6 p-4 border rounded-lg bg-gray-50">
-          <input
-            data-testid="edit-name-input"
-            type="text"
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            maxLength={200}
-            className="w-full px-3 py-2 mb-2 border rounded-lg"
-          />
-          <textarea
-            data-testid="edit-desc-input"
-            value={editDesc}
-            onChange={(e) => setEditDesc(e.target.value)}
-            maxLength={2000}
-            rows={2}
-            className="w-full px-3 py-2 mb-2 border rounded-lg"
-          />
+        <Card className="space-y-3 p-4">
+          <Input data-testid="edit-name-input" type="text" value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={200} />
+          <Textarea data-testid="edit-desc-input" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} maxLength={2000} rows={2} />
+          {editError && <p className="text-sm text-destructive">{editError}</p>}
           <div className="flex gap-2">
-            <button data-testid="edit-save-btn" onClick={handleSaveEdit} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Save</button>
-            <button onClick={() => setEditing(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
+            <Button data-testid="edit-save-btn" onClick={() => saveEditMut.mutate()} disabled={saveEditMut.isPending || !editName.trim()}>
+              {saveEditMut.isPending ? 'Saving…' : 'Save'}
+            </Button>
+            <Button variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
           </div>
-        </div>
+        </Card>
       ) : (
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{detail.name}</h1>
-            {detail.description && <p className="text-gray-500 mt-1">{detail.description}</p>}
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">{detail.name}</h1>
+            {detail.description && <p className="mt-1 text-sm text-muted-foreground">{detail.description}</p>}
           </div>
-          <button data-testid="edit-collection-btn" onClick={() => setEditing(true)} className="text-indigo-600 hover:underline">
-            Edit
-          </button>
+          <Button variant="secondary" size="sm" data-testid="edit-collection-btn" onClick={() => setEditing(true)}>Edit</Button>
         </div>
       )}
 
       {detail.items.length === 0 ? (
-        <div data-testid="collection-items-empty" className="text-center py-12 text-gray-400">
-          No items in this collection yet. Save search results or Ask Clarity answers here.
+        <div data-testid="collection-items-empty">
+          <EmptyState title="No items in this collection" description="Save search results or Ask Clarity answers here." />
         </div>
       ) : (
         <div className="space-y-3">
           {detail.items.map((item) => (
-            <div key={item.id} data-testid="collection-item-card" className="p-4 border rounded-lg flex items-start justify-between">
+            <Card key={item.id} data-testid="collection-item-card" className="flex items-start justify-between p-4">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="mb-1 flex items-center gap-2">
                   <KnowledgeSourceBadge sourceType={item.source_type} />
-                  <span className="text-gray-400 text-sm">{item.source_id}</span>
+                  <span className="text-sm text-muted-foreground">{item.source_id}</span>
                 </div>
                 {item.title && <h4 className="font-medium">{item.title}</h4>}
-                {item.summary && <p className="text-gray-500 text-sm">{item.summary}</p>}
-                {item.note && <p className="text-gray-400 text-sm italic mt-1">"{item.note}"</p>}
+                {item.summary && <p className="text-sm text-muted-foreground">{item.summary}</p>}
+                {item.note && <p className="mt-1 text-sm italic text-muted-foreground">“{item.note}”</p>}
               </div>
-              <button
+              <Button
+                variant="ghost"
                 data-testid={`remove-item-${item.id}`}
-                onClick={() => handleRemoveItem(item.id)}
-                className="text-gray-400 hover:text-red-500 text-sm ml-4"
+                onClick={() => removeItemMut.mutate(item.id)}
+                className="ml-4 text-muted-foreground hover:text-destructive"
               >
-                Remove
-              </button>
-            </div>
+                <Trash2 className="size-4" /> Remove
+              </Button>
+            </Card>
           ))}
         </div>
       )}

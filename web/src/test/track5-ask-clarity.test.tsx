@@ -1,26 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { legacyApiMethods, legacyApiExports } from './legacyApiMock';
+import { renderWithProviders } from './renderWithProviders';
 
 // Mock the API client
 vi.mock('../api/client', () => ({
   api: {
     askClarity: vi.fn(),
+    ...legacyApiMethods(),
   },
-  ApiError: class extends Error {
-    constructor(public status: number, msg: string) { super(msg); }
-  },
+  ...legacyApiExports(),
 }));
 
 import { AskClarityPanel } from '../features/knowledge/AskClarityPanel';
 import { api } from '../api/client';
 
 function renderPanel() {
-  return render(
-    <MemoryRouter>
-      <AskClarityPanel />
-    </MemoryRouter>
-  );
+  return renderWithProviders(<AskClarityPanel />, { auth: true });
 }
 
 describe('AskClarityPanel — Ask Clarity Knowledge Q&A', () => {

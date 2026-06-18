@@ -1,5 +1,5 @@
-import React from 'react';
-import { SOURCE_LABELS, SOURCE_ICONS } from './KnowledgeSourceBadge';
+import { SOURCE_LABELS } from './KnowledgeSourceBadge';
+import { cn } from '@/lib/utils';
 
 const ALL_FILTERS = [
   { key: 'all', label: 'All' },
@@ -26,28 +26,22 @@ export function SearchFilters({
   onSelect: (sourceType: string) => void;
 }) {
   return (
-    <div
-      data-testid="search-filters"
-      className="flex flex-wrap gap-2"
-    >
+    <div data-testid="search-filters" className="flex flex-wrap gap-2">
       {ALL_FILTERS.map((f) => {
         const isActive = active === f.key;
-        const icon = SOURCE_ICONS[f.key] ?? '📦';
         return (
           <button
             key={f.key}
             data-testid={`filter-${f.key}`}
             disabled={f.disabled}
             onClick={() => onSelect(f.key)}
-            className={`px-3 py-1 text-sm rounded-full transition-colors ${
-              f.disabled
-                ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400'
-                : isActive
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-            }`}
+            className={cn(
+              'rounded-full px-3 py-1 text-sm transition-colors',
+              f.disabled && 'cursor-not-allowed bg-muted text-muted-foreground opacity-40',
+              !f.disabled && isActive && 'bg-primary text-primary-foreground',
+              !f.disabled && !isActive && 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
+            )}
           >
-            <span className="mr-1">{icon}</span>
             {f.label}
           </button>
         );

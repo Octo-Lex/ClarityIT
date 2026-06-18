@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// The DocumentEditorPage embeds RelatedKnowledgePanel (uses useQuery), so the
+// test render must include a QueryClientProvider. Auth is mocked separately.
+const testQueryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 }, mutations: { retry: false } },
+});
 
 // Mock auth context
 vi.mock('../auth/context', () => ({
-  useAuth: () => ({ token: 'test-token', user: { id: 'u1', email: 'test@test.dev' } }),
+  useAuth: () => ({ token: 'test-token', user: { id: 'u1', email: 'test@test.dev' }, activeTeamId: 't1' }),
 }));
 
 // Mock the API client
@@ -62,11 +69,13 @@ const mockDoc = {
 
 function renderEditor(artifactId = 'doc-1') {
   return render(
-    <MemoryRouter initialEntries={[`/teams/t1/artifacts/documents/${artifactId}`]}>
-      <Routes>
-        <Route path="/teams/:teamId/artifacts/documents/:artifactId" element={<DocumentEditorPage />} />
-      </Routes>
-    </MemoryRouter>
+    <QueryClientProvider client={testQueryClient}>
+      <MemoryRouter initialEntries={[`/teams/t1/artifacts/documents/${artifactId}`]}>
+        <Routes>
+          <Route path="/teams/:teamId/artifacts/documents/:artifactId" element={<DocumentEditorPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

@@ -1,6 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { api, ApiError } from '../../api/client';
-import type { AskClarityResponse } from '../../api/client';
+import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { Sparkles, X } from 'lucide-react';
+import { api } from '@/api/client';
+import type { AskClarityResponse } from '@/api/client';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { InlineSpinner } from '@/components/PageState';
+import { cn } from '@/lib/utils';
 import { AskClarityAnswer } from './AskClarityAnswer';
 
 const SOURCE_TYPE_OPTIONS = [
@@ -14,73 +20,62 @@ const SOURCE_TYPE_OPTIONS = [
 export function AskClarityPanel() {
   const [question, setQuestion] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [response, setResponse] = useState<AskClarityResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
 
-  const handleAsk = useCallback(async () => {
+  // One-shot Q&A mutation (not a cacheable query — the answer depends on the
+  // exact question + filter combination at ask-time).
+  const askMut = useMutation({
+    mutationFn: () => api.askClarity(question.trim(), selectedTypes.length > 0 ? selectedTypes : undefined, 8),
+  });
+
+  const response = askMut.data ?? null;
+  const loading = askMut.isPending;
+  const error = askMut.isError;
+
+  const handleAsk = () => {
     if (question.trim().length < 5) return;
-    setLoading(true);
-    setError(false);
-    setResponse(null);
-    try {
-      const resp = await api.askClarity(question.trim(), selectedTypes.length > 0 ? selectedTypes : undefined, 8);
-      setResponse(resp);
-    } catch (e) {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [question, selectedTypes]);
+    askMut.mutate();
+  };
 
   const handleClear = () => {
     setQuestion('');
-    setResponse(null);
-    setError(false);
+    askMut.reset();
   };
 
   const toggleType = (type: string) => {
-    setSelectedTypes(prev =>
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    );
+    setSelectedTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
   };
 
   return (
-    <div
-      data-testid="ask-clarity-panel"
-      className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-4"
-    >
+    <div data-testid="ask-clarity-panel" className="space-y-4 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center gap-2">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          Ask Clarity
-        </h2>
-        <span className="text-xs text-slate-400">Source-grounded Q&A</span>
+        <Sparkles className="size-5 text-primary" />
+        <h2 className="font-heading text-lg font-semibold">Ask Clarity</h2>
+        <span className="text-xs text-muted-foreground">Source-grounded Q&A</span>
       </div>
 
-      {/* Question input */}
       <div className="space-y-2">
-        <textarea
+        <Textarea
           data-testid="ask-clarity-input"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a question about your team's knowledge..."
+          placeholder="Ask a question about your team's knowledge…"
           rows={2}
           maxLength={1000}
-          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          className="resize-none"
         />
 
-        {/* Source type filters */}
         <div className="flex flex-wrap gap-2">
           {SOURCE_TYPE_OPTIONS.map(opt => (
             <button
               key={opt.key}
               data-testid={`ask-filter-${opt.key}`}
               onClick={() => toggleType(opt.key)}
-              className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+              className={cn(
+                'rounded-full px-2 py-0.5 text-xs transition-colors',
                 selectedTypes.includes(opt.key)
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'
-              }`}
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
+              )}
             >
               {opt.label}
             </button>
@@ -88,41 +83,27 @@ export function AskClarityPanel() {
         </div>
       </div>
 
-      {/* Action buttons */}
       <div className="flex gap-2">
-        <button
-          data-testid="ask-clarity-button"
-          onClick={handleAsk}
-          disabled={loading || question.trim().length < 5}
-          className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading ? 'Asking...' : 'Ask'}
-        </button>
-        <button
-          data-testid="ask-clarity-clear"
-          onClick={handleClear}
-          className="px-4 py-1.5 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg transition-colors"
-        >
-          Clear
-        </button>
+        <Button size="sm" data-testid="ask-clarity-button" onClick={handleAsk} disabled={loading || question.trim().length < 5}>
+          <Sparkles className="size-4" /> {loading ? 'Asking…' : 'Ask'}
+        </Button>
+        <Button size="sm" variant="ghost" data-testid="ask-clarity-clear" onClick={handleClear}>
+          <X className="size-4" /> Clear
+        </Button>
       </div>
 
-      {/* Loading state */}
       {loading && (
-        <div data-testid="ask-clarity-loading" className="text-center py-6">
-          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2" />
-          <p className="text-xs text-slate-500">Searching knowledge and generating answer...</p>
+        <div data-testid="ask-clarity-loading">
+          <InlineSpinner label="Searching knowledge and generating answer…" />
         </div>
       )}
 
-      {/* Error state */}
       {!loading && error && (
-        <div data-testid="ask-clarity-error" className="text-center py-4 text-red-500">
-          <p className="text-sm">Failed to get an answer. Please try again.</p>
+        <div data-testid="ask-clarity-error" className="py-4 text-center text-sm text-destructive">
+          Failed to get an answer. Please try again.
         </div>
       )}
 
-      {/* Response */}
       {!loading && !error && response && (
         <AskClarityAnswer response={response} question={question} />
       )}

@@ -1,28 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { legacyApiMethods, legacyApiExports } from './legacyApiMock';
+import { renderWithProviders } from './renderWithProviders';
 
 // Mock the API client
 vi.mock('../api/client', () => ({
   api: {
     knowledgeSearch: vi.fn(),
     getKnowledgeItem: vi.fn(),
+    ...legacyApiMethods(),
   },
-  ApiError: class extends Error {
-    constructor(public status: number, msg: string) { super(msg); }
-  },
-  getStoredTeamId: () => 'team-123',
+  ...legacyApiExports(),
 }));
 
 import { KnowledgeSearchPage } from '../features/knowledge/KnowledgeSearchPage';
 import { api } from '../api/client';
 
 function renderPage() {
-  return render(
-    <MemoryRouter>
-      <KnowledgeSearchPage />
-    </MemoryRouter>
-  );
+  return renderWithProviders(<KnowledgeSearchPage />, { auth: true });
 }
 
 const mockResults = [

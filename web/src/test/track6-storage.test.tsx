@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// ArtifactsPage embeds RelatedKnowledgePanel (uses useQuery + useAuth).
+vi.mock('../auth/context', () => ({
+  useAuth: () => ({ activeTeamId: 't1', hasPermission: () => false, isPlatformOwner: false }),
+}));
+
+const testQueryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 }, mutations: { retry: false } },
+});
 
 vi.mock('../api/client', () => ({
   api: {
@@ -53,7 +63,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue(mockArtifacts);
-    render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-search-input')).toBeInTheDocument());
   });
 
@@ -63,7 +73,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue([]);
     vi.mocked(api.searchArtifacts).mockResolvedValue([mockArtifacts[0]]);
-    render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-search-input')).toBeInTheDocument());
     fireEvent.change(screen.getByTestId('artifacts-search-input'), { target: { value: 'Doc' } });
     fireEvent.click(screen.getByTestId('artifacts-search-btn'));
@@ -75,7 +85,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue(mockArtifacts);
-    render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-recent-widget')).toBeInTheDocument());
     expect(screen.getByTestId('artifacts-recent-art-1')).toBeInTheDocument();
   });
@@ -85,7 +95,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue([]);
-    render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-storage-summary')).toBeInTheDocument());
     expect(screen.getByTestId('storage-total').textContent).toBe('42');
     expect(screen.getByTestId('storage-files').textContent).toBe('7');
@@ -97,7 +107,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue([]);
-    render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-file-format-art-2')).toBeInTheDocument());
     expect(screen.getByTestId('artifacts-file-format-art-2').textContent).toContain('PPTX');
   });
@@ -107,7 +117,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue([]);
-    render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-file-size-art-2')).toBeInTheDocument());
   });
 
@@ -116,7 +126,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue([]);
-    render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-item-art-1')).toBeInTheDocument());
     expect(screen.queryByTestId('artifacts-file-format-art-1')).not.toBeInTheDocument();
     expect(screen.queryByTestId('artifacts-file-size-art-1')).not.toBeInTheDocument();
@@ -132,7 +142,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue([]);
-    render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-list')).toBeInTheDocument());
     expect(screen.queryByTestId('artifacts-item-art-3')).not.toBeInTheDocument();
   });
@@ -142,7 +152,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue([]);
-    const { container } = render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    const { container } = render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-list')).toBeInTheDocument());
     expect(container.textContent).not.toContain('bucket');
     expect(container.textContent).not.toContain('object_key');
@@ -154,7 +164,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue([]);
-    const { container } = render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    const { container } = render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('artifacts-list')).toBeInTheDocument());
     expect(container.textContent).not.toContain('Share');
     expect(container.textContent).not.toContain('Download');
@@ -166,7 +176,7 @@ describe('Track 6 — Artifact Storage and Recent Files', () => {
     vi.mocked(api.listArtifacts).mockResolvedValue(mockArtifacts);
     vi.mocked(api.getStorageSummary).mockResolvedValue(mockSummary);
     vi.mocked(api.getRecentArtifacts).mockResolvedValue([]);
-    render(<MemoryRouter><ArtifactsPage /></MemoryRouter>);
+    render(<QueryClientProvider client={testQueryClient}><MemoryRouter><ArtifactsPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId('storage-format-pptx')).toBeInTheDocument());
     expect(screen.getByTestId('storage-format-pptx').textContent).toContain('pptx: 3');
   });

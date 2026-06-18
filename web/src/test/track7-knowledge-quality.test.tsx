@@ -1,18 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { legacyApiMethods, legacyApiExports } from './legacyApiMock';
+import { renderWithProviders } from './renderWithProviders';
 
 vi.mock('../api/client', () => ({
   api: {
     getQualityReport: vi.fn(),
+    ...legacyApiMethods(),
   },
+  ...legacyApiExports(),
 }));
 
 import { api } from '../api/client';
 import { KnowledgeQualityPage } from '../features/knowledge/KnowledgeQualityPage';
 
 function renderPage() {
-  return render(<MemoryRouter><KnowledgeQualityPage /></MemoryRouter>);
+  return renderWithProviders(<KnowledgeQualityPage />, { auth: true });
 }
 
 const mockReport = {
@@ -164,7 +167,7 @@ describe('Track 7 — Knowledge Quality Dashboard', () => {
       expect(screen.getByText('Knowledge Quality')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Refresh Report'));
+    fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
     await waitFor(() => {
       expect(api.getQualityReport).toHaveBeenCalledTimes(2);
     });
