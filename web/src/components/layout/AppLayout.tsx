@@ -6,6 +6,7 @@ import {
   Plug, Cpu, BarChart3, Settings, Menu, X, LogOut, Sun, Moon, Command as CommandIcon,
 } from 'lucide-react';
 import { useAuth } from '@/auth/context';
+import { Perm, type Permission } from '@/auth/permissions';
 import { useRealtimeConnected } from '@/hooks/useRealtimeInvalidation';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { CommandPalette } from '@/components/CommandPalette';
@@ -20,25 +21,25 @@ interface NavItem {
   path: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  perm?: string;
+  perm?: Permission;
 }
 
 const PRIMARY_NAV: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/queue', label: 'Queue', icon: ListChecks, perm: 'work.items.list' },
-  { path: '/board', label: 'Board', icon: Kanban, perm: 'work.items.list' },
-  { path: '/incidents', label: 'Incidents', icon: Flame, perm: 'incidents.list' },
-  { path: '/agents', label: 'Agents', icon: Bot, perm: 'agents.read' },
-  { path: '/artifacts', label: 'Documents', icon: FileText, perm: 'artifacts.read' },
-  { path: '/knowledge', label: 'Knowledge', icon: Search, perm: 'knowledge.search' },
-  { path: '/knowledge/collections', label: 'Collections', icon: FolderClosed, perm: 'knowledge.collections.read' },
-  { path: '/knowledge/saved-answers', label: 'Saved Answers', icon: Save, perm: 'knowledge.collections.read' },
-  { path: '/knowledge/quality', label: 'Quality', icon: Gauge, perm: 'knowledge.read' },
+  { path: '/queue', label: 'Queue', icon: ListChecks, perm: Perm.WorkItemsView },
+  { path: '/board', label: 'Board', icon: Kanban, perm: Perm.WorkItemsView },
+  { path: '/incidents', label: 'Incidents', icon: Flame, perm: Perm.IncidentsRead },
+  { path: '/agents', label: 'Agents', icon: Bot, perm: Perm.AgentsRead },
+  { path: '/artifacts', label: 'Documents', icon: FileText, perm: Perm.ArtifactsRead },
+  { path: '/knowledge', label: 'Knowledge', icon: Search, perm: Perm.KnowledgeSearch },
+  { path: '/knowledge/collections', label: 'Collections', icon: FolderClosed, perm: Perm.KnowledgeCollectionsRead },
+  { path: '/knowledge/saved-answers', label: 'Saved Answers', icon: Save, perm: Perm.KnowledgeCollectionsRead },
+  { path: '/knowledge/quality', label: 'Quality', icon: Gauge, perm: Perm.KnowledgeRead },
 ];
 
 const ACCOUNT_NAV: NavItem[] = [
   { path: '/account/security', label: 'Security', icon: ShieldCheck },
-  { path: '/settings/team', label: 'Team', icon: Users, perm: 'team.settings.view' },
+  { path: '/settings/team', label: 'Team', icon: Users, perm: Perm.TeamSettingsRead },
 ];
 
 const ADMIN_NAV: NavItem[] = [

@@ -59,7 +59,7 @@ export default function DocumentGenerateModal({ onClose, onGenerated }: Props) {
         tone,
         sections: sections.filter(s => s.trim()),
       });
-      onGenerated(result.artifact_id);
+      onGenerated(result.artifact_id as string);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to generate document');
     } finally {

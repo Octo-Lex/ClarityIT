@@ -38,7 +38,7 @@ export default function AgentEvaluationPanel() {
 
   const fetchResults = () => {
     api.getEvaluationResults()
-      .then((d: EvalData) => { setData(d); setLoading(false); })
+      .then((d) => { setData(d as unknown as EvalData); setLoading(false); })
       .catch((e: unknown) => {
         if (e instanceof ApiError) { setError(e.message); }
         setLoading(false);

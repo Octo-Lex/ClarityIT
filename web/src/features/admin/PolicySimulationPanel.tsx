@@ -73,7 +73,7 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
       draft_policy: { scope: 'team', ...policy },
       scenarios,
     })
-      .then((data: SimResponse) => { setResults(data); setLoading(false); })
+      .then((data) => { setResults(data as unknown as SimResponse); setLoading(false); })
       .catch((e: unknown) => {
         setError(e instanceof ApiError ? e.message : 'Simulation failed');
         setLoading(false);

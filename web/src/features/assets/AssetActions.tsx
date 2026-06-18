@@ -88,6 +88,7 @@ interface DryRunPreview {
     snapshot_name_valid: boolean;
     policy_valid: boolean;
   };
+  risk_score?: number;
 }
 
 export default function AssetActions({ assetId, hostname }: AssetActionsProps) {

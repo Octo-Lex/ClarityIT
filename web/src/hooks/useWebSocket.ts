@@ -20,6 +20,9 @@ export interface WsEvent {
   aggregate_type: string;
   aggregate_id: string;
   occurred_at: string;
+  /** Optional domain-specific fields; e.g. 'action_type' for approval events. */
+  action_type?: string;
+  [key: string]: unknown;
 }
 
 type Listener = (event: WsEvent) => void;

@@ -24,12 +24,14 @@ function statusTone(status: string): 'success' | 'danger' | 'info' | 'warning' |
 export default function ObjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
-  const { hasPermission } = useAuth();
+  const { hasPermission, activeTeamId } = useAuth();
   const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState('');
   const [editing, setEditing] = useState(false);
 
-  const teamId = ''; // object queries are not team-scoped in the key (id is unique)
+  // Thread the real teamId through the query keys so WS invalidation
+  // (['teams', teamId, ...]) reaches these queries on object/comment changes.
+  const teamId = activeTeamId ?? '';
   const objQ = useQuery({
     queryKey: keys.objects.detail(teamId, id ?? ''),
     queryFn: ({ signal }) => api.getObject(id!, signal),

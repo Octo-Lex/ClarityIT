@@ -377,9 +377,9 @@ export interface RecommendationEvidence {
 }
 
 export interface ContextQuality {
-  quality_score?: number;
-  advisory_only?: boolean;
-  summary?: {
+  quality_score: number;
+  advisory_only: boolean;
+  summary: {
     total_nodes: number;
     total_relations: number;
     stale_nodes: number;
@@ -389,9 +389,9 @@ export interface ContextQuality {
     dismissed_relations: number;
     [k: string]: unknown;
   };
-  stale_nodes?: { node_id: string; node_type: string; label: string; days_stale: number; reason: string }[];
-  low_confidence_relations?: { relation_id: string; relation_type: string; confidence: number; reason: string }[];
-  conflicting_relations?: { relation_id: string; relation_type: string; conflict_reason: string }[];
+  stale_nodes: { node_id: string; node_type: string; label: string; days_stale: number; reason: string }[];
+  low_confidence_relations: { relation_id: string; relation_type: string; confidence: number; reason: string }[];
+  conflicting_relations: { relation_id: string; relation_type: string; conflict_reason: string }[];
   [k: string]: unknown;
 }
 
@@ -663,6 +663,12 @@ export interface WebAuthnCredential {
   [k: string]: unknown;
 }
 
+/** WebAuthn registration/authentication start response (server options envelope). */
+export interface WebAuthnStartResponse {
+  options: PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions;
+  [k: string]: unknown;
+}
+
 export interface MFAStatusResponse {
   enabled: boolean;
   verified_factors: number;
@@ -739,20 +745,20 @@ export interface BackupStatus {
 }
 
 export interface AdminMetrics {
-  approvals?: {
+  approvals: {
     pending: number; approved: number; rejected: number; expired: number;
     executed: number; failed: number; avg_time_to_decision_seconds: number;
   };
-  remediations?: {
+  remediations: {
     draft: number; proposed: number; approved: number; executing: number;
     completed: number; failed: number; cancelled: number;
   };
-  asset_actions?: {
+  asset_actions: {
     by_status: Record<string, number>;
     by_type: Record<string, number>;
     success_rate_percent: number;
   };
-  agents?: {
+  agents: {
     runs_pending: number; runs_running: number; runs_completed: number;
     runs_failed: number; avg_reasoning_time_seconds: number;
   };
@@ -782,11 +788,29 @@ export interface MutationWindow {
 }
 
 // Approval policy simulation (advisory-only)
+export interface PolicySimulationResult {
+  scenario_id: string;
+  action_type: string;
+  risk_level: string;
+  allowed: boolean;
+  blocked: boolean;
+  requires_approval: boolean;
+  requires_mfa: boolean;
+  min_approvers: number;
+  allow_self_approval: boolean;
+  decision_explanation: string;
+}
+export interface PolicyDiffChange {
+  risk_level: string;
+  field: string;
+  current: unknown;
+  draft: unknown;
+}
 export interface PolicySimulationResponse {
   simulation_only: boolean;
   live_policy_changed: boolean;
-  results: { scenario_id?: string; action_type?: string; risk_level?: string; [k: string]: unknown }[];
-  policy_diff: { changed: boolean; changes: { level?: string; field?: string; old?: unknown; new?: unknown }[] };
+  results: PolicySimulationResult[];
+  policy_diff: { changed: boolean; changes: PolicyDiffChange[] };
   [k: string]: unknown;
 }
 

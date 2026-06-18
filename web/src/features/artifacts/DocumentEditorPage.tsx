@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, ApiError } from '../../api/client';
-import { useAuth } from '../../auth/context';
+import { api, ApiError, getAccessToken } from '../../api/client';
 import DocumentBlockEditor, { Block, genId } from './DocumentBlockEditor';
 import DocumentOutline from './DocumentOutline';
 import DocumentToolbar, { BlockType } from './DocumentToolbar';
@@ -46,7 +45,6 @@ export default function DocumentEditorPage() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
   const [showVersions, setShowVersions] = useState(false);
-  const auth = useAuth();
 
   // ─── Load document ───
   useEffect(() => {
@@ -59,7 +57,7 @@ export default function DocumentEditorPage() {
         setTitle(data.title || '');
         setDocType(data.document_type || 'general_document');
         const dj = data.document_json || {};
-        setBlocks(dj.blocks || []);
+        setBlocks((dj.blocks || []) as unknown as Block[]);
         setLoading(false);
       })
       .catch(err => {
@@ -192,7 +190,7 @@ export default function DocumentEditorPage() {
     setExporting(true);
     setExportError('');
     try {
-      const token = auth.token;
+      const token = getAccessToken();
       if (!token) throw new Error('Not authenticated');
       const url = api.exportDocumentUrl(artifactId, format);
       const resp = await fetch(url, {

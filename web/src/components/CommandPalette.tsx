@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Command } from 'cmdk';
+import { Perm, type Permission } from '@/auth/permissions';
 import {
   LayoutDashboard, ListChecks, Kanban, Flame, Bot, FileText, Search,
   FolderClosed, Save, Gauge, ShieldCheck, Users, Building2, ScrollText,
@@ -22,23 +23,23 @@ interface CmdItem {
   icon: React.ComponentType<{ className?: string }>;
   group: 'Navigate' | 'Admin' | 'Account';
   /** Optional permission gate; hidden if the user lacks it. */
-  perm?: string;
+  perm?: Permission;
   ownerOnly?: boolean;
 }
 
 const NAV_ITEMS: CmdItem[] = [
   { id: 'dashboard', label: 'Dashboard', path: '/', icon: LayoutDashboard, group: 'Navigate' },
-  { id: 'queue', label: 'Queue', path: '/queue', icon: ListChecks, group: 'Navigate', perm: 'work.items.list' },
-  { id: 'board', label: 'Board', path: '/board', icon: Kanban, group: 'Navigate', perm: 'work.items.list' },
-  { id: 'incidents', label: 'Incidents', path: '/incidents', icon: Flame, group: 'Navigate', perm: 'incidents.list' },
-  { id: 'agents', label: 'Agents', path: '/agents', icon: Bot, group: 'Navigate', perm: 'agents.read' },
-  { id: 'documents', label: 'Documents', path: '/artifacts', icon: FileText, group: 'Navigate', perm: 'artifacts.read' },
-  { id: 'knowledge', label: 'Knowledge Search', path: '/knowledge', icon: Search, group: 'Navigate', perm: 'knowledge.search' },
-  { id: 'collections', label: 'Collections', path: '/knowledge/collections', icon: FolderClosed, group: 'Navigate', perm: 'knowledge.collections.read' },
-  { id: 'saved-answers', label: 'Saved Answers', path: '/knowledge/saved-answers', icon: Save, group: 'Navigate', perm: 'knowledge.collections.read' },
-  { id: 'quality', label: 'Knowledge Quality', path: '/knowledge/quality', icon: Gauge, group: 'Navigate', perm: 'knowledge.read' },
+  { id: 'queue', label: 'Queue', path: '/queue', icon: ListChecks, group: 'Navigate', perm: Perm.WorkItemsView },
+  { id: 'board', label: 'Board', path: '/board', icon: Kanban, group: 'Navigate', perm: Perm.WorkItemsView },
+  { id: 'incidents', label: 'Incidents', path: '/incidents', icon: Flame, group: 'Navigate', perm: Perm.IncidentsRead },
+  { id: 'agents', label: 'Agents', path: '/agents', icon: Bot, group: 'Navigate', perm: Perm.AgentsRead },
+  { id: 'documents', label: 'Documents', path: '/artifacts', icon: FileText, group: 'Navigate', perm: Perm.ArtifactsRead },
+  { id: 'knowledge', label: 'Knowledge Search', path: '/knowledge', icon: Search, group: 'Navigate', perm: Perm.KnowledgeSearch },
+  { id: 'collections', label: 'Collections', path: '/knowledge/collections', icon: FolderClosed, group: 'Navigate', perm: Perm.KnowledgeCollectionsRead },
+  { id: 'saved-answers', label: 'Saved Answers', path: '/knowledge/saved-answers', icon: Save, group: 'Navigate', perm: Perm.KnowledgeCollectionsRead },
+  { id: 'quality', label: 'Knowledge Quality', path: '/knowledge/quality', icon: Gauge, group: 'Navigate', perm: Perm.KnowledgeRead },
   { id: 'security', label: 'Security & MFA', path: '/account/security', icon: ShieldCheck, group: 'Account' },
-  { id: 'team', label: 'Team Settings', path: '/settings/team', icon: Users, group: 'Account', perm: 'team.settings.view' },
+  { id: 'team', label: 'Team Settings', path: '/settings/team', icon: Users, group: 'Account', perm: Perm.TeamSettingsRead },
 ];
 
 const ADMIN_ITEMS: CmdItem[] = [

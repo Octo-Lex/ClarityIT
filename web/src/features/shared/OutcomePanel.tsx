@@ -130,7 +130,7 @@ export default function OutcomePanel({
         <div className="space-y-2 text-xs" data-testid="outcome-display">
           <div data-testid="outcome-status-display">
             <span className="text-[var(--text-muted)]">Status: </span>
-            <span className={`font-semibold ${statusColors[outcome.outcome_status] || ''}`}>
+            <span className={`font-semibold ${statusColors[outcome.outcome_status ?? ''] || ''}`}>
               {outcome.outcome_status}
             </span>
           </div>

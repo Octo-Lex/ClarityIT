@@ -29,7 +29,7 @@ export default function EvidencePanel({ recommendationId }: { recommendationId: 
   useEffect(() => {
     let active = true;
     api.getEvidence(recommendationId)
-      .then((data: EvidencePack) => { if (active) { setEvidence(data); setLoading(false); } })
+      .then((data) => { if (active) { setEvidence(data as unknown as EvidencePack); setLoading(false); } })
       .catch((e: unknown) => {
         if (active) {
           setError(e instanceof ApiError ? e.message : 'Failed to load evidence');

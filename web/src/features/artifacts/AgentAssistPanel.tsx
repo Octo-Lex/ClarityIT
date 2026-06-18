@@ -56,7 +56,7 @@ export default function AgentAssistPanel({
         document_type: documentType,
         max_words: 300,
       });
-      setSuggestion(result);
+      setSuggestion(result as unknown as { suggested_blocks: SuggestedBlock[]; summary: string });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to get suggestion');
     } finally {

@@ -305,7 +305,7 @@ export const api = {
 
   // ─── WebAuthn ───
   webauthnRegisterStart: (label: string) =>
-    mutation<Record<string, unknown>>('POST', '/auth/mfa/webauthn/register/start', { label }),
+    mutation<T.WebAuthnStartResponse>('POST', '/auth/mfa/webauthn/register/start', { label }),
   webauthnRegisterFinish: async (label: string, credential: Record<string, unknown>) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
@@ -315,7 +315,7 @@ export const api = {
     const j = await res.json(); if (!res.ok) throw new ApiError(res.status, j.detail || 'Failed'); return j;
   },
   webauthnAuthStart: () =>
-    mutation<Record<string, unknown>>('POST', '/auth/mfa/webauthn/authenticate/start', {}),
+    mutation<T.WebAuthnStartResponse>('POST', '/auth/mfa/webauthn/authenticate/start', {}),
   webauthnAuthFinish: async (credential: Record<string, unknown>) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;

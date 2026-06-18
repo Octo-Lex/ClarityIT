@@ -1,46 +1,8 @@
 import { useState, useEffect } from 'react';
-import { api, ApiError } from '../../api/client';
-
-interface StaleNode {
-  node_id: string;
-  node_type: string;
-  label: string;
-  days_stale: number;
-  reason: string;
-}
-
-interface LowConfRel {
-  relation_id: string;
-  relation_type: string;
-  confidence: number;
-  reason: string;
-}
-
-interface ConflictRel {
-  relation_id: string;
-  relation_type: string;
-  conflict_reason: string;
-}
-
-interface QualityData {
-  quality_score: number;
-  advisory_only: boolean;
-  summary: {
-    total_nodes: number;
-    total_relations: number;
-    stale_nodes: number;
-    low_confidence_relations: number;
-    conflicting_relations: number;
-    confirmed_relations: number;
-    dismissed_relations: number;
-  };
-  stale_nodes: StaleNode[];
-  low_confidence_relations: LowConfRel[];
-  conflicting_relations: ConflictRel[];
-}
+import { api, ApiError, type ContextQuality } from '../../api/client';
 
 export default function ContextQualityPanel() {
-  const [data, setData] = useState<QualityData | null>(null);
+  const [data, setData] = useState<ContextQuality | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reviewing, setReviewing] = useState<string | null>(null);
@@ -48,7 +10,7 @@ export default function ContextQualityPanel() {
   useEffect(() => {
     let active = true;
     api.getContextQuality({ stale_days: 30, confidence_threshold: 0.60 })
-      .then((d: QualityData) => { if (active) { setData(d); setLoading(false); } })
+      .then((d) => { if (active) { setData(d); setLoading(false); } })
       .catch((e: unknown) => {
         if (active) {
           setError(e instanceof ApiError ? e.message : 'Failed to load context quality');
@@ -64,7 +26,7 @@ export default function ContextQualityPanel() {
       .then(() => {
         // Refresh data
         api.getContextQuality({ stale_days: 30, confidence_threshold: 0.60 })
-          .then((d: QualityData) => setData(d));
+          .then((d) => setData(d));
         setReviewing(null);
       })
       .catch(() => setReviewing(null));
@@ -75,7 +37,7 @@ export default function ContextQualityPanel() {
     api.dismissRelation(relationId, 'Reviewed during context quality cleanup')
       .then(() => {
         api.getContextQuality({ stale_days: 30, confidence_threshold: 0.60 })
-          .then((d: QualityData) => setData(d));
+          .then((d) => setData(d));
         setReviewing(null);
       })
       .catch(() => setReviewing(null));

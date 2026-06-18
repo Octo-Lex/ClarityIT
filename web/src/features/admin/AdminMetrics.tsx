@@ -1,39 +1,6 @@
 import { useState, useEffect } from 'react';
-import { api, ApiError } from '../../api/client';
+import { api, ApiError, type AdminMetrics } from '../../api/client';
 import { usePermissions } from '../../hooks/usePermissions';
-
-interface Metrics {
-  approvals: {
-    pending: number;
-    approved: number;
-    rejected: number;
-    expired: number;
-    executed: number;
-    failed: number;
-    avg_time_to_decision_seconds: number;
-  };
-  remediations: {
-    draft: number;
-    proposed: number;
-    approved: number;
-    executing: number;
-    completed: number;
-    failed: number;
-    cancelled: number;
-  };
-  asset_actions: {
-    by_status: Record<string, number>;
-    by_type: Record<string, number>;
-    success_rate_percent: number;
-  };
-  agents: {
-    runs_pending: number;
-    runs_running: number;
-    runs_completed: number;
-    runs_failed: number;
-    avg_reasoning_time_seconds: number;
-  };
-}
 
 function MetricCard({ label, value, color, section }: { label: string; value: string | number; color?: string; section: string }) {
   return (
@@ -58,7 +25,7 @@ function SectionCard({ title, children, testId }: { title: string; children: Rea
 }
 
 export default function AdminMetrics() {
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const { isPlatformOwner, hasPermission } = usePermissions();
@@ -72,7 +39,7 @@ export default function AdminMetrics() {
     }
     let active = true;
     api.getMetrics()
-      .then((data: Metrics) => { if (active) { setMetrics(data); setLoading(false); } })
+      .then((data) => { if (active) { setMetrics(data); setLoading(false); } })
       .catch((e: unknown) => {
         if (active) {
           setError(e instanceof ApiError ? e.message : 'Failed to load metrics');

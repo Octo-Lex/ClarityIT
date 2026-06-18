@@ -45,7 +45,7 @@ export default function PatternCards() {
   useEffect(() => {
     let active = true;
     api.getIncidentPatterns({ window_days: 7, min_occurrences: 2 })
-      .then((data) => { if (active) { setPatterns(data.patterns || []); setLoading(false); } })
+      .then((data) => { if (active) { setPatterns((data.patterns || []) as unknown as Pattern[]); setLoading(false); } })
       .catch((e: unknown) => {
         if (active) {
           setError(e instanceof ApiError ? e.message : 'Failed to load patterns');

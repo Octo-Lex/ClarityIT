@@ -104,10 +104,10 @@ export default function SecurityPage() {
       }
       const label = waLabel || 'Security Key';
       const startResp = await api.webauthnRegisterStart(label);
-      const opts = startResp.options;
+      const opts = startResp.options as PublicKeyCredentialCreationOptions;
 
       const publicKey: PublicKeyCredentialCreationOptions = {
-        challenge: base64urlToBuffer(opts.challenge),
+        challenge: base64urlToBuffer(opts.challenge as unknown as string),
         rp: opts.rp,
         user: {
           ...opts.user,
@@ -153,10 +153,10 @@ export default function SecurityPage() {
         return;
       }
       const startResp = await api.webauthnAuthStart();
-      const opts = startResp.options;
+      const opts = startResp.options as PublicKeyCredentialRequestOptions;
 
       const publicKey: PublicKeyCredentialRequestOptions = {
-        challenge: base64urlToBuffer(opts.challenge),
+        challenge: base64urlToBuffer(opts.challenge as unknown as string),
         rpId: opts.rpId,
         timeout: opts.timeout,
         allowCredentials: (opts.allowCredentials || []).map((c: any) => ({

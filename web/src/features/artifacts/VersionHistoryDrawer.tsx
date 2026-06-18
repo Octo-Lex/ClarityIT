@@ -69,7 +69,7 @@ export default function VersionHistoryDrawer({ artifactId, open, onClose, archiv
     setError('');
     try {
       const detail = await api.getVersion(artifactId, versionId);
-      setSelectedVersion(detail);
+      setSelectedVersion(detail as unknown as VersionDetail);
     } catch {
       setError('Failed to load version');
     } finally {
