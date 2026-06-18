@@ -40,28 +40,60 @@ jobs:
       - name: Coverage
         run: npm run test:coverage
 
-  # ─── Backend: Go tests (Docker-based; the suite needs a shared Postgres) ───
+  # ─── Backend: Go tests ───
+  # The suite hardcodes `postgres:5432` as the DB host in 37 *_test.go files,
+  # expecting to run *inside* the Docker network where that alias resolves. So we
+  # run go test inside a container on a user-defined network, mirroring the
+  # project's Makefile `test` target — not on the runner host (where `postgres`
+  # is unresolvable and `pg_isready -h localhost` would hang forever).
   backend:
     name: Backend (Go)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache-dependency-path: services/api/go.sum
+      - name: Create test network
+        run: docker network create clarityit-net
 
-      - name: Start test infrastructure
-        working-directory: services/api
+      - name: Start Postgres
         run: |
-          docker compose up -d postgres
-          # Wait for Postgres to be ready
-          until pg_isready -h localhost -p 5432; do sleep 1; done
+          docker run -d --name postgres --network clarityit-net \
+            --network-alias postgres \
+            -e POSTGRES_USER=clarityit \
+            -e POSTGRES_PASSWORD=clarityit \
+            -e POSTGRES_DB=clarityit \
+            -p 5432:5432 \
+            postgres:16-alpine
 
-      - name: Run Go tests
-        working-directory: services/api
-        run: go test ./... -p 1
+      - name: Wait for Postgres (bounded)
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec postgres pg_isready -U clarityit >/dev/null 2>&1; then
+              echo "Postgres ready"
+              exit 0
+            fi
+            echo "waiting for Postgres ($i/30)..."
+            sleep 2
+          done
+          echo "Postgres did not become ready in time" >&2
+          docker logs postgres
+          exit 1
+
+      - name: Apply migrations
+        run: |
+          for f in $(ls migrations/*.sql | sort); do
+            echo "applying $f"
+            docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 < "$f"
+          done
+
+      - name: Run Go tests (in-container, on the clarityit-net network)
+        run: |
+          docker run --rm \
+            -v "$PWD/services/api:/app" \
+            -w /app \
+            --network clarityit-net \
+            golang:1.25-alpine \
+            go test -p 1 -count=1 -timeout 600s ./...
 
   # ─── Python worker ───
   worker:
