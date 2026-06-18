@@ -22,11 +22,11 @@ interface VersionDetail {
 }
 
 const SOURCE_BADGES: Record<string, { label: string; color: string }> = {
-  user_save: { label: 'Saved', color: 'bg-blue-100 text-blue-700' },
-  agent_assisted_edit: { label: 'AI Assist', color: 'bg-purple-100 text-purple-700' },
-  generated: { label: 'Generated', color: 'bg-green-100 text-green-700' },
-  template: { label: 'Template', color: 'bg-cyan-100 text-cyan-700' },
-  restore: { label: 'Restored', color: 'bg-amber-100 text-amber-700' },
+  user_save: { label: 'Saved', color: 'bg-info/15 text-info' },
+  agent_assisted_edit: { label: 'AI Assist', color: 'bg-info/15 text-info' },
+  generated: { label: 'Generated', color: 'bg-success/15 text-success' },
+  template: { label: 'Template', color: 'bg-info/15 text-info' },
+  restore: { label: 'Restored', color: 'bg-warning/20 text-warning' },
 };
 
 interface Props {
@@ -121,7 +121,7 @@ export default function VersionHistoryDrawer({ artifactId, open, onClose, archiv
         {!loading && !error && (
           <div className="divide-y divide-[var(--border)]" data-testid="version-list">
             {versions.map((v) => {
-              const badge = SOURCE_BADGES[v.source] || { label: v.source, color: 'bg-gray-100 text-gray-700' };
+              const badge = SOURCE_BADGES[v.source] || { label: v.source, color: 'bg-muted text-muted-foreground' };
               return (
                 <div
                   key={v.id}

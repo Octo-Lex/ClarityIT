@@ -21,19 +21,19 @@ const ARTIFACT_TYPES = [
 ];
 
 const TYPE_COLORS: Record<string, string> = {
-  document: 'bg-blue-900/40 text-blue-300',
-  report: 'bg-green-900/40 text-green-300',
-  presentation: 'bg-purple-900/40 text-purple-300',
-  meeting_summary: 'bg-orange-900/40 text-orange-300',
-  status_report: 'bg-cyan-900/40 text-cyan-300',
-  decision_memo: 'bg-yellow-900/40 text-yellow-300',
-  training_deck: 'bg-pink-900/40 text-pink-300',
+  document: 'badge badge-blue',
+  report: 'badge badge-green',
+  presentation: 'badge badge-blue',
+  meeting_summary: 'badge badge-yellow',
+  status_report: 'badge badge-blue',
+  decision_memo: 'badge badge-yellow',
+  training_deck: 'badge badge-blue',
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-gray-700 text-gray-300',
-  published: 'bg-green-900/40 text-green-300',
-  archived: 'bg-red-900/40 text-red-300',
+  draft: 'badge badge-gray',
+  published: 'badge badge-green',
+  archived: 'badge badge-red',
 };
 
 function formatBytes(bytes: number | null | undefined): string {
@@ -115,45 +115,44 @@ export default function ArtifactsPage() {
     <div className="space-y-4" data-testid="artifacts-page">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Artifacts</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setShowPresentation(true)}
-            className="px-3 py-1.5 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+            className="btn-secondary text-sm"
             data-testid="artifacts-generate-presentation-btn"
           >
-            ⮤ Generate Presentation
+            Generate Presentation
           </button>
           <button
             onClick={() => setShowMeeting(true)}
-            className="px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+            className="btn-secondary text-sm"
             data-testid="artifacts-new-meeting-btn"
           >
-            📋 Meeting Summary
+            Meeting Summary
           </button>
           <button
             onClick={() => setShowStatusReport(true)}
-            className="px-3 py-1.5 bg-teal-600 text-white rounded text-sm hover:bg-teal-700"
+            className="btn-secondary text-sm"
             data-testid="artifacts-status-report-btn"
           >
-            📊 Status Report
+            Status Report
           </button>
           <button
             onClick={() => setShowGenerate(true)}
-            className="px-3 py-1.5 bg-amber-700 text-white rounded text-sm hover:bg-amber-600"
+            className="btn-secondary text-sm"
             data-testid="artifacts-generate-doc-btn"
           >
-            🤖 Generate Document
+            Generate Document
           </button>
           <button
             onClick={() => setShowTemplates(true)}
-            className="px-3 py-1.5 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
+            className="btn-secondary text-sm"
             data-testid="artifacts-templates-btn"
           >
-            📁 Templates
+            Templates
           </button>
           <button
             onClick={() => setShowCreate(true)}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
             data-testid="artifacts-create-btn"
           >
             + New Artifact
@@ -178,7 +177,7 @@ export default function ArtifactsPage() {
           </div>
           {storageSummary.by_format && Object.entries(storageSummary.by_format).map(([fmt, count]: [string, any]) => (
             <div key={fmt} className="text-sm" data-testid={`storage-format-${fmt}`}>
-              <span className="px-1.5 py-0.5 text-xs rounded bg-gray-700 text-gray-300">{fmt}: {count}</span>
+              <span className="px-1.5 py-0.5 text-xs rounded badge badge-gray">{fmt}: {count}</span>
             </div>
           ))}
         </div>
@@ -206,7 +205,7 @@ export default function ArtifactsPage() {
         <button
           onClick={handleSearch}
           disabled={searching}
-          className="px-3 py-1 bg-gray-700 rounded text-sm disabled:opacity-50"
+          className="px-3 py-1 btn-secondary text-sm disabled:opacity-50"
           data-testid="artifacts-search-btn"
         >
           {searching ? 'Searching...' : 'Search'}
@@ -261,13 +260,13 @@ export default function ArtifactsPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span
-                    className={`px-1.5 py-0.5 text-xs rounded ${TYPE_COLORS[art.artifact_type] || 'bg-gray-700 text-gray-300'}`}
+                    className={`px-1.5 py-0.5 text-xs rounded ${TYPE_COLORS[art.artifact_type] || 'badge badge-gray'}`}
                     data-testid={`artifacts-type-${art.id}`}
                   >
                     {art.artifact_type.replace(/_/g, ' ')}
                   </span>
                   <span
-                    className={`px-1.5 py-0.5 text-xs rounded ${STATUS_COLORS[art.status] || 'bg-gray-700'}`}
+                    className={`px-1.5 py-0.5 text-xs rounded ${STATUS_COLORS[art.status] || 'badge badge-gray'}`}
                     data-testid={`artifacts-status-${art.id}`}
                   >
                     {art.status}

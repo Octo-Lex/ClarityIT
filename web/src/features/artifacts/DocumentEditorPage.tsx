@@ -170,7 +170,10 @@ export default function DocumentEditorPage() {
         document_type: docType,
         blocks,
       };
-      await api.updateDocument(artifactId, { title, document_json: documentJson });
+      // Pass updatedAt so the backend's If-Match check (document.go:651)
+      // is activated — without it, the 409 conflict path (and the conflict
+      // modal below) is unreachable. This was dead code before Track 8.
+      await api.updateDocument(artifactId, { title, document_json: documentJson }, doc?.updated_at);
       setDirty(false);
       setSaveState('saved');
       setLastSaved(new Date().toISOString());

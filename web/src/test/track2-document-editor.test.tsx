@@ -65,6 +65,7 @@ const mockDoc = {
   schema_version: 1,
   word_count: 5,
   status: 'draft',
+  updated_at: '2026-06-17T10:00:00Z',
 };
 
 function renderEditor(artifactId = 'doc-1') {
@@ -112,7 +113,8 @@ describe('DocumentEditorPage', () => {
       fireEvent.click(screen.getByTestId('toolbar-save'));
     });
     await waitFor(() => {
-      expect(api.updateDocument).toHaveBeenCalledWith('doc-1', expect.objectContaining({ title: 'New Title' }));
+      // Track 8: updateDocument now sends updatedAt (3rd arg) for If-Match.
+      expect(api.updateDocument).toHaveBeenCalledWith('doc-1', expect.objectContaining({ title: 'New Title' }), '2026-06-17T10:00:00Z');
     });
     await waitFor(() => {
       expect(screen.getByTestId('save-status').textContent).toContain('Saved');
