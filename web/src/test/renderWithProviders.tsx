@@ -1,8 +1,9 @@
 import { ReactElement, ReactNode } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
-import { MemoryRouter, MemoryRouterProps } from 'react-router-dom';
+import { MemoryRouter, MemoryRouterProps, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
+import { Toaster } from '@/components/Toaster';
 import { AuthProvider } from '@/auth/context';
 
 /**
@@ -28,6 +29,10 @@ export interface RenderProviderOptions extends Omit<RenderOptions, 'wrapper'> {
    *  serve /auth/me and /auth/permissions, so the provider initializes cleanly.
    *  Use this for components that call useAuth(). */
   auth?: boolean;
+  /** Route path to mount the component under, enabling useParam() for route
+   *  params (e.g. '/objects/:id'). When provided, the component is rendered
+   *  inside <Routes><Route path={routePath} element={ui}/></Routes>. */
+  routePath?: string;
 }
 
 function makeTestQueryClient() {
@@ -46,20 +51,26 @@ function makeTestQueryClient() {
 
 export function renderWithProviders(
   ui: ReactElement,
-  { route = '/', routerProps, auth = false, ...renderOptions }: RenderProviderOptions = {},
+  { route = '/', routerProps, auth = false, routePath, ...renderOptions }: RenderProviderOptions = {},
 ) {
   const queryClient = makeTestQueryClient();
   function Wrapper({ children }: { children: ReactNode }) {
+    const routed = routePath ? (
+      <Routes>
+        <Route path={routePath} element={children} />
+      </Routes>
+    ) : children;
     const content = (
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[route]} {...routerProps}>
-          {children}
+          {routed}
         </MemoryRouter>
       </QueryClientProvider>
     );
     return (
       <ThemeProvider>
         {auth ? <AuthProvider>{content}</AuthProvider> : content}
+        <Toaster />
       </ThemeProvider>
     );
   }

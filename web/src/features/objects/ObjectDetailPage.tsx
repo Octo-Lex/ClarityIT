@@ -1,99 +1,193 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, type ObjectDetail, type Comment, type Link } from '../../api/client';
-import { useAuth } from '../../auth/context';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Trash2, ArrowLeft } from 'lucide-react';
+import { api } from '@/api/client';
+import { keys } from '@/api/keys';
+import { useAuth } from '@/auth/context';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { notify } from '@/components/Toaster';
+import { InlineSpinner, ErrorState, EmptyState } from '@/components/PageState';
 import ObjectEditForm from './ObjectEditForm';
+
+function statusTone(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
+  if (status === 'resolved' || status === 'closed') return 'success';
+  if (status === 'blocked') return 'danger';
+  if (status === 'in_progress') return 'info';
+  if (status === 'open') return 'warning';
+  return 'neutral';
+}
 
 export default function ObjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
   const { hasPermission } = useAuth();
-  const [obj, setObj] = useState<ObjectDetail | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [links, setLinks] = useState<Link[]>([]);
+  const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState('');
   const [editing, setEditing] = useState(false);
-  const [error, setError] = useState('');
 
-  const load = () => {
-    if (!id) return;
-    Promise.all([api.getObject(id), api.listComments(id), api.listLinks(id)])
-      .then(([o, c, l]) => { setObj(o); setComments(c); setLinks(l); })
-      .catch(e => setError(e.message));
+  const teamId = ''; // object queries are not team-scoped in the key (id is unique)
+  const objQ = useQuery({
+    queryKey: keys.objects.detail(teamId, id ?? ''),
+    queryFn: ({ signal }) => api.getObject(id!, signal),
+    enabled: !!id,
+  });
+  const commentsQ = useQuery({
+    queryKey: keys.objects.comments(teamId, id ?? ''),
+    queryFn: () => api.listComments(id!),
+    enabled: !!id,
+  });
+  const linksQ = useQuery({
+    queryKey: keys.objects.links(teamId, id ?? ''),
+    queryFn: () => api.listLinks(id!),
+    enabled: !!id,
+  });
+
+  const addCommentMut = useMutation({
+    mutationFn: (body: string) => api.createComment(id!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.objects.comments(teamId, id ?? '') });
+      setNewComment('');
+    },
+    onError: (err) => notify.mutationError('Comment', err),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: () => api.deleteObject(id!),
+    onSuccess: () => {
+      notify.success('Deleted');
+      nav('/queue');
+    },
+    onError: (err) => notify.mutationError('Delete', err),
+  });
+
+  const obj = objQ.data;
+  const refreshObject = () => {
+    queryClient.invalidateQueries({ queryKey: keys.objects.detail(teamId, id ?? '') });
+    setEditing(false);
   };
-  useEffect(load, [id]);
 
-  const addComment = async () => {
-    if (!id || !newComment.trim()) return;
-    try { await api.createComment(id, newComment); setNewComment(''); load(); } catch (e: any) { setError(e.message); }
+  if (objQ.isPending) return <InlineSpinner />;
+  if (objQ.error) return <ErrorState message="Failed to load object" onRetry={() => objQ.refetch()} />;
+  if (!obj) return <EmptyState title="Object not found" />;
+
+  const comments = commentsQ.data ?? [];
+  const links = linksQ.data ?? [];
+
+  const addComment = () => {
+    if (!newComment.trim()) return;
+    addCommentMut.mutate(newComment.trim());
   };
-
-  const deleteObj = async () => {
-    if (!id || !confirm('Delete this object?')) return;
-    try { await api.deleteObject(id); nav('/queue'); } catch (e: any) { setError(e.message); }
-  };
-
-  if (!obj) return <p className="text-[var(--text-muted)]">{error || 'Loading...'}</p>;
 
   return (
     <div className="space-y-4">
-      {error && <div className="error-msg">{error}</div>}
-      <div className="flex justify-between items-start">
+      <button
+        type="button"
+        onClick={() => nav(-1)}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" /> Back
+      </button>
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{obj.title}</h1>
-          <div className="flex gap-2 mt-1">
-            <span className="badge badge-gray">{obj.object_type}</span>
-            <span className="badge badge-blue">{obj.status}</span>
-            <span className="text-sm text-[var(--text-muted)]">v{obj.version}</span>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">{obj.title}</h1>
+          <div className="mt-1 flex items-center gap-2">
+            <StatusBadge tone="neutral">{obj.object_type}</StatusBadge>
+            <StatusBadge tone={statusTone(obj.status)}>{obj.status.replace('_', ' ')}</StatusBadge>
+            <span className="text-xs text-muted-foreground">v{obj.version}</span>
           </div>
         </div>
-        {hasPermission('objects.update') && !editing && <button className="btn-secondary text-sm" onClick={() => setEditing(true)}>Edit</button>}
-        {hasPermission('objects.delete') && <button className="btn-danger text-sm" onClick={deleteObj}>Delete</button>}
+        <div className="flex gap-2">
+          {hasPermission('objects.update') && !editing && (
+            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>Edit</Button>
+          )}
+          {hasPermission('objects.delete') && (
+            <Button
+              variant="destructive" size="sm"
+              data-testid="obj-delete"
+              onClick={() => { if (confirm('Delete this object?')) deleteMut.mutate(); }}
+            >
+              <Trash2 className="size-4" /> Delete
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 space-y-4">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
           {editing ? (
-            <ObjectEditForm obj={obj} onUpdated={() => { setEditing(false); load(); }} onCancel={() => setEditing(false)} />
+            <ObjectEditForm obj={obj} onUpdated={refreshObject} onCancel={() => setEditing(false)} />
           ) : (
-          <div className="card">
-            <h3 className="font-semibold mb-2">Details</h3>
-            <dl className="grid grid-cols-2 gap-2 text-sm">
-              <dt className="text-[var(--text-muted)]">Summary</dt><dd>{obj.summary || '—'}</dd>
-              <dt className="text-[var(--text-muted)]">Priority</dt><dd>{obj.priority}</dd>
-              <dt className="text-[var(--text-muted)]">Created</dt><dd>{new Date(obj.created_at).toLocaleString()}</dd>
-            </dl>
-          </div>
+            <Card className="p-5">
+              <h3 className="mb-2 font-heading text-sm font-semibold">Details</h3>
+              <dl className="grid grid-cols-3 gap-2 text-sm">
+                <dt className="text-muted-foreground">Summary</dt>
+                <dd className="col-span-2">{obj.summary || '—'}</dd>
+                <dt className="text-muted-foreground">Priority</dt>
+                <dd className="col-span-2 capitalize">{obj.priority}</dd>
+                <dt className="text-muted-foreground">Created</dt>
+                <dd className="col-span-2">{new Date(obj.created_at).toLocaleString()}</dd>
+              </dl>
+            </Card>
           )}
 
-          <div className="card">
-            <h3 className="font-semibold mb-3">Comments ({comments.length})</h3>
+          <Card className="p-5">
+            <h3 className="mb-3 font-heading text-sm font-semibold">Comments ({comments.length})</h3>
             {hasPermission('objects.comments.create') && (
-              <div className="flex gap-2 mb-4">
-                <input placeholder="Add a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && addComment()} />
-                <button onClick={addComment} disabled={!newComment.trim()}>Post</button>
+              <div className="mb-4 flex gap-2">
+                <Input
+                  placeholder="Add a comment…"
+                  value={newComment}
+                  data-testid="comment-input"
+                  onChange={e => setNewComment(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addComment(); }}
+                />
+                <Button size="sm" data-testid="comment-post" disabled={!newComment.trim() || addCommentMut.isPending} onClick={addComment}>
+                  Post
+                </Button>
               </div>
             )}
-            {comments.map(c => (
-              <div key={c.id} className="border-b border-[var(--border)] py-2 last:border-0">
-                <div className="text-xs text-[var(--text-muted)]">{c.author_id?.slice(0,8)}… · {new Date(c.created_at).toLocaleString()}</div>
-                <div className="text-sm mt-1">{c.body}</div>
+            {comments.length === 0 ? (
+              <p className="py-2 text-sm text-muted-foreground">No comments yet.</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {comments.map(c => (
+                  <div key={c.id} className="py-2">
+                    <div className="text-xs text-muted-foreground">
+                      {c.author_id?.slice(0, 8)}… · {new Date(c.created_at).toLocaleString()}
+                    </div>
+                    <div className="mt-1 text-sm">{c.body}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </Card>
         </div>
 
-        <div className="space-y-4">
-          <div className="card">
-            <h3 className="font-semibold mb-2">Links ({links.length})</h3>
-            {links.map(l => {
+        <Card className="h-fit p-5">
+          <h3 className="mb-2 font-heading text-sm font-semibold">Links ({links.length})</h3>
+          {links.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No linked objects.</p>
+          ) : (
+            links.map(l => {
               const targetId = l.to_object_id === id ? l.from_object_id : l.to_object_id;
-              return <a key={l.id} href={`/objects/${targetId}`} onClick={e => { e.preventDefault(); nav(`/objects/${targetId}`); }} className="block text-sm text-[var(--primary)] hover:underline py-1">
-                {l.relation_type} → {targetId.slice(0,8)}…
-              </a>;
-            })}
-          </div>
-        </div>
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => nav(`/objects/${targetId}`)}
+                  className="block w-full py-1 text-left text-sm text-primary hover:underline"
+                >
+                  {l.relation_type} → {targetId.slice(0, 8)}…
+                </button>
+              );
+            })
+          )}
+        </Card>
       </div>
     </div>
   );
