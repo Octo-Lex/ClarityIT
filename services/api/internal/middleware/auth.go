@@ -21,22 +21,25 @@ const (
 )
 
 // ResolveAuth extracts JWT from Authorization header and populates context.
+//
+// For the WebSocket upgrade endpoint only, it falls back to a `token` query
+// parameter — browsers cannot set custom headers on `new WebSocket()`, so the
+// WS client sends the access token as ?token=<jwt>. This fallback is scoped to
+// the WS path so query-param auth does not become a general mechanism (which
+// would leak tokens into access logs on arbitrary routes).
 func ResolveAuth(jwtSecret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
+			token := extractBearer(r)
+			if token == "" && r.URL.Path == "/api/ws" {
+				token = r.URL.Query().Get("token")
+			}
+			if token == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			claims, err := iam.ParseAccessToken(jwtSecret, parts[1])
+			claims, err := iam.ParseAccessToken(jwtSecret, token)
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return
@@ -49,6 +52,20 @@ func ResolveAuth(jwtSecret string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// extractBearer pulls the token from the Authorization: Bearer <token> header,
+// returning "" when absent or malformed.
+func extractBearer(r *http.Request) string {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return ""
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return ""
+	}
+	return parts[1]
 }
 
 // RequireAuth rejects requests without valid claims.
