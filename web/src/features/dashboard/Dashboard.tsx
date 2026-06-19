@@ -15,7 +15,7 @@ function statusTone(status: string): 'success' | 'danger' | 'info' | 'warning' |
   if (status === 'resolved' || status === 'closed') return 'success';
   if (status === 'blocked') return 'danger';
   if (status === 'in_progress') return 'info';
-  if (status === 'open') return 'warning';
+  if (status === 'open') return 'neutral';
   return 'neutral';
 }
 
@@ -50,7 +50,7 @@ export default function Dashboard() {
       label: 'New Work Item', icon: Plus, tone: 'primary' as const, path: '/work-items/new',
     },
     hasPermission('incidents.create') && {
-      label: 'Report Incident', icon: Flame, tone: 'danger' as const, path: '/incidents',
+      label: 'Report Incident', icon: Flame, tone: 'primary' as const, path: '/incidents',
     },
     {
       label: 'View Queue', icon: ListChecks, tone: 'muted' as const, path: '/queue',
