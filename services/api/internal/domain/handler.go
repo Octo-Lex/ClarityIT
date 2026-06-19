@@ -1032,7 +1032,7 @@ func (h *Handler) BoardView(w http.ResponseWriter, r *http.Request) {
 	teamID, _ := uuid.Parse(chi.URLParam(r, "teamId"))
 
 	rows, err := h.pool.Query(ctx, `
-		SELECT o.status, o.id, o.title, o.priority, w.work_item_type, o.owner_user_id
+		SELECT o.status, o.id, o.title, o.priority, w.work_item_type, o.owner_user_id, o.version
 		FROM objects o JOIN work_items w ON w.object_id = o.id
 		WHERE o.team_id = $1 AND o.deleted_at IS NULL
 		ORDER BY o.priority, o.created_at
@@ -1047,9 +1047,10 @@ func (h *Handler) BoardView(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var status, id, title, priority, workType string
 		var ownerID *string
-		rows.Scan(&status, &id, &title, &priority, &workType, &ownerID)
+		var version int
+		rows.Scan(&status, &id, &title, &priority, &workType, &ownerID, &version)
 		board[status] = append(board[status], map[string]any{
-			"id": id, "title": title, "priority": priority, "work_item_type": workType, "owner_id": ownerID,
+			"id": id, "title": title, "priority": priority, "work_item_type": workType, "owner_id": ownerID, "version": version,
 		})
 	}
 	if board == nil {
