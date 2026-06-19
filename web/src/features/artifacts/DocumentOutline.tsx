@@ -20,7 +20,7 @@ export default function DocumentOutline({ blocks, activeBlockId, onSelect }: Pro
 
   if (headings.length === 0) {
     return (
-      <div className="text-xs text-[var(--text-muted)] p-3" data-testid="document-outline">
+      <div className="text-xs text-muted-foreground p-3" data-testid="document-outline">
         No headings yet
       </div>
     );
@@ -28,14 +28,14 @@ export default function DocumentOutline({ blocks, activeBlockId, onSelect }: Pro
 
   return (
     <div className="p-3" data-testid="document-outline">
-      <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase mb-2">Outline</h3>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Outline</h3>
       <ul className="space-y-1">
         {headings.map(h => (
           <li
             key={h.id}
             data-testid={`outline-item-${h.id}`}
             className={`text-xs cursor-pointer hover:text-white truncate ${
-              activeBlockId === h.id ? 'text-[var(--primary)] font-medium' : 'text-[var(--text-muted)]'
+              activeBlockId === h.id ? 'text-primary font-medium' : 'text-muted-foreground'
             }`}
             style={{ paddingLeft: `${(h.level || 1) - 1}rem` }}
             onClick={() => onSelect?.(h.id)}

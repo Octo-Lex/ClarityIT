@@ -201,39 +201,39 @@ export default function SecurityPage() {
     }
   };
 
-  if (loading) return <div className="p-6 text-[var(--text-muted)]">Loading...</div>;
+  if (loading) return <div className="p-6 text-muted-foreground">Loading...</div>;
 
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="text-2xl font-bold">Security</h1>
-      {error && <div className="p-3 bg-red-900/30 border border-red-700 rounded text-sm text-red-300">{error}</div>}
+      {error && <div className="p-3 bg-destructive/15 border border-destructive/40 rounded text-sm text-destructive">{error}</div>}
 
       {/* MFA Status */}
-      <section className="p-4 bg-[var(--card)] border border-[var(--border)] rounded-lg">
+      <section className="p-4 bg-surface border border-border rounded-lg">
         <h2 className="text-lg font-semibold mb-2">Multi-Factor Authentication</h2>
         {status?.enabled ? (
-          <p className="text-sm text-[var(--success)]">✓ MFA is enabled ({status.verified_factors} active factor(s))</p>
+          <p className="text-sm text-success">✓ MFA is enabled ({status.verified_factors} active factor(s))</p>
         ) : (
-          <p className="text-sm text-[var(--text-muted)]">MFA is not enabled. Enroll a TOTP factor to secure your account.</p>
+          <p className="text-sm text-muted-foreground">MFA is not enabled. Enroll a TOTP factor to secure your account.</p>
         )}
 
         {/* Active factors */}
         {factors.length > 0 && (
           <div className="mt-4 space-y-2">
             {factors.map(f => (
-              <div key={f.id} className="flex items-center justify-between p-2 bg-[var(--bg)] rounded text-sm">
+              <div key={f.id} className="flex items-center justify-between p-2 bg-background rounded text-sm">
                 <div>
                   <span className="font-medium">{f.type}</span>
                   {f.verified ? (
-                    <span className="ml-2 text-[var(--success)]">✓ Verified</span>
+                    <span className="ml-2 text-success">✓ Verified</span>
                   ) : (
-                    <span className="ml-2 text-yellow-500">⚠ Pending</span>
+                    <span className="ml-2 text-warning">⚠ Pending</span>
                   )}
                 </div>
                 <button
                   onClick={() => handleDisable(f.id)}
                   data-testid={`disable-factor-${f.id}`}
-                  className="text-xs px-2 py-1 bg-red-900/30 border border-red-700 rounded hover:bg-red-900/50"
+                  className="text-xs px-2 py-1 bg-destructive/15 border border-destructive/40 rounded hover:bg-destructive/25"
                 >
                   Disable
                 </button>
@@ -248,7 +248,7 @@ export default function SecurityPage() {
             onClick={handleEnroll}
             disabled={enrolling}
             data-testid="enroll-mfa-btn"
-            className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded text-sm hover:opacity-90"
+            className="mt-4 px-4 py-2 bg-primary text-white rounded text-sm hover:opacity-90"
           >
             {enrolling ? 'Enrolling...' : 'Enroll TOTP'}
           </button>
@@ -257,10 +257,10 @@ export default function SecurityPage() {
         {enrollData && (
           <div className="mt-4 space-y-3" data-testid="mfa-enrollment">
             <p className="text-sm font-medium">Scan this secret in your authenticator app:</p>
-            <div className="p-3 bg-[var(--bg)] rounded font-mono text-sm break-all" data-testid="totp-secret">
+            <div className="p-3 bg-background rounded font-mono text-sm break-all" data-testid="totp-secret">
               {enrollData.secret}
             </div>
-            <p className="text-xs text-[var(--text-muted)]">Or use this URI: {enrollData.otpauth_uri}</p>
+            <p className="text-xs text-muted-foreground">Or use this URI: {enrollData.otpauth_uri}</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -268,13 +268,13 @@ export default function SecurityPage() {
                 value={verifyCode}
                 onChange={e => setVerifyCode(e.target.value)}
                 data-testid="verify-code-input"
-                className="px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-sm"
+                className="px-3 py-1.5 bg-background border border-border rounded text-sm"
                 maxLength={6}
               />
               <button
                 onClick={handleVerifyEnrollment}
                 data-testid="verify-enrollment-btn"
-                className="px-4 py-1.5 bg-[var(--success)] text-white rounded text-sm"
+                className="px-4 py-1.5 bg-success text-white rounded text-sm"
               >
                 Verify
               </button>
@@ -285,20 +285,20 @@ export default function SecurityPage() {
 
       {/* Recovery Codes — shown once */}
       {recoveryCodes && (
-        <section className="p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg" data-testid="recovery-codes">
-          <h2 className="text-lg font-semibold text-yellow-300">⚠ Save Your Recovery Codes</h2>
-          <p className="text-sm mt-1 text-yellow-200">
+        <section className="p-4 bg-warning/20 border border-warning/40 rounded-lg" data-testid="recovery-codes">
+          <h2 className="text-lg font-semibold text-warning">⚠ Save Your Recovery Codes</h2>
+          <p className="text-sm mt-1 text-warning">
             These codes will only be shown once. Store them in a secure password manager.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {recoveryCodes.map((code, i) => (
-              <div key={i} className="p-2 bg-[var(--bg)] rounded font-mono text-sm">{code}</div>
+              <div key={i} className="p-2 bg-background rounded font-mono text-sm">{code}</div>
             ))}
           </div>
           <button
             onClick={() => setRecoveryCodes(null)}
             data-testid="ack-recovery-codes"
-            className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded text-sm"
+            className="mt-4 px-4 py-2 bg-primary text-white rounded text-sm"
           >
             I've saved my codes
           </button>
@@ -306,10 +306,10 @@ export default function SecurityPage() {
       )}
 
       {/* WebAuthn / Security Keys */}
-      <section className="p-4 bg-[var(--card)] border border-[var(--border)] rounded-lg" data-testid="webauthn-section">
+      <section className="p-4 bg-surface border border-border rounded-lg" data-testid="webauthn-section">
         <h2 className="text-lg font-semibold mb-2">Security Keys (WebAuthn)</h2>
         {!isWebAuthnAvailable() ? (
-          <p className="text-sm text-yellow-500" data-testid="webauthn-unavailable">
+          <p className="text-sm text-warning" data-testid="webauthn-unavailable">
             ⚠ WebAuthn is not available in this browser or context. A secure context (HTTPS or localhost) is required.
           </p>
         ) : (
@@ -317,14 +317,14 @@ export default function SecurityPage() {
             {waCredentials.length > 0 && (
               <div className="mt-3 space-y-2">
                 {waCredentials.map(c => (
-                  <div key={c.id} className="flex items-center justify-between p-2 bg-[var(--bg)] rounded text-sm">
+                  <div key={c.id} className="flex items-center justify-between p-2 bg-background rounded text-sm">
                     <div data-testid={`wa-cred-${c.id}`}>
                       <span className="font-medium">{c.label}</span>
-                      <span className={`ml-2 text-xs ${c.status === 'active' ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}`}>
+                      <span className={`ml-2 text-xs ${c.status === 'active' ? 'text-success' : 'text-muted-foreground'}`}>
                         {c.status}
                       </span>
                       {c.last_used_at && (
-                        <span className="ml-2 text-xs text-[var(--text-muted)]">
+                        <span className="ml-2 text-xs text-muted-foreground">
                           Last used: {new Date(c.last_used_at).toLocaleDateString()}
                         </span>
                       )}
@@ -333,7 +333,7 @@ export default function SecurityPage() {
                       <button
                         onClick={() => handleWaDisable(c.id)}
                         data-testid={`wa-disable-${c.id}`}
-                        className="text-xs px-2 py-1 bg-red-900/30 border border-red-700 rounded hover:bg-red-900/50"
+                        className="text-xs px-2 py-1 bg-destructive/15 border border-destructive/40 rounded hover:bg-destructive/25"
                       >
                         Disable
                       </button>
@@ -351,14 +351,14 @@ export default function SecurityPage() {
                   value={waLabel}
                   onChange={e => setWaLabel(e.target.value)}
                   data-testid="wa-label-input"
-                  className="flex-1 px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-sm"
+                  className="flex-1 px-3 py-1.5 bg-background border border-border rounded text-sm"
                   maxLength={100}
                 />
                 <button
                   onClick={handleWaRegister}
                   disabled={waBusy}
                   data-testid="wa-register-btn"
-                  className="px-4 py-1.5 bg-[var(--primary)] text-white rounded text-sm hover:opacity-90"
+                  className="px-4 py-1.5 bg-primary text-white rounded text-sm hover:opacity-90"
                 >
                   {waBusy ? '...' : 'Add Security Key'}
                 </button>
@@ -367,13 +367,13 @@ export default function SecurityPage() {
                 onClick={handleWaAuthenticate}
                 disabled={waBusy || waCredentials.length === 0}
                 data-testid="wa-auth-btn"
-                className="px-4 py-1.5 bg-[var(--success)] text-white rounded text-sm hover:opacity-90 disabled:opacity-50"
+                className="px-4 py-1.5 bg-success text-white rounded text-sm hover:opacity-90 disabled:opacity-50"
               >
                 Verify with Security Key
               </button>
             </div>
             {waMessage && (
-              <p className="text-sm text-[var(--success)] mt-2" data-testid="wa-message">{waMessage}</p>
+              <p className="text-sm text-success mt-2" data-testid="wa-message">{waMessage}</p>
             )}
           </>
         )}

@@ -68,7 +68,7 @@ function BoardColumn({
       ref={setNodeRef}
       data-testid={`board-column-${status}`}
       className={cn(
-        'flex min-h-[200px] min-w-[260px] flex-shrink-0 flex-col rounded-xl border border-t-4 bg-card',
+        'flex min-h-[200px] min-w-[260px] flex-shrink-0 flex-col rounded-xl border border-t-4 bg-surface',
         COLUMN_TONE[status],
         isOver && 'ring-2 ring-ring',
       )}

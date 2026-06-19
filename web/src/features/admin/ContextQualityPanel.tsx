@@ -47,51 +47,51 @@ export default function ContextQualityPanel() {
 
   if (error) {
     return (
-      <div className="card p-4" data-testid="quality-error-container">
-        <div className="text-sm text-red-400" data-testid="quality-error">{error}</div>
+      <div className="rounded-xl border border-border bg-surface p-4" data-testid="quality-error-container">
+        <div className="text-sm text-destructive" data-testid="quality-error">{error}</div>
       </div>
     );
   }
 
   if (!data) return null;
 
-  const scoreColor = data.quality_score >= 80 ? 'text-green-400'
-    : data.quality_score >= 50 ? 'text-yellow-400' : 'text-orange-400';
+  const scoreColor = data.quality_score >= 80 ? 'text-success'
+    : data.quality_score >= 50 ? 'text-warning' : 'text-warning';
 
   return (
     <div className="space-y-3" data-testid="quality-panel">
       <h2 className="text-lg font-semibold">Context Graph Quality</h2>
 
       {/* Advisory warning */}
-      <div className="p-3 bg-yellow-900/20 border border-yellow-700 rounded text-sm text-yellow-300" data-testid="quality-warning">
+      <div className="p-3 bg-warning/20 border border-warning/40 rounded text-sm text-warning" data-testid="quality-warning">
         ⚠ Context quality controls are advisory only. Confirming or dismissing a relation does not delete graph data.
       </div>
 
       {/* Score and summary */}
-      <div className="card p-4" data-testid="quality-summary">
+      <div className="rounded-xl border border-border bg-surface p-4" data-testid="quality-summary">
         <div className="flex items-center gap-4 mb-3">
           <div>
-            <span className="text-sm text-[var(--text-muted)]">Quality Score: </span>
+            <span className="text-sm text-muted-foreground">Quality Score: </span>
             <span className={`text-2xl font-bold ${scoreColor}`} data-testid="quality-score">{data.quality_score}</span>
-            <span className="text-sm text-[var(--text-muted)]"> / 100</span>
+            <span className="text-sm text-muted-foreground"> / 100</span>
           </div>
         </div>
         <div className="grid grid-cols-4 gap-3 text-xs">
-          <div><span className="text-[var(--text-muted)]">Nodes: </span>{data.summary.total_nodes}</div>
-          <div><span className="text-[var(--text-muted)]">Relations: </span>{data.summary.total_relations}</div>
-          <div><span className="text-[var(--text-muted)]">Confirmed: </span>{data.summary.confirmed_relations}</div>
-          <div><span className="text-[var(--text-muted)]">Dismissed: </span>{data.summary.dismissed_relations}</div>
+          <div><span className="text-muted-foreground">Nodes: </span>{data.summary.total_nodes}</div>
+          <div><span className="text-muted-foreground">Relations: </span>{data.summary.total_relations}</div>
+          <div><span className="text-muted-foreground">Confirmed: </span>{data.summary.confirmed_relations}</div>
+          <div><span className="text-muted-foreground">Dismissed: </span>{data.summary.dismissed_relations}</div>
         </div>
       </div>
 
       {/* Stale nodes */}
       {data.stale_nodes.length > 0 && (
-        <div className="card p-4" data-testid="quality-stale">
+        <div className="rounded-xl border border-border bg-surface p-4" data-testid="quality-stale">
           <h3 className="text-sm font-semibold mb-2">Stale Nodes ({data.stale_nodes.length})</h3>
           {data.stale_nodes.slice(0, 10).map((n) => (
             <div key={n.node_id} className="text-xs mb-1 flex justify-between">
-              <span>{n.label} <span className="text-[var(--text-muted)]">({n.node_type})</span></span>
-              <span className="text-orange-400" data-testid={`stale-${n.node_id}`}>{n.days_stale}d stale</span>
+              <span>{n.label} <span className="text-muted-foreground">({n.node_type})</span></span>
+              <span className="text-warning" data-testid={`stale-${n.node_id}`}>{n.days_stale}d stale</span>
             </div>
           ))}
         </div>
@@ -99,7 +99,7 @@ export default function ContextQualityPanel() {
 
       {/* Low-confidence relations */}
       {data.low_confidence_relations.length > 0 && (
-        <div className="card p-4" data-testid="quality-low-conf">
+        <div className="rounded-xl border border-border bg-surface p-4" data-testid="quality-low-conf">
           <h3 className="text-sm font-semibold mb-2">Low-Confidence Relations ({data.low_confidence_relations.length})</h3>
           {data.low_confidence_relations.slice(0, 10).map((r) => (
             <div key={r.relation_id} className="text-xs mb-2 flex justify-between items-center">
@@ -110,7 +110,7 @@ export default function ContextQualityPanel() {
                 <button
                   onClick={() => handleConfirm(r.relation_id)}
                   disabled={reviewing === r.relation_id}
-                  className="px-2 py-0.5 text-xs bg-green-900/40 text-green-300 rounded disabled:opacity-50"
+                  className="px-2 py-0.5 text-xs bg-success/15 text-success rounded disabled:opacity-50"
                   data-testid={`confirm-${r.relation_id}`}
                 >
                   Confirm
@@ -118,7 +118,7 @@ export default function ContextQualityPanel() {
                 <button
                   onClick={() => handleDismiss(r.relation_id)}
                   disabled={reviewing === r.relation_id}
-                  className="px-2 py-0.5 text-xs bg-red-900/40 text-red-300 rounded disabled:opacity-50"
+                  className="px-2 py-0.5 text-xs bg-destructive/15 text-destructive rounded disabled:opacity-50"
                   data-testid={`dismiss-${r.relation_id}`}
                 >
                   Dismiss
@@ -131,7 +131,7 @@ export default function ContextQualityPanel() {
 
       {/* Conflicting relations */}
       {data.conflicting_relations.length > 0 && (
-        <div className="card p-4" data-testid="quality-conflicts">
+        <div className="rounded-xl border border-border bg-surface p-4" data-testid="quality-conflicts">
           <h3 className="text-sm font-semibold mb-2">Conflicting Relations ({data.conflicting_relations.length})</h3>
           {data.conflicting_relations.slice(0, 10).map((r) => (
             <div key={r.relation_id} className="text-xs mb-2 flex justify-between items-center">
@@ -140,7 +140,7 @@ export default function ContextQualityPanel() {
                 <button
                   onClick={() => handleConfirm(r.relation_id)}
                   disabled={reviewing === r.relation_id}
-                  className="px-2 py-0.5 text-xs bg-green-900/40 text-green-300 rounded disabled:opacity-50"
+                  className="px-2 py-0.5 text-xs bg-success/15 text-success rounded disabled:opacity-50"
                   data-testid={`confirm-conflict-${r.relation_id}`}
                 >
                   Confirm
@@ -148,7 +148,7 @@ export default function ContextQualityPanel() {
                 <button
                   onClick={() => handleDismiss(r.relation_id)}
                   disabled={reviewing === r.relation_id}
-                  className="px-2 py-0.5 text-xs bg-red-900/40 text-red-300 rounded disabled:opacity-50"
+                  className="px-2 py-0.5 text-xs bg-destructive/15 text-destructive rounded disabled:opacity-50"
                   data-testid={`dismiss-conflict-${r.relation_id}`}
                 >
                   Dismiss
@@ -161,8 +161,8 @@ export default function ContextQualityPanel() {
 
       {/* Empty state */}
       {data.stale_nodes.length === 0 && data.low_confidence_relations.length === 0 && data.conflicting_relations.length === 0 && (
-        <div className="card p-4" data-testid="quality-empty">
-          <p className="text-sm text-[var(--text-muted)]">No quality issues detected.</p>
+        <div className="rounded-xl border border-border bg-surface p-4" data-testid="quality-empty">
+          <p className="text-sm text-muted-foreground">No quality issues detected.</p>
         </div>
       )}
     </div>

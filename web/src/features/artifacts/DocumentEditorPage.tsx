@@ -222,14 +222,14 @@ export default function DocumentEditorPage() {
 
   // ─── Render ───
   if (loading) {
-    return <div className="flex items-center justify-center h-full text-[var(--text-muted)]" data-testid="doc-loading">Loading document...</div>;
+    return <div className="flex items-center justify-center h-full text-muted-foreground" data-testid="doc-loading">Loading document...</div>;
   }
 
   if (loadError) {
     return (
       <div className="flex flex-col items-center justify-center h-full" data-testid="doc-error">
-        <p className="text-red-400 mb-4">{loadError}</p>
-        <button onClick={() => navigate(-1)} className="px-4 py-2 bg-[var(--card)] border border-[var(--border)] rounded text-sm hover:bg-[var(--border)]">Go back</button>
+        <p className="text-destructive mb-4">{loadError}</p>
+        <button onClick={() => navigate(-1)} className="px-4 py-2 bg-surface border border-border rounded text-sm hover:bg-muted">Go back</button>
       </div>
     );
   }
@@ -237,13 +237,13 @@ export default function DocumentEditorPage() {
   return (
     <div className="h-full flex flex-col" data-testid="doc-editor-page">
       {/* Header */}
-      <div className="flex items-center gap-3 py-2 px-3 border-b border-[var(--border)]">
+      <div className="flex items-center gap-3 py-2 px-3 border-b border-border">
         <button
           data-testid="doc-back"
           onClick={() => navigate(-1)}
-          className="text-sm text-[var(--text-muted)] hover:text-white"
+          className="text-sm text-muted-foreground hover:text-white"
         >← Back</button>
-        <span className="text-xs px-2 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] text-[var(--text-muted)]" data-testid="doc-type-badge">
+        <span className="text-xs px-2 py-0.5 rounded bg-surface border border-border text-muted-foreground" data-testid="doc-type-badge">
           {DOCUMENT_TYPE_LABELS[docType] || docType}
         </span>
         <DocumentSaveStatus status={saveState} lastSaved={lastSaved} />
@@ -251,9 +251,9 @@ export default function DocumentEditorPage() {
         {saveConflict && (
           <div data-testid="save-conflict" className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/50" />
-            <div className="relative bg-[var(--bg)] border border-[var(--border)] rounded-lg p-4 max-w-sm">
+            <div className="relative bg-background border border-border rounded-lg p-4 max-w-sm">
               <div className="text-sm font-medium mb-2">⚠️ Document Changed</div>
-              <div className="text-xs text-[var(--text-muted)] mb-4">
+              <div className="text-xs text-muted-foreground mb-4">
                 This document was modified on the server. Your local changes were not saved.
                 Please reload to get the latest version, or copy your changes before reloading.
               </div>
@@ -261,12 +261,12 @@ export default function DocumentEditorPage() {
                 <button
                   data-testid="conflict-dismiss"
                   onClick={() => setSaveConflict(false)}
-                  className="px-3 py-1 text-xs border border-[var(--border)] rounded"
+                  className="px-3 py-1 text-xs border border-border rounded"
                 >Keep my changes</button>
                 <button
                   data-testid="conflict-reload"
                   onClick={() => window.location.reload()}
-                  className="px-3 py-1 text-xs bg-[var(--primary)] text-white rounded"
+                  className="px-3 py-1 text-xs bg-primary text-white rounded"
                 >Reload latest</button>
               </div>
             </div>
@@ -275,23 +275,23 @@ export default function DocumentEditorPage() {
         <button
           data-testid="toggle-assist"
           onClick={() => setShowAssist(!showAssist)}
-          className={`px-2 py-0.5 text-xs rounded ${showAssist ? 'bg-[var(--primary)] text-white' : 'bg-[var(--card)] border border-[var(--border)]'}`}
+          className={`px-2 py-0.5 text-xs rounded ${showAssist ? 'bg-primary text-white' : 'bg-surface border border-border'}`}
         >🤖 Assist</button>
         {/* v1.4 Track 6: Export buttons */}
         {!previewMode && !archived && (
           <>
-            <button data-testid="export-md" onClick={() => doExport('markdown')} disabled={exporting} className="px-2 py-0.5 text-xs bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)]">📄 MD</button>
-            <button data-testid="export-pdf" onClick={() => doExport('pdf')} disabled={exporting} className="px-2 py-0.5 text-xs bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)]">📄 PDF</button>
-            <button data-testid="export-docx" onClick={() => doExport('docx')} disabled={exporting} className="px-2 py-0.5 text-xs bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)]">📄 DOCX</button>
+            <button data-testid="export-md" onClick={() => doExport('markdown')} disabled={exporting} className="px-2 py-0.5 text-xs bg-surface border border-border rounded hover:bg-muted">📄 MD</button>
+            <button data-testid="export-pdf" onClick={() => doExport('pdf')} disabled={exporting} className="px-2 py-0.5 text-xs bg-surface border border-border rounded hover:bg-muted">📄 PDF</button>
+            <button data-testid="export-docx" onClick={() => doExport('docx')} disabled={exporting} className="px-2 py-0.5 text-xs bg-surface border border-border rounded hover:bg-muted">📄 DOCX</button>
           </>
         )}
-        {exporting && <span className="text-xs text-[var(--text-muted)]" data-testid="export-loading">Exporting...</span>}
-        {exportError && <span className="text-xs text-red-400" data-testid="export-error">{exportError}</span>}
+        {exporting && <span className="text-xs text-muted-foreground" data-testid="export-loading">Exporting...</span>}
+        {exportError && <span className="text-xs text-destructive" data-testid="export-error">{exportError}</span>}
         {/* v1.4 Track 7: Version History */}
         <button
           data-testid="version-history-btn"
           onClick={() => setShowVersions(true)}
-          className="px-2 py-0.5 text-xs bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)]"
+          className="px-2 py-0.5 text-xs bg-surface border border-border rounded hover:bg-muted"
         >📋 History</button>
       </div>
 
@@ -308,7 +308,7 @@ export default function DocumentEditorPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Outline sidebar */}
         {!previewMode && (
-          <div className="w-48 border-r border-[var(--border)] overflow-y-auto">
+          <div className="w-48 border-r border-border overflow-y-auto">
             <DocumentOutline blocks={blocks} />
           </div>
         )}
@@ -331,7 +331,7 @@ export default function DocumentEditorPage() {
 
           {/* Blocks */}
           {blocks.length === 0 ? (
-            <div className="text-center py-12 text-[var(--text-muted)]" data-testid="doc-empty-state">
+            <div className="text-center py-12 text-muted-foreground" data-testid="doc-empty-state">
               <p className="text-sm">This document is empty.</p>
               <p className="text-xs mt-1">Use the toolbar above to add blocks.</p>
             </div>

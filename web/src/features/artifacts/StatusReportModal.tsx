@@ -70,40 +70,40 @@ export default function StatusReportModal({ onClose, onGenerated }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="status-report-modal">
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-lg p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+      <div className="bg-surface border border-border rounded-lg p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Generate Status Report</h2>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-white">✕</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-white">✕</button>
         </div>
 
-        {error && <div className="text-red-400 text-sm mb-3">{error}</div>}
+        {error && <div className="text-destructive text-sm mb-3">{error}</div>}
 
         {!generatedMarkdown ? (
           <div className="space-y-4">
             <div>
-              <label className="text-xs text-[var(--text-muted)]">Title</label>
+              <label className="text-xs text-muted-foreground">Title</label>
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-1.5 text-sm"
+                className="w-full bg-background border border-border rounded px-3 py-1.5 text-sm"
                 placeholder="Weekly Platform Status" data-testid="report-title" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-[var(--text-muted)]">Period Start</label>
+                <label className="text-xs text-muted-foreground">Period Start</label>
                 <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)}
-                  className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-1.5 text-sm"
+                  className="w-full bg-background border border-border rounded px-3 py-1.5 text-sm"
                   data-testid="report-period-start" />
               </div>
               <div>
-                <label className="text-xs text-[var(--text-muted)]">Period End</label>
+                <label className="text-xs text-muted-foreground">Period End</label>
                 <input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)}
-                  className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-1.5 text-sm"
+                  className="w-full bg-background border border-border rounded px-3 py-1.5 text-sm"
                   data-testid="report-period-end" />
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-[var(--text-muted)]">Sections</label>
+              <label className="text-xs text-muted-foreground">Sections</label>
               <div className="grid grid-cols-2 gap-2 mt-1" data-testid="report-sections">
                 {ALL_SECTIONS.map(s => (
                   <label key={s.value} className="flex items-center gap-2 text-sm">
@@ -118,7 +118,7 @@ export default function StatusReportModal({ onClose, onGenerated }: Props) {
 
             <div className="flex justify-end">
               <button onClick={handleGenerate} disabled={generating}
-                className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+                className="px-4 py-1.5 bg-primary text-primary-foreground rounded text-sm disabled:opacity-50"
                 data-testid="report-generate-btn">
                 {generating ? 'Generating...' : 'Generate Report'}
               </button>
@@ -127,16 +127,16 @@ export default function StatusReportModal({ onClose, onGenerated }: Props) {
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-green-400">✓ Report generated successfully</span>
+              <span className="text-sm text-success">✓ Report generated successfully</span>
               <div className="flex gap-2">
                 <button onClick={handleDownload}
-                  className="px-3 py-1 bg-green-700 text-white rounded text-sm hover:bg-green-600"
+                  className="px-3 py-1 bg-success text-white rounded text-sm hover:bg-success"
                   data-testid="report-download-md">Download Markdown</button>
                 <button onClick={onClose}
-                  className="px-3 py-1 bg-gray-700 rounded text-sm">Close</button>
+                  className="px-3 py-1 bg-muted rounded text-sm">Close</button>
               </div>
             </div>
-            <pre className="bg-[var(--bg-input)] border border-[var(--border)] rounded p-3 text-xs font-mono overflow-auto max-h-[50vh]"
+            <pre className="bg-background border border-border rounded p-3 text-xs font-mono overflow-auto max-h-[50vh]"
               data-testid="report-preview">{generatedMarkdown}</pre>
           </div>
         )}

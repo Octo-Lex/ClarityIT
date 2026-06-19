@@ -44,12 +44,12 @@ function DocBlockPreview({ block }: { block: any }) {
     case 'numbered_list':
       return <ol className="list-decimal pl-4 text-sm">{(block.items || []).map((it: string, i: number) => <li key={i}>{it}</li>)}</ol>;
     case 'quote':
-      return <blockquote className="border-l-2 border-gray-600 pl-2 italic text-sm">{block.text}</blockquote>;
+      return <blockquote className="border-l-2 border-border pl-2 italic text-sm">{block.text}</blockquote>;
     case 'callout':
-      const variantColors: Record<string, string> = { info: 'bg-blue-900/30 text-blue-300', warning: 'bg-yellow-900/30 text-yellow-300', success: 'bg-green-900/30 text-green-300', error: 'bg-red-900/30 text-red-300', note: 'bg-gray-700 text-gray-300', tip: 'bg-purple-900/30 text-purple-300' };
+      const variantColors: Record<string, string> = { info: 'bg-info/10 text-info', warning: 'bg-warning/20 text-warning', success: 'bg-success/15 text-success', error: 'bg-destructive/15 text-destructive', note: 'bg-muted text-muted-foreground', tip: 'bg-primary/10 text-primary' };
       return <div className={`text-xs rounded px-2 py-1 ${variantColors[block.variant] || variantColors.note}`}>{block.text}</div>;
     case 'page_break':
-      return <div className="text-center text-xs text-gray-500">— Page Break —</div>;
+      return <div className="text-center text-xs text-muted-foreground">— Page Break —</div>;
     default:
       return null;
   }
@@ -134,35 +134,35 @@ export default function TemplateGallery({ onClose, onInstantiated }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="template-gallery">
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-lg p-6 w-full max-w-4xl max-h-[85vh] overflow-y-auto">
+      <div className="bg-surface border border-border rounded-lg p-6 w-full max-w-4xl max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Template Library</h2>
           <div className="flex gap-2">
             <button onClick={() => setShowCreateForm(!showCreateForm)}
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
+              className="px-3 py-1 bg-primary text-primary-foreground rounded text-sm"
               data-testid="template-create-btn">+ New Template</button>
-            <button onClick={onClose} className="text-[var(--text-muted)] hover:text-white">✕</button>
+            <button onClick={onClose} className="text-muted-foreground hover:text-white">✕</button>
           </div>
         </div>
 
-        {error && <div className="text-red-400 text-sm mb-3" data-testid="template-error">{error}</div>}
+        {error && <div className="text-destructive text-sm mb-3" data-testid="template-error">{error}</div>}
 
         {/* Create form */}
         {showCreateForm && (
-          <div className="border border-[var(--border)] rounded p-4 mb-4 space-y-2" data-testid="template-create-form">
+          <div className="border border-border rounded p-4 mb-4 space-y-2" data-testid="template-create-form">
             <h3 className="text-sm font-semibold">Create Custom Template</h3>
             <input type="text" placeholder="Template name" value={ctName}
               onChange={(e) => setCtName(e.target.value)}
-              className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-1.5 text-sm"
+              className="w-full bg-background border border-border rounded px-3 py-1.5 text-sm"
               data-testid="template-form-name" />
             <div className="flex gap-2">
               <select value={ctType} onChange={(e) => setCtType(e.target.value)}
-                className="bg-[var(--bg-input)] border border-[var(--border)] rounded px-2 py-1.5 text-sm"
+                className="bg-background border border-border rounded px-2 py-1.5 text-sm"
                 data-testid="template-form-type">
                 {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
               <select value={ctFormat} onChange={(e) => setCtFormat(e.target.value)}
-                className="bg-[var(--bg-input)] border border-[var(--border)] rounded px-2 py-1.5 text-sm"
+                className="bg-background border border-border rounded px-2 py-1.5 text-sm"
                 data-testid="template-form-format">
                 <option value="markdown">Markdown</option>
                 <option value="document_json">Document (JSON)</option>
@@ -170,21 +170,21 @@ export default function TemplateGallery({ onClose, onInstantiated }: Props) {
             </div>
             <input type="text" placeholder="Description (optional)" value={ctDesc}
               onChange={(e) => setCtDesc(e.target.value)}
-              className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-1.5 text-sm"
+              className="w-full bg-background border border-border rounded px-3 py-1.5 text-sm"
               data-testid="template-form-desc" />
             {ctFormat === 'markdown' ? (
               <textarea placeholder="Markdown content..." value={ctContent}
                 onChange={(e) => setCtContent(e.target.value)} rows={6}
-                className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-2 text-sm font-mono"
+                className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono"
                 data-testid="template-form-content" />
             ) : (
               <textarea placeholder='{"schema_version": 1, "title": "...", "document_type": "general_document", "blocks": [...]}' value={ctDocJSON}
                 onChange={(e) => setCtDocJSON(e.target.value)} rows={8}
-                className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-2 text-sm font-mono"
+                className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono"
                 data-testid="template-form-doc-json" />
             )}
             <button onClick={handleCreateTemplate}
-              className="px-3 py-1 bg-green-600 text-white rounded text-sm"
+              className="px-3 py-1 bg-success text-white rounded text-sm"
               data-testid="template-form-save">Save Template</button>
           </div>
         )}
@@ -192,22 +192,22 @@ export default function TemplateGallery({ onClose, onInstantiated }: Props) {
         {/* Filters */}
         <div className="flex gap-2 mb-3">
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
-            className="bg-[var(--bg-input)] border border-[var(--border)] rounded px-2 py-1 text-sm"
+            className="bg-background border border-border rounded px-2 py-1 text-sm"
             data-testid="template-filter">
             {FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <select value={formatFilter} onChange={(e) => setFormatFilter(e.target.value)}
-            className="bg-[var(--bg-input)] border border-[var(--border)] rounded px-2 py-1 text-sm"
+            className="bg-background border border-border rounded px-2 py-1 text-sm"
             data-testid="template-format-filter">
             {FORMAT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
 
         {/* Loading/empty */}
-        {loading && <div className="text-[var(--text-muted)] text-sm">Loading...</div>}
+        {loading && <div className="text-muted-foreground text-sm">Loading...</div>}
         {!loading && templates.length === 0 && (
-          <div className="card p-8 text-center" data-testid="template-empty">
-            <p className="text-[var(--text-muted)]">No templates found.</p>
+          <div className="rounded-xl border border-border bg-surface p-8 text-center" data-testid="template-empty">
+            <p className="text-muted-foreground">No templates found.</p>
           </div>
         )}
 
@@ -215,24 +215,24 @@ export default function TemplateGallery({ onClose, onInstantiated }: Props) {
         {!loading && templates.length > 0 && !previewTemplate && (
           <div className="grid grid-cols-2 gap-3" data-testid="template-list">
             {templates.map(t => (
-              <div key={t.id} className="card p-3 cursor-pointer hover:border-blue-600"
+              <div key={t.id} className="rounded-xl border border-border bg-surface p-3 cursor-pointer hover:border-primary"
                 onClick={() => setPreviewId(t.id)}
                 data-testid={`template-card-${t.id}`}>
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   {t.is_system ? (
-                    <span className="px-1.5 py-0.5 text-xs rounded bg-blue-900/40 text-blue-300" data-testid={`template-badge-system-${t.id}`}>SYSTEM</span>
+                    <span className="px-1.5 py-0.5 text-xs rounded bg-info/15 text-info" data-testid={`template-badge-system-${t.id}`}>SYSTEM</span>
                   ) : (
-                    <span className="px-1.5 py-0.5 text-xs rounded bg-green-900/40 text-green-300" data-testid={`template-badge-team-${t.id}`}>TEAM</span>
+                    <span className="px-1.5 py-0.5 text-xs rounded bg-success/15 text-success" data-testid={`template-badge-team-${t.id}`}>TEAM</span>
                   )}
                   {t.template_format === 'document_json' ? (
-                    <span className="px-1.5 py-0.5 text-xs rounded bg-purple-900/40 text-purple-300" data-testid={`template-badge-doc-${t.id}`}>DOCUMENT</span>
+                    <span className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary" data-testid={`template-badge-doc-${t.id}`}>DOCUMENT</span>
                   ) : (
-                    <span className="px-1.5 py-0.5 text-xs rounded bg-gray-700 text-gray-300" data-testid={`template-badge-md-${t.id}`}>MARKDOWN</span>
+                    <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground" data-testid={`template-badge-md-${t.id}`}>MARKDOWN</span>
                   )}
-                  <span className="text-xs text-[var(--text-muted)]">{TYPE_LABELS[t.template_type] || t.template_type}</span>
+                  <span className="text-xs text-muted-foreground">{TYPE_LABELS[t.template_type] || t.template_type}</span>
                 </div>
                 <div className="text-sm font-medium">{t.name}</div>
-                {t.description && <div className="text-xs text-[var(--text-muted)] truncate">{t.description}</div>}
+                {t.description && <div className="text-xs text-muted-foreground truncate">{t.description}</div>}
               </div>
             ))}
           </div>
@@ -242,28 +242,28 @@ export default function TemplateGallery({ onClose, onInstantiated }: Props) {
         {previewTemplate && (
           <div data-testid="template-preview-section">
             <div className="flex items-center gap-2 mb-2">
-              <button onClick={() => setPreviewId(null)} className="text-xs text-blue-400">← Back</button>
+              <button onClick={() => setPreviewId(null)} className="text-xs text-info">← Back</button>
               <span className="text-sm font-medium">{previewTemplate.name}</span>
-              {previewTemplate.is_system && <span className="px-1.5 py-0.5 text-xs rounded bg-blue-900/40 text-blue-300">SYSTEM</span>}
-              {isDocTemplate && <span className="px-1.5 py-0.5 text-xs rounded bg-purple-900/40 text-purple-300">DOCUMENT</span>}
+              {previewTemplate.is_system && <span className="px-1.5 py-0.5 text-xs rounded bg-info/15 text-info">SYSTEM</span>}
+              {isDocTemplate && <span className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">DOCUMENT</span>}
             </div>
 
             {isDocTemplate ? (
-              <div className="border border-[var(--border)] rounded p-3 space-y-2 max-h-[40vh] overflow-y-auto mb-3"
+              <div className="border border-border rounded p-3 space-y-2 max-h-[40vh] overflow-y-auto mb-3"
                 data-testid="template-preview-doc">
                 {(previewTemplate.document_json?.blocks || []).map((blk: any, i: number) => (
                   <DocBlockPreview key={i} block={blk} />
                 ))}
               </div>
             ) : (
-              <pre className="bg-[var(--bg-input)] border border-[var(--border)] rounded p-3 text-xs font-mono overflow-auto max-h-[40vh] mb-3"
+              <pre className="bg-background border border-border rounded p-3 text-xs font-mono overflow-auto max-h-[40vh] mb-3"
                 data-testid="template-preview-content">{previewTemplate.content_markdown}</pre>
             )}
 
             <button
               onClick={() => handleInstantiate(previewTemplate)}
               disabled={instantiating}
-              className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+              className="px-4 py-1.5 bg-primary text-primary-foreground rounded text-sm disabled:opacity-50"
               data-testid="template-use-btn">
               {instantiating ? 'Creating...' : 'Use Template'}
             </button>

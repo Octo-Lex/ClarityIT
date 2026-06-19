@@ -38,6 +38,8 @@ const EXEMPT = new Set<string>([
   'components/ui/badge.tsx',
   'components/ui/button.tsx',
   'components/ui/input.tsx',
+  // This test file contains the legacy patterns as regex literals by design.
+  'test/no-legacy-styles.test.ts',
 ]);
 
 function walk(dir: string, out: string[] = []): string[] {

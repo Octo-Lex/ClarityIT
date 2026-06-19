@@ -98,34 +98,34 @@ export default function VersionHistoryDrawer({ artifactId, open, onClose, archiv
   return (
     <div className="fixed inset-0 z-50 flex" data-testid="version-drawer">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="ml-auto h-full w-96 bg-[var(--bg)] border-l border-[var(--border)] overflow-y-auto relative">
+      <div className="ml-auto h-full w-96 bg-background border-l border-border overflow-y-auto relative">
         {/* Header */}
-        <div className="sticky top-0 bg-[var(--bg)] border-b border-[var(--border)] px-4 py-3 flex items-center justify-between z-10">
+        <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between z-10">
           <h2 className="text-sm font-semibold">Version History</h2>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)]" data-testid="close-drawer">✕</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground" data-testid="close-drawer">✕</button>
         </div>
 
         {/* Loading */}
         {loading && (
-          <div className="p-4 text-center text-sm text-[var(--text-muted)]" data-testid="version-loading">
+          <div className="p-4 text-center text-sm text-muted-foreground" data-testid="version-loading">
             Loading versions...
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className="p-4 text-sm text-red-400" data-testid="version-error">{error}</div>
+          <div className="p-4 text-sm text-destructive" data-testid="version-error">{error}</div>
         )}
 
         {/* Version list */}
         {!loading && !error && (
-          <div className="divide-y divide-[var(--border)]" data-testid="version-list">
+          <div className="divide-y divide-border" data-testid="version-list">
             {versions.map((v) => {
               const badge = SOURCE_BADGES[v.source] || { label: v.source, color: 'bg-muted text-muted-foreground' };
               return (
                 <div
                   key={v.id}
-                  className={`p-3 cursor-pointer hover:bg-[var(--card)] ${selectedVersion?.id === v.id ? 'bg-[var(--card)]' : ''}`}
+                  className={`p-3 cursor-pointer hover:bg-surface ${selectedVersion?.id === v.id ? 'bg-surface' : ''}`}
                   onClick={() => selectVersion(v.id)}
                   data-testid={`version-item-${v.version_number}`}
                 >
@@ -135,11 +135,11 @@ export default function VersionHistoryDrawer({ artifactId, open, onClose, archiv
                       {badge.label}
                     </span>
                   </div>
-                  <div className="text-xs text-[var(--text-muted)]">
+                  <div className="text-xs text-muted-foreground">
                     {v.word_count} words · {new Date(v.created_at).toLocaleString()}
                   </div>
                   {v.change_summary && (
-                    <div className="text-xs mt-1 text-[var(--text-muted)]" data-testid={`version-summary-${v.version_number}`}>
+                    <div className="text-xs mt-1 text-muted-foreground" data-testid={`version-summary-${v.version_number}`}>
                       {v.change_summary}
                     </div>
                   )}
@@ -147,17 +147,17 @@ export default function VersionHistoryDrawer({ artifactId, open, onClose, archiv
               );
             })}
             {versions.length === 0 && (
-              <div className="p-4 text-center text-sm text-[var(--text-muted)]">No versions yet</div>
+              <div className="p-4 text-center text-sm text-muted-foreground">No versions yet</div>
             )}
           </div>
         )}
 
         {/* Preview panel */}
         {selectedVersion && (
-          <div className="border-t border-[var(--border)] p-4 bg-[var(--card)]" data-testid="version-preview">
+          <div className="border-t border-border p-4 bg-surface" data-testid="version-preview">
             <div className="text-xs font-semibold mb-2">Preview — v{selectedVersion.version_number}</div>
             {previewLoading ? (
-              <div className="text-xs text-[var(--text-muted)]">Loading...</div>
+              <div className="text-xs text-muted-foreground">Loading...</div>
             ) : (
               <div className="text-xs space-y-1 max-h-48 overflow-y-auto">
                 {(selectedVersion.document_json?.blocks || []).map((blk: any, i: number) => (
@@ -173,14 +173,14 @@ export default function VersionHistoryDrawer({ artifactId, open, onClose, archiv
             {!archived && (
               <button
                 onClick={() => setConfirmRestore(selectedVersion.id)}
-                className="mt-3 px-3 py-1 text-xs bg-[var(--primary)] text-white rounded hover:opacity-90"
+                className="mt-3 px-3 py-1 text-xs bg-primary text-white rounded hover:opacity-90"
                 data-testid="restore-button"
               >
                 Restore this version
               </button>
             )}
             {archived && (
-              <div className="mt-3 text-xs text-[var(--text-muted)]" data-testid="restore-archived-notice">
+              <div className="mt-3 text-xs text-muted-foreground" data-testid="restore-archived-notice">
                 Document is archived — restore unavailable
               </div>
             )}
@@ -191,21 +191,21 @@ export default function VersionHistoryDrawer({ artifactId, open, onClose, archiv
         {confirmRestore && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" data-testid="restore-confirm">
             <div className="absolute inset-0 bg-black/50" onClick={() => setConfirmRestore(null)} />
-            <div className="relative bg-[var(--bg)] border border-[var(--border)] rounded-lg p-4 max-w-sm">
+            <div className="relative bg-background border border-border rounded-lg p-4 max-w-sm">
               <div className="text-sm font-medium mb-2">Restore Version?</div>
-              <div className="text-xs text-[var(--text-muted)] mb-4">
+              <div className="text-xs text-muted-foreground mb-4">
                 This will create a new version with the selected content. Current content will be preserved in history.
               </div>
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setConfirmRestore(null)}
-                  className="px-3 py-1 text-xs border border-[var(--border)] rounded"
+                  className="px-3 py-1 text-xs border border-border rounded"
                   data-testid="restore-cancel"
                 >Cancel</button>
                 <button
                   onClick={() => doRestore(confirmRestore)}
                   disabled={restoring}
-                  className="px-3 py-1 text-xs bg-[var(--primary)] text-white rounded"
+                  className="px-3 py-1 text-xs bg-primary text-white rounded"
                   data-testid="restore-confirm-button"
                 >{restoring ? 'Restoring...' : 'Restore'}</button>
               </div>
