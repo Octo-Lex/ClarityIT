@@ -60,8 +60,8 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
 
   if (!isPlatformOwner) {
     return (
-      <div className="card p-4" data-testid="sim-panel-unauthorized">
-        <p className="text-sm text-[var(--text-muted)]">Platform owner access required.</p>
+      <div className="rounded-xl border border-border bg-surface p-4" data-testid="sim-panel-unauthorized">
+        <p className="text-sm text-muted-foreground">Platform owner access required.</p>
       </div>
     );
   }
@@ -88,11 +88,11 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
   };
 
   return (
-    <div className="card p-4" data-testid="sim-panel">
+    <div className="rounded-xl border border-border bg-surface p-4" data-testid="sim-panel">
       <h2 className="text-lg font-semibold mb-2">Approval Policy Simulation</h2>
 
       {/* Simulation-only warning */}
-      <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded text-sm text-yellow-300" data-testid="sim-warning">
+      <div className="mb-4 p-3 bg-warning/20 border border-warning/40 rounded text-sm text-warning" data-testid="sim-warning">
         ⚠ Simulation only — no changes to live policy
       </div>
 
@@ -101,7 +101,7 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
         <h3 className="text-sm font-semibold">Draft Policy</h3>
         <div className="grid grid-cols-4 gap-3">
           {['low', 'medium', 'high', 'critical'].map(level => (
-            <div key={level} className="border border-[var(--border)] rounded p-2" data-testid={`sim-policy-${level}`}>
+            <div key={level} className="border border-border rounded p-2" data-testid={`sim-policy-${level}`}>
               <div className="text-xs font-semibold capitalize mb-2">{level}</div>
               <div className="space-y-1">
                 <label className="text-xs block">
@@ -112,7 +112,7 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
                     max={5}
                     value={policy[level].min_approvers}
                     onChange={e => updatePolicy(level, 'min_approvers', parseInt(e.target.value) || 0)}
-                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-1 text-xs"
+                    className="w-full bg-background border border-border rounded px-1 text-xs"
                     data-testid={`sim-${level}-approvers`}
                   />
                 </label>
@@ -144,7 +144,7 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
       <button
         onClick={handleSimulate}
         disabled={loading}
-        className="px-4 py-2 bg-[var(--primary)] text-white rounded text-sm disabled:opacity-50"
+        className="px-4 py-2 bg-primary text-white rounded text-sm disabled:opacity-50"
         data-testid="sim-button"
       >
         {loading ? 'Simulating...' : 'Run Simulation'}
@@ -152,7 +152,7 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
       {/* Explicitly NO save/apply button */}
 
       {error && (
-        <div className="mt-3 text-sm text-red-400" data-testid="sim-error">{error}</div>
+        <div className="mt-3 text-sm text-destructive" data-testid="sim-error">{error}</div>
       )}
 
       {/* Results */}
@@ -164,7 +164,7 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
+                  <tr className="text-left text-muted-foreground border-b border-border">
                     <th className="pb-1 pr-2">Scenario</th>
                     <th className="pb-1 pr-2">Action</th>
                     <th className="pb-1 pr-2">Risk</th>
@@ -178,12 +178,12 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
                 </thead>
                 <tbody>
                   {results.results.map((r) => (
-                    <tr key={r.scenario_id} className="border-b border-[var(--border)]" data-testid={`sim-result-${r.scenario_id}`}>
+                    <tr key={r.scenario_id} className="border-b border-border" data-testid={`sim-result-${r.scenario_id}`}>
                       <td className="py-1 pr-2">{r.scenario_id}</td>
                       <td className="py-1 pr-2">{r.action_type}</td>
                       <td className="py-1 pr-2 capitalize">{r.risk_level}</td>
                       <td className="py-1 pr-2">
-                        <span className={r.allowed ? 'text-green-400' : 'text-red-400'} data-testid={`sim-result-allowed-${r.scenario_id}`}>
+                        <span className={r.allowed ? 'text-success' : 'text-destructive'} data-testid={`sim-result-allowed-${r.scenario_id}`}>
                           {r.allowed ? 'Yes' : 'No'}
                         </span>
                       </td>
@@ -195,7 +195,7 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
                       </td>
                       <td className="py-1 pr-2" data-testid={`sim-result-approvers-${r.scenario_id}`}>{r.min_approvers}</td>
                       <td className="py-1 pr-2">{r.allow_self_approval ? 'Yes' : 'No'}</td>
-                      <td className="py-1 text-[var(--text-muted)]">{r.decision_explanation}</td>
+                      <td className="py-1 text-muted-foreground">{r.decision_explanation}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -210,16 +210,16 @@ export default function PolicySimulationPanel({ isPlatformOwner }: { isPlatformO
               <div className="space-y-1">
                 {results.policy_diff.changes.map((c, i) => (
                   <div key={i} className="text-xs flex gap-2" data-testid={`sim-diff-${i}`}>
-                    <span className="badge badge-yellow capitalize">{c.risk_level}</span>
-                    <span className="text-[var(--text-muted)]">{c.field}:</span>
-                    <span className="text-red-400">{String(c.current)}</span>
-                    <span className="text-[var(--text-muted)]">→</span>
-                    <span className="text-green-400">{String(c.draft)}</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning/20 text-warning capitalize">{c.risk_level}</span>
+                    <span className="text-muted-foreground">{c.field}:</span>
+                    <span className="text-destructive">{String(c.current)}</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-success">{String(c.draft)}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-[var(--text-muted)]">No changes from current policy.</p>
+              <p className="text-xs text-muted-foreground">No changes from current policy.</p>
             )}
           </div>
         </div>

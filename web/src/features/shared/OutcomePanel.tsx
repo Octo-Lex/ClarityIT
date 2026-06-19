@@ -96,9 +96,9 @@ export default function OutcomePanel({
   // Not terminal — no form
   if (!isTerminal) {
     return (
-      <div className="mt-3 p-3 bg-[var(--card)] border border-[var(--border)] rounded-lg" data-testid="outcome-panel">
+      <div className="mt-3 p-3 bg-surface border border-border rounded-lg" data-testid="outcome-panel">
         <h4 className="text-sm font-semibold mb-1">Post-Action Outcome</h4>
-        <p className="text-xs text-[var(--text-muted)]" data-testid="outcome-not-terminal">
+        <p className="text-xs text-muted-foreground" data-testid="outcome-not-terminal">
           Outcome recording will be available once this action reaches a terminal status.
         </p>
       </div>
@@ -106,54 +106,54 @@ export default function OutcomePanel({
   }
 
   const statusColors: Record<string, string> = {
-    successful: 'text-green-400',
-    partially_successful: 'text-yellow-400',
-    failed: 'text-red-400',
-    inconclusive: 'text-gray-400',
+    successful: 'text-success',
+    partially_successful: 'text-warning',
+    failed: 'text-destructive',
+    inconclusive: 'text-muted-foreground',
   };
 
   return (
-    <div className="mt-3 p-3 bg-[var(--card)] border border-[var(--border)] rounded-lg" data-testid="outcome-panel">
+    <div className="mt-3 p-3 bg-surface border border-border rounded-lg" data-testid="outcome-panel">
       <h4 className="text-sm font-semibold mb-2">Post-Action Outcome</h4>
 
       {/* Warning */}
-      <div className="mb-3 p-2 bg-yellow-900/20 border border-yellow-700 rounded text-xs text-yellow-300" data-testid="outcome-warning">
+      <div className="mb-3 p-2 bg-warning/20 border border-warning/40 rounded text-xs text-warning" data-testid="outcome-warning">
         ⚠ Recording an outcome will not trigger any automatic retry or follow-up action.
       </div>
 
       {error && (
-        <div className="mb-2 text-xs text-red-400" data-testid="outcome-error">{error}</div>
+        <div className="mb-2 text-xs text-destructive" data-testid="outcome-error">{error}</div>
       )}
 
       {/* Display mode */}
       {outcome?.available && !editing ? (
         <div className="space-y-2 text-xs" data-testid="outcome-display">
           <div data-testid="outcome-status-display">
-            <span className="text-[var(--text-muted)]">Status: </span>
+            <span className="text-muted-foreground">Status: </span>
             <span className={`font-semibold ${statusColors[outcome.outcome_status ?? ''] || ''}`}>
               {outcome.outcome_status}
             </span>
           </div>
           {outcome.expected_result && (
-            <div><span className="text-[var(--text-muted)]">Expected: </span>{outcome.expected_result}</div>
+            <div><span className="text-muted-foreground">Expected: </span>{outcome.expected_result}</div>
           )}
           {outcome.actual_result && (
-            <div><span className="text-[var(--text-muted)]">Actual: </span>{outcome.actual_result}</div>
+            <div><span className="text-muted-foreground">Actual: </span>{outcome.actual_result}</div>
           )}
           {outcome.operator_feedback && (
-            <div><span className="text-[var(--text-muted)]">Feedback: </span>{outcome.operator_feedback}</div>
+            <div><span className="text-muted-foreground">Feedback: </span>{outcome.operator_feedback}</div>
           )}
           {outcome.follow_up_recommendation && (
-            <div><span className="text-[var(--text-muted)]">Follow-up: </span>{outcome.follow_up_recommendation}</div>
+            <div><span className="text-muted-foreground">Follow-up: </span>{outcome.follow_up_recommendation}</div>
           )}
           {outcome.created_at && (
-            <div className="text-[var(--text-muted)]">
+            <div className="text-muted-foreground">
               Recorded: {new Date(outcome.created_at).toLocaleDateString()}
             </div>
           )}
           <button
             onClick={() => setEditing(true)}
-            className="mt-1 px-2 py-1 text-xs border border-[var(--border)] rounded hover:bg-[var(--border)]"
+            className="mt-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted"
             data-testid="outcome-edit-btn"
           >
             Edit Outcome
@@ -164,11 +164,11 @@ export default function OutcomePanel({
         (editing || !outcome?.available) && (
           <form onSubmit={handleSave} className="space-y-2" data-testid="outcome-form">
             <div>
-              <label className="text-xs block text-[var(--text-muted)]">Outcome Status *</label>
+              <label className="text-xs block text-muted-foreground">Outcome Status *</label>
               <select
                 value={form.outcome_status}
                 onChange={e => setForm({ ...form, outcome_status: e.target.value })}
-                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-xs"
+                className="w-full bg-background border border-border rounded px-2 py-1 text-xs"
                 data-testid="outcome-form-status"
               >
                 <option value="successful">Successful</option>
@@ -178,45 +178,45 @@ export default function OutcomePanel({
               </select>
             </div>
             <div>
-              <label className="text-xs block text-[var(--text-muted)]">Expected Result</label>
+              <label className="text-xs block text-muted-foreground">Expected Result</label>
               <textarea
                 value={form.expected_result}
                 onChange={e => setForm({ ...form, expected_result: e.target.value })}
                 maxLength={2000}
-                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-xs"
+                className="w-full bg-background border border-border rounded px-2 py-1 text-xs"
                 rows={2}
                 data-testid="outcome-form-expected"
               />
             </div>
             <div>
-              <label className="text-xs block text-[var(--text-muted)]">Actual Result</label>
+              <label className="text-xs block text-muted-foreground">Actual Result</label>
               <textarea
                 value={form.actual_result}
                 onChange={e => setForm({ ...form, actual_result: e.target.value })}
                 maxLength={4000}
-                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-xs"
+                className="w-full bg-background border border-border rounded px-2 py-1 text-xs"
                 rows={3}
                 data-testid="outcome-form-actual"
               />
             </div>
             <div>
-              <label className="text-xs block text-[var(--text-muted)]">Operator Feedback</label>
+              <label className="text-xs block text-muted-foreground">Operator Feedback</label>
               <textarea
                 value={form.operator_feedback}
                 onChange={e => setForm({ ...form, operator_feedback: e.target.value })}
                 maxLength={4000}
-                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-xs"
+                className="w-full bg-background border border-border rounded px-2 py-1 text-xs"
                 rows={3}
                 data-testid="outcome-form-feedback"
               />
             </div>
             <div>
-              <label className="text-xs block text-[var(--text-muted)]">Follow-up Recommendation</label>
+              <label className="text-xs block text-muted-foreground">Follow-up Recommendation</label>
               <textarea
                 value={form.follow_up_recommendation}
                 onChange={e => setForm({ ...form, follow_up_recommendation: e.target.value })}
                 maxLength={2000}
-                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-xs"
+                className="w-full bg-background border border-border rounded px-2 py-1 text-xs"
                 rows={2}
                 data-testid="outcome-form-followup"
               />
@@ -225,7 +225,7 @@ export default function OutcomePanel({
               <button
                 type="submit"
                 disabled={saving}
-                className="px-3 py-1 bg-[var(--primary)] text-white rounded text-xs disabled:opacity-50"
+                className="px-3 py-1 bg-primary text-white rounded text-xs disabled:opacity-50"
                 data-testid="outcome-form-submit"
               >
                 {saving ? 'Saving...' : 'Save Outcome'}
@@ -234,7 +234,7 @@ export default function OutcomePanel({
                 <button
                   type="button"
                   onClick={() => setEditing(false)}
-                  className="px-3 py-1 text-xs border border-[var(--border)] rounded"
+                  className="px-3 py-1 text-xs border border-border rounded"
                 >
                   Cancel
                 </button>
@@ -247,7 +247,7 @@ export default function OutcomePanel({
 
       {/* Empty state when outcome not available but not editing */}
       {!outcome?.available && editing === false && (
-        <div className="text-xs text-[var(--text-muted)]" data-testid="outcome-empty">
+        <div className="text-xs text-muted-foreground" data-testid="outcome-empty">
           No outcome recorded yet.
           <button
             onClick={() => setEditing(true)}

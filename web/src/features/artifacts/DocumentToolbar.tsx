@@ -21,17 +21,17 @@ interface Props {
 
 export default function DocumentToolbar({ onAddBlock, previewMode, onTogglePreview, onSave, saveDisabled }: Props) {
   return (
-    <div className="flex items-center gap-2 py-2 px-3 border-b border-[var(--border)]" data-testid="document-toolbar">
+    <div className="flex items-center gap-2 py-2 px-3 border-b border-border" data-testid="document-toolbar">
       {!previewMode && (
         <div className="flex items-center gap-1">
-          <span className="text-xs text-[var(--text-muted)] mr-1">Add:</span>
+          <span className="text-xs text-muted-foreground mr-1">Add:</span>
           {BLOCK_OPTIONS.map(opt => (
             <button
               key={opt.type}
               data-testid={`toolbar-add-${opt.type}`}
               title={opt.label}
               onClick={() => onAddBlock(opt.type)}
-              className="px-2 py-1 text-xs rounded bg-[var(--card)] border border-[var(--border)] hover:bg-[var(--border)] hover:text-white"
+              className="px-2 py-1 text-xs rounded bg-surface border border-border hover:bg-muted hover:text-white"
             >
               {opt.icon}
             </button>
@@ -42,7 +42,7 @@ export default function DocumentToolbar({ onAddBlock, previewMode, onTogglePrevi
       <button
         data-testid="toolbar-preview"
         onClick={onTogglePreview}
-        className="px-3 py-1 text-xs rounded bg-[var(--card)] border border-[var(--border)] hover:bg-[var(--border)]"
+        className="px-3 py-1 text-xs rounded bg-surface border border-border hover:bg-muted"
       >
         {previewMode ? 'Edit' : 'Preview'}
       </button>
@@ -51,7 +51,7 @@ export default function DocumentToolbar({ onAddBlock, previewMode, onTogglePrevi
           data-testid="toolbar-save"
           onClick={onSave}
           disabled={saveDisabled}
-          className="px-3 py-1 text-xs rounded bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50"
+          className="px-3 py-1 text-xs rounded bg-primary text-white hover:opacity-90 disabled:opacity-50"
         >
           Save
         </button>

@@ -60,18 +60,18 @@ export default function RemediationPanel({ incidentId }: RemediationPanelProps) 
     }
   };
 
-  if (loading) return <div className="text-[var(--text-muted)]">Loading remediations...</div>;
+  if (loading) return <div className="text-muted-foreground">Loading remediations...</div>;
 
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Remediation Proposals</h2>
-      {error && <div className="p-2 bg-red-900/30 border border-red-700 rounded text-xs text-red-300">{error}</div>}
+      {error && <div className="p-2 bg-destructive/15 border border-destructive/40 rounded text-xs text-destructive">{error}</div>}
 
       {proposals.length === 0 ? (
-        <p className="text-sm text-[var(--text-muted)]">No remediation proposals.</p>
+        <p className="text-sm text-muted-foreground">No remediation proposals.</p>
       ) : (
         proposals.map(p => (
-          <div key={p.id} className="p-3 bg-[var(--card)] border border-[var(--border)] rounded" data-testid={`remediation-${p.id}`}>
+          <div key={p.id} className="p-3 bg-surface border border-border rounded" data-testid={`remediation-${p.id}`}>
             <div
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setExpanded(expanded === p.id ? null : p.id)}
@@ -79,27 +79,27 @@ export default function RemediationPanel({ incidentId }: RemediationPanelProps) 
               <div>
                 <span className="font-medium text-sm">{p.title}</span>
                 <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
-                  p.status === 'completed' ? 'bg-green-900/40 text-green-300' :
-                  p.status === 'failed' ? 'bg-red-900/40 text-red-300' :
-                  p.status === 'executing' ? 'bg-blue-900/40 text-blue-300' :
+                  p.status === 'completed' ? 'bg-success/15 text-success' :
+                  p.status === 'failed' ? 'bg-destructive/15 text-destructive' :
+                  p.status === 'executing' ? 'bg-info/15 text-info' :
                   p.status === 'approved' ? 'bg-cyan-900/40 text-cyan-300' :
-                  p.status === 'cancelled' ? 'bg-gray-700 text-gray-300' :
-                  'bg-yellow-900/40 text-yellow-300'
+                  p.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
+                  'bg-warning/20 text-warning'
                 }`} data-testid={`remediation-status-${p.id}`}>{p.status}</span>
               </div>
-              <span className="text-xs text-[var(--text-muted)]">{p.source}</span>
+              <span className="text-xs text-muted-foreground">{p.source}</span>
             </div>
 
             {/* MFA indicator for high-risk */}
             {(p.risk_level === 'high' || p.risk_level === 'critical') && p.status === 'approved' && (
-              <p className="mt-1 text-xs text-orange-400" data-testid={`remediation-mfa-${p.id}`}>
+              <p className="mt-1 text-xs text-warning" data-testid={`remediation-mfa-${p.id}`}>
                 ⚠ MFA required to execute this high-risk remediation
               </p>
             )}
 
             {expanded === p.id && (
               <div className="mt-3 space-y-2" data-testid={`remediation-detail-${p.id}`}>
-                <p className="text-xs text-[var(--text-muted)]">{p.description}</p>
+                <p className="text-xs text-muted-foreground">{p.description}</p>
 
                 {/* v1.2 Track 1: Evidence Panel */}
                 <EvidencePanel recommendationId={p.id} />
@@ -119,7 +119,7 @@ export default function RemediationPanel({ incidentId }: RemediationPanelProps) 
                       <button
                         onClick={() => handleApprove(p.id)}
                         data-testid={`remediation-approve-${p.id}`}
-                        className="px-3 py-1 bg-[var(--success)] text-white rounded text-xs"
+                        className="px-3 py-1 bg-success text-white rounded text-xs"
                       >
                         Approve
                       </button>
@@ -129,7 +129,7 @@ export default function RemediationPanel({ incidentId }: RemediationPanelProps) 
                     <button
                       onClick={() => handleExecute(p.id)}
                       data-testid={`remediation-execute-${p.id}`}
-                      className="px-3 py-1 bg-[var(--primary)] text-white rounded text-xs"
+                      className="px-3 py-1 bg-primary text-white rounded text-xs"
                     >
                       Execute
                     </button>
@@ -138,7 +138,7 @@ export default function RemediationPanel({ incidentId }: RemediationPanelProps) 
                     <button
                       onClick={() => handleCancel(p.id)}
                       data-testid={`remediation-cancel-${p.id}`}
-                      className="px-3 py-1 bg-red-900/30 border border-red-700 text-red-300 rounded text-xs"
+                      className="px-3 py-1 bg-destructive/15 border border-destructive/40 text-destructive rounded text-xs"
                     >
                       Cancel
                     </button>
@@ -162,24 +162,24 @@ function RemediationSteps({ proposalId }: { proposalId: string }) {
     api.getRemediation(proposalId).then(d => { setDetail(d); setLoaded(true); }).catch(() => setLoaded(true));
   }, [proposalId]);
 
-  if (!loaded) return <p className="text-xs text-[var(--text-muted)]">Loading steps...</p>;
-  if (!detail?.steps?.length) return <p className="text-xs text-[var(--text-muted)]">No steps.</p>;
+  if (!loaded) return <p className="text-xs text-muted-foreground">Loading steps...</p>;
+  if (!detail?.steps?.length) return <p className="text-xs text-muted-foreground">No steps.</p>;
 
   return (
     <>
-      <p className="text-xs font-medium text-[var(--text-muted)]">Steps:</p>
+      <p className="text-xs font-medium text-muted-foreground">Steps:</p>
       {(detail.steps as any[]).map((s, i) => (
-        <div key={s.id || i} className="flex items-center gap-2 text-xs p-1.5 bg-[var(--bg)] rounded">
-          <span className="text-[var(--text-muted)]">#{s.step_order}</span>
+        <div key={s.id || i} className="flex items-center gap-2 text-xs p-1.5 bg-background rounded">
+          <span className="text-muted-foreground">#{s.step_order}</span>
           <span className="font-mono">{s.tool_name}</span>
           <span className={`px-1 rounded ${
-            s.status === 'succeeded' ? 'text-green-400' :
-            s.status === 'failed' ? 'text-red-400' :
-            s.status === 'executing' ? 'text-blue-400' :
-            'text-[var(--text-muted)]'
+            s.status === 'succeeded' ? 'text-success' :
+            s.status === 'failed' ? 'text-destructive' :
+            s.status === 'executing' ? 'text-info' :
+            'text-muted-foreground'
           }`}>{s.status}</span>
           {s.error_message && (
-            <span className="text-red-400" data-testid={`step-error-${s.id}`}>
+            <span className="text-destructive" data-testid={`step-error-${s.id}`}>
               {s.error_message}
             </span>
           )}

@@ -69,15 +69,15 @@ export default function DocumentGenerateModal({ onClose, onGenerated }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" data-testid="generate-modal">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
+      <div className="bg-background border border-border rounded-lg p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Generate Document</h2>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl" data-testid="generate-close">×</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl" data-testid="generate-close">×</button>
         </div>
 
         {/* Title */}
         <div className="mb-3">
-          <label className="text-xs text-[var(--text-muted)] block mb-1">Title *</label>
+          <label className="text-xs text-muted-foreground block mb-1">Title *</label>
           <input
             data-testid="generate-title"
             type="text"
@@ -85,18 +85,18 @@ export default function DocumentGenerateModal({ onClose, onGenerated }: Props) {
             onChange={e => setTitle(e.target.value)}
             maxLength={200}
             placeholder="e.g., Q3 Platform Implementation Plan"
-            className="w-full text-sm bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1.5"
+            className="w-full text-sm bg-surface border border-border rounded px-2 py-1.5"
           />
         </div>
 
         {/* Document type */}
         <div className="mb-3">
-          <label className="text-xs text-[var(--text-muted)] block mb-1">Document Type *</label>
+          <label className="text-xs text-muted-foreground block mb-1">Document Type *</label>
           <select
             data-testid="generate-doc-type"
             value={docType}
             onChange={e => setDocType(e.target.value)}
-            className="w-full text-sm bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1.5"
+            className="w-full text-sm bg-surface border border-border rounded px-2 py-1.5"
           >
             {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
@@ -104,7 +104,7 @@ export default function DocumentGenerateModal({ onClose, onGenerated }: Props) {
 
         {/* Prompt */}
         <div className="mb-3">
-          <label className="text-xs text-[var(--text-muted)] block mb-1">Prompt *</label>
+          <label className="text-xs text-muted-foreground block mb-1">Prompt *</label>
           <textarea
             data-testid="generate-prompt"
             value={prompt}
@@ -112,18 +112,18 @@ export default function DocumentGenerateModal({ onClose, onGenerated }: Props) {
             maxLength={2000}
             rows={3}
             placeholder="Describe what the document should cover..."
-            className="w-full text-sm bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1.5 resize-y"
+            className="w-full text-sm bg-surface border border-border rounded px-2 py-1.5 resize-y"
           />
         </div>
 
         {/* Tone */}
         <div className="mb-3">
-          <label className="text-xs text-[var(--text-muted)] block mb-1">Tone</label>
+          <label className="text-xs text-muted-foreground block mb-1">Tone</label>
           <select
             data-testid="generate-tone"
             value={tone}
             onChange={e => setTone(e.target.value)}
-            className="w-full text-sm bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1.5"
+            className="w-full text-sm bg-surface border border-border rounded px-2 py-1.5"
           >
             {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
@@ -132,12 +132,12 @@ export default function DocumentGenerateModal({ onClose, onGenerated }: Props) {
         {/* Sections */}
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
-            <label className="text-xs text-[var(--text-muted)]">Sections (optional)</label>
+            <label className="text-xs text-muted-foreground">Sections (optional)</label>
             <button
               data-testid="generate-add-section"
               onClick={addSection}
               disabled={sections.length >= 20}
-              className="text-xs px-2 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)] disabled:opacity-50"
+              className="text-xs px-2 py-0.5 bg-surface border border-border rounded hover:bg-muted disabled:opacity-50"
             >+ Add</button>
           </div>
           {sections.map((s, i) => (
@@ -149,12 +149,12 @@ export default function DocumentGenerateModal({ onClose, onGenerated }: Props) {
                 onChange={e => updateSection(i, e.target.value)}
                 maxLength={100}
                 placeholder={`Section ${i + 1}`}
-                className="flex-1 text-sm bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1"
+                className="flex-1 text-sm bg-surface border border-border rounded px-2 py-1"
               />
               <button
                 data-testid={`generate-remove-section-${i}`}
                 onClick={() => removeSection(i)}
-                className="text-xs px-2 py-1 text-red-400 hover:text-red-300"
+                className="text-xs px-2 py-1 text-destructive hover:text-destructive"
               >×</button>
             </div>
           ))}
@@ -162,14 +162,14 @@ export default function DocumentGenerateModal({ onClose, onGenerated }: Props) {
 
         {/* Error */}
         {error && (
-          <div className="text-xs text-red-400 bg-red-950/30 border border-red-900 rounded p-2 mb-3" data-testid="generate-error">
+          <div className="text-xs text-destructive bg-destructive/10 border border-destructive/40 rounded p-2 mb-3" data-testid="generate-error">
             {error}
           </div>
         )}
 
         {/* Loading */}
         {loading && (
-          <div className="text-center text-xs text-[var(--text-muted)] py-2" data-testid="generate-loading">
+          <div className="text-center text-xs text-muted-foreground py-2" data-testid="generate-loading">
             Generating document...
           </div>
         )}
@@ -179,13 +179,13 @@ export default function DocumentGenerateModal({ onClose, onGenerated }: Props) {
           <button
             onClick={onClose}
             disabled={loading}
-            className="px-3 py-1.5 text-sm bg-[var(--card)] border border-[var(--border)] rounded hover:bg-[var(--border)]"
+            className="px-3 py-1.5 text-sm bg-surface border border-border rounded hover:bg-muted"
           >Cancel</button>
           <button
             data-testid="generate-submit"
             onClick={handleSubmit}
             disabled={loading || !title.trim() || !prompt.trim()}
-            className="px-3 py-1.5 text-sm bg-[var(--primary)] text-white rounded hover:opacity-90 disabled:opacity-50"
+            className="px-3 py-1.5 text-sm bg-primary text-white rounded hover:opacity-90 disabled:opacity-50"
           >{loading ? 'Generating...' : 'Generate'}</button>
         </div>
       </div>

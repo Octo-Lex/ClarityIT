@@ -51,7 +51,7 @@ export default function DocumentBlockEditor({
               data-testid={`block-level-${block.id}`}
               value={block.level || 1}
               onChange={e => update({ level: parseInt(e.target.value) })}
-              className="text-xs bg-[var(--card)] border border-[var(--border)] rounded px-1 py-1"
+              className="text-xs bg-surface border border-border rounded px-1 py-1"
             >
               {[1, 2, 3, 4, 5, 6].map(l => <option key={l} value={l}>H{l}</option>)}
             </select>
@@ -61,7 +61,7 @@ export default function DocumentBlockEditor({
               value={block.text || ''}
               onChange={e => update({ text: e.target.value })}
               placeholder="Heading text..."
-              className="flex-1 bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1 text-sm"
+              className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
             />
           </div>
         );
@@ -76,7 +76,7 @@ export default function DocumentBlockEditor({
             onChange={e => update({ text: e.target.value })}
             placeholder="Write something..."
             rows={3}
-            className="w-full bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1 text-sm resize-y"
+            className="w-full bg-surface border border-border rounded px-2 py-1 text-sm resize-y"
           />
         );
 
@@ -96,7 +96,7 @@ export default function DocumentBlockEditor({
           <div data-testid={`block-items-${block.id}`} className="space-y-1">
             {items.map((item, i) => (
               <div key={i} className="flex items-center gap-1">
-                <span className="text-xs text-[var(--text-muted)]">{ordered ? `${i + 1}.` : '•'}</span>
+                <span className="text-xs text-muted-foreground">{ordered ? `${i + 1}.` : '•'}</span>
                 <input
                   type="text"
                   data-testid={`block-item-${block.id}-${i}`}
@@ -106,19 +106,19 @@ export default function DocumentBlockEditor({
                     newItems[i] = e.target.value;
                     update({ items: newItems });
                   }}
-                  className="flex-1 bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1 text-sm"
+                  className="flex-1 bg-surface border border-border rounded px-2 py-1 text-sm"
                 />
                 <button
                   data-testid={`block-item-remove-${block.id}-${i}`}
                   onClick={() => update({ items: items.filter((_, idx) => idx !== i) })}
-                  className="text-xs text-red-400 hover:text-red-300 px-1"
+                  className="text-xs text-destructive hover:text-destructive px-1"
                 >✕</button>
               </div>
             ))}
             <button
               data-testid={`block-item-add-${block.id}`}
               onClick={() => update({ items: [...items, 'New item'] })}
-              className="text-xs text-[var(--primary)] hover:opacity-80"
+              className="text-xs text-primary hover:opacity-80"
             >+ Add item</button>
           </div>
         );
@@ -131,8 +131,8 @@ export default function DocumentBlockEditor({
           return (
             <div className="my-2" data-testid={`block-preview-${block.id}`}>
               <table className="w-full text-sm border-collapse">
-                <thead><tr>{headers.map((h, i) => <th key={i} className="border border-[var(--border)] px-2 py-1 text-left">{h}</th>)}</tr></thead>
-                <tbody>{rows.map((row, ri) => <tr key={ri}>{row.map((cell, ci) => <td key={ci} className="border border-[var(--border)] px-2 py-1">{cell}</td>)}</tr>)}</tbody>
+                <thead><tr>{headers.map((h, i) => <th key={i} className="border border-border px-2 py-1 text-left">{h}</th>)}</tr></thead>
+                <tbody>{rows.map((row, ri) => <tr key={ri}>{row.map((cell, ci) => <td key={ci} className="border border-border px-2 py-1">{cell}</td>)}</tr>)}</tbody>
               </table>
             </div>
           );
@@ -142,12 +142,12 @@ export default function DocumentBlockEditor({
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr>{headers.map((h, i) => (
-                  <th key={i} className="border border-[var(--border)] p-0">
+                  <th key={i} className="border border-border p-0">
                     <input
                       data-testid={`block-header-${block.id}-${i}`}
                       value={h}
                       onChange={e => { const nh = [...headers]; nh[i] = e.target.value; update({ headers: nh }); }}
-                      className="w-full bg-[var(--card)] px-2 py-1 text-left text-xs"
+                      className="w-full bg-surface px-2 py-1 text-left text-xs"
                     />
                   </th>
                 ))}</tr>
@@ -155,7 +155,7 @@ export default function DocumentBlockEditor({
               <tbody>{rows.map((row, ri) => (
                 <tr key={ri}>
                   {row.map((cell, ci) => (
-                    <td key={ci} className="border border-[var(--border)] p-0">
+                    <td key={ci} className="border border-border p-0">
                       <input
                         data-testid={`block-cell-${block.id}-${ri}-${ci}`}
                         value={cell}
@@ -163,7 +163,7 @@ export default function DocumentBlockEditor({
                           const nr = [...rows]; nr[ri] = [...row]; nr[ri][ci] = e.target.value;
                           update({ rows: nr });
                         }}
-                        className="w-full bg-[var(--card)] px-2 py-1 text-xs"
+                        className="w-full bg-surface px-2 py-1 text-xs"
                       />
                     </td>
                   ))}
@@ -171,7 +171,7 @@ export default function DocumentBlockEditor({
                     <button
                       data-testid={`block-row-remove-${block.id}-${ri}`}
                       onClick={() => update({ rows: rows.filter((_, idx) => idx !== ri) })}
-                      className="text-xs text-red-400"
+                      className="text-xs text-destructive"
                     >✕</button>
                   </td>
                 </tr>
@@ -181,18 +181,18 @@ export default function DocumentBlockEditor({
               <button
                 data-testid={`block-row-add-${block.id}`}
                 onClick={() => update({ rows: [...rows, headers.map(() => '')] })}
-                className="text-xs text-[var(--primary)]"
+                className="text-xs text-primary"
               >+ Row</button>
               <button
                 data-testid={`block-col-add-${block.id}`}
                 onClick={() => update({ headers: [...headers, 'New'], rows: rows.map(r => [...r, '']) })}
-                className="text-xs text-[var(--primary)]"
+                className="text-xs text-primary"
               >+ Column</button>
               {headers.length > 1 && (
                 <button
                   data-testid={`block-col-remove-${block.id}`}
                   onClick={() => update({ headers: headers.slice(0, -1), rows: rows.map(r => r.slice(0, -1)) })}
-                  className="text-xs text-red-400"
+                  className="text-xs text-destructive"
                 >− Column</button>
               )}
             </div>
@@ -202,7 +202,7 @@ export default function DocumentBlockEditor({
 
       case 'quote':
         if (preview)
-          return <blockquote className="border-l-4 border-[var(--border)] pl-4 italic text-sm my-2" data-testid={`block-preview-${block.id}`}>{block.text}</blockquote>;
+          return <blockquote className="border-l-4 border-border pl-4 italic text-sm my-2" data-testid={`block-preview-${block.id}`}>{block.text}</blockquote>;
         return (
           <textarea
             data-testid={`block-text-${block.id}`}
@@ -210,16 +210,16 @@ export default function DocumentBlockEditor({
             onChange={e => update({ text: e.target.value })}
             placeholder="Quote text..."
             rows={2}
-            className="w-full bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1 text-sm italic resize-y"
+            className="w-full bg-surface border border-border rounded px-2 py-1 text-sm italic resize-y"
           />
         );
 
       case 'callout':
         if (preview) {
           const colors: Record<string, string> = {
-            info: 'border-blue-500 bg-blue-950/30', warning: 'border-yellow-500 bg-yellow-950/30',
-            success: 'border-green-500 bg-green-950/30', error: 'border-red-500 bg-red-950/30',
-            note: 'border-gray-500 bg-gray-900/30', tip: 'border-purple-500 bg-purple-950/30',
+            info: 'border-info/50 bg-info/10', warning: 'border-warning/50 bg-warning/10',
+            success: 'border-success/50 bg-success/10', error: 'border-destructive/50 bg-destructive/10',
+            note: 'border-border bg-muted/50', tip: 'border-primary bg-primary/10',
           };
           return (
             <div className={`border-l-4 ${colors[block.variant || 'info']} px-3 py-2 rounded text-sm my-2`} data-testid={`block-preview-${block.id}`}>
@@ -234,7 +234,7 @@ export default function DocumentBlockEditor({
               data-testid={`block-variant-${block.id}`}
               value={block.variant || 'info'}
               onChange={e => update({ variant: e.target.value })}
-              className="text-xs bg-[var(--card)] border border-[var(--border)] rounded px-1 py-1"
+              className="text-xs bg-surface border border-border rounded px-1 py-1"
             >
               {CALLOUT_VARIANTS.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
@@ -244,20 +244,20 @@ export default function DocumentBlockEditor({
               onChange={e => update({ text: e.target.value })}
               placeholder="Callout text..."
               rows={2}
-              className="w-full bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1 text-sm resize-y"
+              className="w-full bg-surface border border-border rounded px-2 py-1 text-sm resize-y"
             />
           </div>
         );
 
       case 'page_break':
         return (
-          <div data-testid={`block-preview-${block.id}`} className="border-t-2 border-dashed border-[var(--border)] my-4 py-1 text-center">
-            <span className="text-xs text-[var(--text-muted)]">— Page Break —</span>
+          <div data-testid={`block-preview-${block.id}`} className="border-t-2 border-dashed border-border my-4 py-1 text-center">
+            <span className="text-xs text-muted-foreground">— Page Break —</span>
           </div>
         );
 
       default:
-        return <div className="text-xs text-red-400">Unknown block type: {block.type}</div>;
+        return <div className="text-xs text-destructive">Unknown block type: {block.type}</div>;
     }
   };
 
@@ -268,7 +268,7 @@ export default function DocumentBlockEditor({
   return (
     <div
       data-testid={`block-editor-${block.id}`}
-      className="group relative border border-transparent hover:border-[var(--border)] rounded p-2 transition-colors"
+      className="group relative border border-transparent hover:border-border rounded p-2 transition-colors"
     >
       {/* Block actions */}
       <div className="absolute -left-1 top-1 opacity-0 group-hover:opacity-100 flex flex-col gap-0.5 transition-opacity">
@@ -276,14 +276,14 @@ export default function DocumentBlockEditor({
           data-testid={`block-up-${block.id}`}
           onClick={onMoveUp}
           disabled={isFirst}
-          className="text-xs text-[var(--text-muted)] hover:text-white disabled:opacity-30"
+          className="text-xs text-muted-foreground hover:text-white disabled:opacity-30"
           title="Move up"
         >↑</button>
         <button
           data-testid={`block-down-${block.id}`}
           onClick={onMoveDown}
           disabled={isLast}
-          className="text-xs text-[var(--text-muted)] hover:text-white disabled:opacity-30"
+          className="text-xs text-muted-foreground hover:text-white disabled:opacity-30"
           title="Move down"
         >↓</button>
       </div>
@@ -291,13 +291,13 @@ export default function DocumentBlockEditor({
         <button
           data-testid={`block-duplicate-${block.id}`}
           onClick={onDuplicate}
-          className="text-xs text-[var(--text-muted)] hover:text-white"
+          className="text-xs text-muted-foreground hover:text-white"
           title="Duplicate"
         >⎘</button>
         <button
           data-testid={`block-delete-${block.id}`}
           onClick={() => setShowConfirmDelete(true)}
-          className="text-xs text-red-400 hover:text-red-300"
+          className="text-xs text-destructive hover:text-destructive"
           title="Delete"
         >🗑</button>
       </div>
@@ -306,17 +306,17 @@ export default function DocumentBlockEditor({
 
       {/* Delete confirmation */}
       {showConfirmDelete && (
-        <div className="mt-2 flex items-center gap-2 p-2 bg-[var(--card)] rounded border border-[var(--border)]" data-testid={`block-confirm-delete-${block.id}`}>
+        <div className="mt-2 flex items-center gap-2 p-2 bg-surface rounded border border-border" data-testid={`block-confirm-delete-${block.id}`}>
           <span className="text-xs">Delete this block?</span>
           <button
             data-testid={`block-confirm-yes-${block.id}`}
             onClick={onDelete}
-            className="text-xs px-2 py-0.5 bg-red-900 text-white rounded hover:bg-red-800"
+            className="text-xs px-2 py-0.5 bg-destructive text-white rounded hover:bg-destructive"
           >Yes, delete</button>
           <button
             data-testid={`block-confirm-no-${block.id}`}
             onClick={() => setShowConfirmDelete(false)}
-            className="text-xs px-2 py-0.5 bg-[var(--border)] rounded"
+            className="text-xs px-2 py-0.5 bg-muted rounded"
           >Cancel</button>
         </div>
       )}

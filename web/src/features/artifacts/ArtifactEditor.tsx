@@ -119,24 +119,24 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="artifact-editor">
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-lg p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+      <div className="bg-surface border border-border rounded-lg p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">
             {mode === 'create' ? 'New Artifact' : 'Edit Artifact'}
           </h2>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-white">✕</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-white">✕</button>
         </div>
 
-        {error && <div className="text-red-400 text-sm mb-3">{error}</div>}
+        {error && <div className="text-destructive text-sm mb-3">{error}</div>}
 
         <div className="space-y-3">
           {mode === 'create' && (
             <div>
-              <label className="text-xs text-[var(--text-muted)]">Type</label>
+              <label className="text-xs text-muted-foreground">Type</label>
               <select
                 value={artifactType}
                 onChange={(e) => setArtifactType(e.target.value)}
-                className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-2 py-1.5 text-sm"
+                className="w-full bg-background border border-border rounded px-2 py-1.5 text-sm"
                 data-testid="editor-type"
               >
                 {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -145,33 +145,33 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
           )}
 
           <div>
-            <label className="text-xs text-[var(--text-muted)]">Title</label>
+            <label className="text-xs text-muted-foreground">Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-1.5 text-sm"
+              className="w-full bg-background border border-border rounded px-3 py-1.5 text-sm"
               data-testid="editor-title"
             />
           </div>
 
           <div>
-            <label className="text-xs text-[var(--text-muted)]">Description</label>
+            <label className="text-xs text-muted-foreground">Description</label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-1.5 text-sm"
+              className="w-full bg-background border border-border rounded px-3 py-1.5 text-sm"
               data-testid="editor-description"
             />
           </div>
 
           <div>
-            <label className="text-xs text-[var(--text-muted)]">Status</label>
+            <label className="text-xs text-muted-foreground">Status</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-2 py-1.5 text-sm"
+              className="w-full bg-background border border-border rounded px-2 py-1.5 text-sm"
               data-testid="editor-status"
             >
               {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -179,12 +179,12 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
           </div>
 
           <div>
-            <label className="text-xs text-[var(--text-muted)]">Content (Markdown)</label>
+            <label className="text-xs text-muted-foreground">Content (Markdown)</label>
             <textarea
               value={contentMarkdown}
               onChange={(e) => setContentMarkdown(e.target.value)}
               rows={12}
-              className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded px-3 py-2 text-sm font-mono"
+              className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono"
               placeholder="Write markdown content..."
               data-testid="editor-content"
             />
@@ -192,7 +192,7 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
 
           {/* Track 7: Download/Export actions */}
           {mode === 'edit' && (
-            <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-[var(--border)]" data-testid="editor-actions">
+            <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border" data-testid="editor-actions">
               {/* Download — only for file-backed artifacts */}
               {storageObjectId && (
                 <button
@@ -207,7 +207,7 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
               {contentMarkdown && !storageObjectId && (
                 <a
                   href={api.exportArtifactUrl(artifactId!, 'markdown')}
-                  className="px-3 py-1 bg-gray-700 text-white rounded text-sm no-underline"
+                  className="px-3 py-1 bg-muted text-white rounded text-sm no-underline"
                   data-testid="editor-export-md"
                 >
                   📄 Export MD
@@ -217,7 +217,7 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
               {contentMarkdown && !storageObjectId && (
                 <a
                   href={api.exportArtifactUrl(artifactId!, 'pdf')}
-                  className="px-3 py-1 bg-gray-700 text-white rounded text-sm no-underline"
+                  className="px-3 py-1 bg-muted text-white rounded text-sm no-underline"
                   data-testid="editor-export-pdf"
                 >
                   📕 Export PDF
@@ -227,7 +227,7 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
               {contentMarkdown && (
                 <button
                   onClick={handleCopyMarkdown}
-                  className="px-3 py-1 bg-gray-700 text-white rounded text-sm"
+                  className="px-3 py-1 bg-muted text-white rounded text-sm"
                   data-testid="editor-copy-md"
                 >
                   📋 Copy MD
@@ -235,12 +235,12 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
               )}
               {/* Download URL + expiry note */}
               {downloadUrl && (
-                <div className="text-xs text-[var(--text-muted)]" data-testid="editor-download-note">
+                <div className="text-xs text-muted-foreground" data-testid="editor-download-note">
                   Link valid for 15 minutes
                 </div>
               )}
               {downloadError && (
-                <div className="text-xs text-red-400" data-testid="editor-download-error">{downloadError}</div>
+                <div className="text-xs text-destructive" data-testid="editor-download-error">{downloadError}</div>
               )}
             </div>
           )}
@@ -250,7 +250,7 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
               <button
                 onClick={handleArchive}
                 disabled={saving}
-                className="px-3 py-1.5 bg-red-900/40 text-red-300 rounded text-sm disabled:opacity-50"
+                className="px-3 py-1.5 bg-destructive/15 text-destructive rounded text-sm disabled:opacity-50"
                 data-testid="editor-archive"
               >
                 Archive
@@ -259,7 +259,7 @@ export default function ArtifactEditor({ mode, artifactId, onClose }: Props) {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+              className="px-4 py-1.5 bg-primary text-primary-foreground rounded text-sm disabled:opacity-50"
               data-testid="editor-save"
             >
               {saving ? 'Saving...' : 'Save'}

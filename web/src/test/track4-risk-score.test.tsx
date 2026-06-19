@@ -14,7 +14,7 @@ function RiskScoreDisplay({ riskScore }: { riskScore: any }) {
     medium: 'text-yellow-400',
     high: 'text-orange-400',
     critical: 'text-red-400',
-    unknown: 'text-gray-400',
+    unknown: 'text-muted-foreground',
   };
 
   const levelBg: Record<string, string> = {
@@ -22,7 +22,7 @@ function RiskScoreDisplay({ riskScore }: { riskScore: any }) {
     medium: 'bg-yellow-900/20 border-yellow-700',
     high: 'bg-orange-900/20 border-orange-700',
     critical: 'bg-red-900/20 border-red-700',
-    unknown: 'bg-gray-900/20 border-gray-700',
+    unknown: 'bg-muted/50 border-border',
   };
 
   if (!riskScore) return null;
@@ -39,15 +39,15 @@ function RiskScoreDisplay({ riskScore }: { riskScore: any }) {
         </span>
       </div>
 
-      <div className="mb-2 text-xs text-[var(--text-muted)]" data-testid="risk-score-advisory">
+      <div className="mb-2 text-xs text-muted-foreground" data-testid="risk-score-advisory">
         ⚠ Risk score is advisory only. Approval, MFA, policy, and mutation-window controls still apply.
       </div>
 
       {topFactors.length > 0 && (
         <div className="mb-2" data-testid="risk-score-top-factors">
-          <span className="text-xs text-[var(--text-muted)]">Top factors: </span>
+          <span className="text-xs text-muted-foreground">Top factors: </span>
           {topFactors.map((f: string, i: number) => (
-            <span key={f} className="text-xs badge badge-gray mr-1" data-testid={`risk-score-factor-${f}`}>
+            <span key={f} className="text-xs inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground mr-1" data-testid={`risk-score-factor-${f}`}>
               {f.replace(/_/g, ' ')}
             </span>
           ))}

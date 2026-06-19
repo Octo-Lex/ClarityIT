@@ -46,7 +46,7 @@ export function AskClarityPanel() {
   };
 
   return (
-    <div data-testid="ask-clarity-panel" className="space-y-4 rounded-lg border border-border bg-card p-4">
+    <div data-testid="ask-clarity-panel" className="space-y-4 rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center gap-2">
         <Sparkles className="size-5 text-primary" />
         <h2 className="font-heading text-lg font-semibold">Ask Clarity</h2>

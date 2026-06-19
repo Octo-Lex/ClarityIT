@@ -34,14 +34,14 @@ const statusColor = (status: string): string => {
   switch (status) {
     case 'up':
     case 'active':
-      return 'text-[var(--success)]';
+      return 'text-success';
     case 'degraded':
     case 'stale':
-      return 'text-[var(--warning)]';
+      return 'text-warning';
     case 'down':
-      return 'text-[var(--danger)]';
+      return 'text-destructive';
     default:
-      return 'text-[var(--text-muted)]';
+      return 'text-muted-foreground';
   }
 };
 
@@ -62,19 +62,19 @@ const statusIcon = (status: string): string => {
 
 function StatCard({ label, value, warning }: { label: string; value: number | string; warning?: boolean }) {
   return (
-    <div className="card p-4">
-      <div className="text-2xl font-bold" style={{ color: warning ? 'var(--warning)' : 'inherit' }}>{value}</div>
-      <div className="text-xs text-[var(--text-muted)] mt-1">{label}</div>
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <div className={`text-2xl font-bold ${warning ? 'text-warning' : ''}`}>{value}</div>
+      <div className="text-xs text-muted-foreground mt-1">{label}</div>
     </div>
   );
 }
 
 function BackupBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    green: 'bg-[var(--success)]/20 text-[var(--success)]',
-    yellow: 'bg-[var(--warning)]/20 text-[var(--warning)]',
-    red: 'bg-[var(--danger)]/20 text-[var(--danger)]',
-    missing: 'bg-[var(--danger)]/20 text-[var(--danger)]',
+    green: 'bg-success/20 text-success',
+    yellow: 'bg-warning/20 text-warning',
+    red: 'bg-destructive/20 text-destructive',
+    missing: 'bg-destructive/20 text-destructive',
   };
   return (
     <span className={`inline-block text-xs font-bold px-2 py-1 rounded mt-1 ${colors[status] || colors.missing}`}>
@@ -126,16 +126,16 @@ export default function AdminOps() {
     return () => clearInterval(interval);
   }, [load]);
 
-  if (loading && !summary) return <div className="text-[var(--text-muted)]">Loading ops dashboard...</div>;
+  if (loading && !summary) return <div className="text-muted-foreground">Loading ops dashboard...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Operations Dashboard</h1>
-        <button onClick={load} className="text-sm px-3 py-1 rounded bg-[var(--primary)] text-white">↻ Refresh</button>
+        <button onClick={load} className="text-sm px-3 py-1 rounded bg-primary text-white">↻ Refresh</button>
       </div>
 
-      {error && <div className="card p-3 text-[var(--danger)]">{error}</div>}
+      {error && <div className="rounded-xl border border-border bg-surface p-3 text-destructive">{error}</div>}
 
       {/* System Health */}
       {health && (
@@ -145,17 +145,17 @@ export default function AdminOps() {
             {(['postgres', 'nats', 'redis', 'minio'] as const).map(dep => {
               const d = health[dep];
               return (
-                <div key={dep} className="card p-3">
+                <div key={dep} className="rounded-xl border border-border bg-surface p-3">
                   <div className="text-sm font-medium capitalize">{dep}</div>
                   <div className={`text-lg font-bold ${statusColor(d?.status || 'unknown')}`}>
                     {statusIcon(d?.status || 'unknown')} {d?.status || 'unknown'}
                   </div>
-                  {d?.latency && <div className="text-xs text-[var(--text-muted)]">{d.latency}</div>}
+                  {d?.latency && <div className="text-xs text-muted-foreground">{d.latency}</div>}
                 </div>
               );
             })}
           </div>
-          {health.uptime && <div className="text-xs text-[var(--text-muted)] mt-2">Uptime: {health.uptime}</div>}
+          {health.uptime && <div className="text-xs text-muted-foreground mt-2">Uptime: {health.uptime}</div>}
         </div>
       )}
 
@@ -165,51 +165,51 @@ export default function AdminOps() {
           <h2 className="text-lg font-semibold mb-2">Backup Status</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* PostgreSQL */}
-            <div className="card p-4">
+            <div className="rounded-xl border border-border bg-surface p-4">
               <div className="text-sm font-medium">PostgreSQL</div>
               <BackupBadge status={backupStatus.postgres?.age_status || 'missing'} />
               {backupStatus.postgres?.path ? (
                 <>
-                  <div className="text-xs text-[var(--text-muted)] mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     {new Date(backupStatus.postgres.last_backup_at).toLocaleString()}
                   </div>
-                  <div className="text-xs text-[var(--text-muted)]">
+                  <div className="text-xs text-muted-foreground">
                     {(backupStatus.postgres.size_bytes / 1024).toFixed(1)} KB
                   </div>
                 </>
               ) : (
-                <div className="text-xs text-[var(--danger)] mt-1">No backup found</div>
+                <div className="text-xs text-destructive mt-1">No backup found</div>
               )}
             </div>
             {/* MinIO */}
-            <div className="card p-4">
+            <div className="rounded-xl border border-border bg-surface p-4">
               <div className="text-sm font-medium">MinIO</div>
               <BackupBadge status={backupStatus.minio?.age_status || 'missing'} />
               {backupStatus.minio?.path ? (
                 <>
-                  <div className="text-xs text-[var(--text-muted)] mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     {new Date(backupStatus.minio.last_backup_at).toLocaleString()}
                   </div>
-                  <div className="text-xs text-[var(--text-muted)]">
+                  <div className="text-xs text-muted-foreground">
                     {(backupStatus.minio.size_bytes / 1024).toFixed(1)} KB
                   </div>
                 </>
               ) : (
-                <div className="text-xs text-[var(--danger)] mt-1">No backup found</div>
+                <div className="text-xs text-destructive mt-1">No backup found</div>
               )}
             </div>
             {/* Restore Drill */}
-            <div className="card p-4">
+            <div className="rounded-xl border border-border bg-surface p-4">
               <div className="text-sm font-medium">Restore Drill</div>
               <span className={`inline-block text-xs font-bold px-2 py-1 rounded mt-1 ${
-                backupStatus.restore_drill?.status === 'passed' ? 'bg-[var(--success)]/20 text-[var(--success)]' :
-                backupStatus.restore_drill?.status === 'failed' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' :
-                'bg-[var(--text-muted)]/20 text-[var(--text-muted)]'
+                backupStatus.restore_drill?.status === 'passed' ? 'bg-success/20 text-success' :
+                backupStatus.restore_drill?.status === 'failed' ? 'bg-destructive/20 text-destructive' :
+                'bg-text-muted-foreground/20 text-muted-foreground'
               }`}>
                 {backupStatus.restore_drill?.status || 'unknown'}
               </span>
               {backupStatus.restore_drill?.last_verified_at && !isNaN(new Date(backupStatus.restore_drill.last_verified_at).getTime()) && (
-                <div className="text-xs text-[var(--text-muted)] mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   {new Date(backupStatus.restore_drill.last_verified_at).toLocaleString()}
                 </div>
               )}
@@ -242,7 +242,7 @@ export default function AdminOps() {
         <h2 className="text-lg font-semibold mb-2">Worker Status</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {workers.map(w => (
-            <div key={w.name} className="card p-3">
+            <div key={w.name} className="rounded-xl border border-border bg-surface p-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">{w.name}</span>
                 <span className={`text-sm font-bold ${statusColor(w.status)}`}>
@@ -250,7 +250,7 @@ export default function AdminOps() {
                 </span>
               </div>
               {w.last_seen && (
-                <div className="text-xs text-[var(--text-muted)] mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   Last seen: {new Date(w.last_seen).toLocaleString()}
                 </div>
               )}
@@ -262,10 +262,10 @@ export default function AdminOps() {
       {/* Dead Letters */}
       <div>
         <h2 className="text-lg font-semibold mb-2">Dead Letters ({deadLetters.length})</h2>
-        <div className="card overflow-x-auto">
+        <div className="rounded-xl border border-border bg-surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
+              <tr className="text-left text-muted-foreground border-b border-border">
                 <th className="pb-2 pr-4">Event Type</th>
                 <th className="pb-2 pr-4">Aggregate</th>
                 <th className="pb-2 pr-4">Attempts</th>
@@ -275,16 +275,16 @@ export default function AdminOps() {
             </thead>
             <tbody>
               {deadLetters.map((d) => (
-                <tr key={d.id} className="border-b border-[var(--border)]">
+                <tr key={d.id} className="border-b border-border">
                   <td className="py-2 pr-4 font-mono text-xs">{d.event_type}</td>
                   <td className="py-2 pr-4 text-xs">{d.aggregate_type}/{d.aggregate_id?.slice(0, 8)}…</td>
                   <td className="py-2 pr-4">{d.attempts}</td>
-                  <td className="py-2 pr-4 text-xs text-[var(--danger)] max-w-xs truncate">{d.error_message || '—'}</td>
-                  <td className="py-2 text-xs text-[var(--text-muted)]">{d.dead_lettered_at ? new Date(d.dead_lettered_at).toLocaleString() : '—'}</td>
+                  <td className="py-2 pr-4 text-xs text-destructive max-w-xs truncate">{d.error_message || '—'}</td>
+                  <td className="py-2 text-xs text-muted-foreground">{d.dead_lettered_at ? new Date(d.dead_lettered_at).toLocaleString() : '—'}</td>
                 </tr>
               ))}
               {!deadLetters.length && (
-                <tr><td colSpan={5} className="py-4 text-center text-[var(--text-muted)]">No dead letters</td></tr>
+                <tr><td colSpan={5} className="py-4 text-center text-muted-foreground">No dead letters</td></tr>
               )}
             </tbody>
           </table>
@@ -294,10 +294,10 @@ export default function AdminOps() {
       {/* Webhook Rejections */}
       <div>
         <h2 className="text-lg font-semibold mb-2">Webhook Events (24h)</h2>
-        <div className="card overflow-x-auto">
+        <div className="rounded-xl border border-border bg-surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
+              <tr className="text-left text-muted-foreground border-b border-border">
                 <th className="pb-2 pr-4">Action</th>
                 <th className="pb-2 pr-4">Summary</th>
                 <th className="pb-2">Time</th>
@@ -305,14 +305,14 @@ export default function AdminOps() {
             </thead>
             <tbody>
               {webhookEvents.map((e) => (
-                <tr key={e.event_id} className="border-b border-[var(--border)]">
+                <tr key={e.event_id} className="border-b border-border">
                   <td className="py-2 pr-4 font-mono text-xs">{e.action}</td>
                   <td className="py-2 pr-4 text-xs">{e.summary || '—'}</td>
-                  <td className="py-2 text-xs text-[var(--text-muted)]">{new Date(e.created_at).toLocaleString()}</td>
+                  <td className="py-2 text-xs text-muted-foreground">{new Date(e.created_at).toLocaleString()}</td>
                 </tr>
               ))}
               {!webhookEvents.length && (
-                <tr><td colSpan={3} className="py-4 text-center text-[var(--text-muted)]">No webhook events in last 24h</td></tr>
+                <tr><td colSpan={3} className="py-4 text-center text-muted-foreground">No webhook events in last 24h</td></tr>
               )}
             </tbody>
           </table>
@@ -322,10 +322,10 @@ export default function AdminOps() {
       {/* Agent Blocked Actions */}
       <div>
         <h2 className="text-lg font-semibold mb-2">Agent Blocked/Denied Actions</h2>
-        <div className="card overflow-x-auto">
+        <div className="rounded-xl border border-border bg-surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
+              <tr className="text-left text-muted-foreground border-b border-border">
                 <th className="pb-2 pr-4">Status</th>
                 <th className="pb-2 pr-4">Tool</th>
                 <th className="pb-2 pr-4">Result</th>
@@ -334,15 +334,15 @@ export default function AdminOps() {
             </thead>
             <tbody>
               {agentBlocks.map((b) => (
-                <tr key={b.effect_id} className="border-b border-[var(--border)]">
+                <tr key={b.effect_id} className="border-b border-border">
                   <td className={`py-2 pr-4 font-bold ${statusColor('down')}`}>{b.status}</td>
                   <td className="py-2 pr-4 font-mono text-xs">{b.tool_name}</td>
                   <td className="py-2 pr-4 text-xs max-w-md truncate">{b.result || '—'}</td>
-                  <td className="py-2 text-xs text-[var(--text-muted)]">{new Date(b.created_at).toLocaleString()}</td>
+                  <td className="py-2 text-xs text-muted-foreground">{new Date(b.created_at).toLocaleString()}</td>
                 </tr>
               ))}
               {!agentBlocks.length && (
-                <tr><td colSpan={4} className="py-4 text-center text-[var(--text-muted)]">No blocked/denied agent actions</td></tr>
+                <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">No blocked/denied agent actions</td></tr>
               )}
             </tbody>
           </table>

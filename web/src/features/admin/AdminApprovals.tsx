@@ -17,15 +17,15 @@ function formatRemaining(seconds: number): string {
 
 function ExpiryBadge({ remaining, isExpiring, status }: { remaining: number; isExpiring: boolean; status: string }) {
   if (status === 'expired') {
-    return <span className="text-xs px-2 py-0.5 rounded bg-red-900/40 text-red-300 font-medium" data-testid="expired-badge">EXPIRED</span>;
+    return <span className="text-xs px-2 py-0.5 rounded bg-destructive/15 text-destructive font-medium" data-testid="expired-badge">EXPIRED</span>;
   }
   if (remaining <= 0) {
-    return <span className="text-xs px-2 py-0.5 rounded bg-red-900/40 text-red-300 font-medium" data-testid="expired-badge">EXPIRED</span>;
+    return <span className="text-xs px-2 py-0.5 rounded bg-destructive/15 text-destructive font-medium" data-testid="expired-badge">EXPIRED</span>;
   }
   if (isExpiring || remaining < 300) {
-    return <span className="text-xs px-2 py-0.5 rounded bg-yellow-900/40 text-yellow-300 font-medium" data-testid="expiring-badge">⚠ EXPIRING ({formatRemaining(remaining)})</span>;
+    return <span className="text-xs px-2 py-0.5 rounded bg-warning/20 text-warning font-medium" data-testid="expiring-badge">⚠ EXPIRING ({formatRemaining(remaining)})</span>;
   }
-  return <span className="text-xs px-2 py-0.5 rounded bg-green-900/30 text-green-300" data-testid="active-badge">{formatRemaining(remaining)} left</span>;
+  return <span className="text-xs px-2 py-0.5 rounded bg-success/15 text-success" data-testid="active-badge">{formatRemaining(remaining)} left</span>;
 }
 
 export default function AdminApprovals() {
@@ -100,19 +100,19 @@ export default function AdminApprovals() {
     }
   };
 
-  if (loading) return <div className="p-6 text-[var(--text-muted)]">Loading...</div>;
+  if (loading) return <div className="p-6 text-muted-foreground">Loading...</div>;
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Approvals</h1>
 
       {toast && (
-        <div className="p-3 bg-yellow-900/30 border border-yellow-700 rounded text-sm text-yellow-200" data-testid="approval-toast">
+        <div className="p-3 bg-warning/20 border border-warning/40 rounded text-sm text-warning" data-testid="approval-toast">
           {toast}
         </div>
       )}
 
-      {error && <div className="p-3 bg-red-900/30 border border-red-700 rounded text-sm text-red-300">{error}</div>}
+      {error && <div className="p-3 bg-destructive/15 border border-destructive/40 rounded text-sm text-destructive">{error}</div>}
 
       {/* Status filter */}
       <div className="flex gap-2">
@@ -122,8 +122,8 @@ export default function AdminApprovals() {
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1 rounded text-sm capitalize ${
               statusFilter === s
-                ? 'bg-[var(--primary)] text-white'
-                : 'bg-[var(--card)] border border-[var(--border)] text-[var(--text-muted)]'
+                ? 'bg-primary text-white'
+                : 'bg-surface border border-border text-muted-foreground'
             }`}
           >
             {s}
@@ -132,11 +132,11 @@ export default function AdminApprovals() {
       </div>
 
       {approvals.length === 0 ? (
-        <p className="text-[var(--text-muted)]">No {statusFilter} approvals.</p>
+        <p className="text-muted-foreground">No {statusFilter} approvals.</p>
       ) : (
         <div className="space-y-3">
           {approvals.map(a => (
-            <div key={a.id} className="p-4 bg-[var(--card)] border border-[var(--border)] rounded-lg" data-testid={`approval-${a.id}`}>
+            <div key={a.id} className="p-4 bg-surface border border-border rounded-lg" data-testid={`approval-${a.id}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{a.action_type}</span>
@@ -147,26 +147,26 @@ export default function AdminApprovals() {
                   />
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded ${
-                  a.risk_level === 'critical' ? 'bg-red-900/40 text-red-300' :
-                  a.risk_level === 'high' ? 'bg-orange-900/40 text-orange-300' :
-                  a.risk_level === 'medium' ? 'bg-yellow-900/40 text-yellow-300' :
-                  'bg-green-900/40 text-green-300'
+                  a.risk_level === 'critical' ? 'bg-destructive/15 text-destructive' :
+                  a.risk_level === 'high' ? 'bg-warning/20 text-warning' :
+                  a.risk_level === 'medium' ? 'bg-warning/20 text-warning' :
+                  'bg-success/15 text-success'
                 }`}>{a.risk_level}</span>
               </div>
-              <p className="text-sm text-[var(--text-muted)] mb-2">{a.description}</p>
-              <p className="text-xs text-[var(--text-muted)] mb-3">
+              <p className="text-sm text-muted-foreground mb-2">{a.description}</p>
+              <p className="text-xs text-muted-foreground mb-3">
                 Requested by: {a.requested_by?.slice(0, 8)}... • Created: {new Date(a.created_at).toLocaleString()}
                 {a.expires_at && ` • Expires: ${new Date(a.expires_at).toLocaleString()}`}
               </p>
 
               {(a.risk_level === 'high' || a.risk_level === 'critical') && a.status === 'pending' && (
-                <p className="text-xs text-orange-400 mb-2" data-testid={`mfa-required-${a.id}`}>
+                <p className="text-xs text-warning mb-2" data-testid={`mfa-required-${a.id}`}>
                   ⚠ Recent MFA verification required to approve
                 </p>
               )}
 
               {a.risk_level === 'critical' && a.status === 'pending' && (
-                <p className="text-xs text-red-400 mb-2" data-testid={`critical-warning-${a.id}`}>
+                <p className="text-xs text-destructive mb-2" data-testid={`critical-warning-${a.id}`}>
                   ⚠ Critical action: 2 distinct approvers required
                 </p>
               )}
@@ -178,19 +178,19 @@ export default function AdminApprovals() {
                     placeholder="Reason (optional)"
                     value={reason[a.id] || ''}
                     onChange={e => setReason({ ...reason, [a.id]: e.target.value })}
-                    className="flex-1 px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-sm"
+                    className="flex-1 px-3 py-1.5 bg-background border border-border rounded text-sm"
                   />
                   <button
                     onClick={() => handleApprove(a.id)}
                     data-testid={`approve-btn-${a.id}`}
-                    className="px-3 py-1.5 bg-[var(--success)] text-white rounded text-sm"
+                    className="px-3 py-1.5 bg-success text-white rounded text-sm"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => handleReject(a.id)}
                     data-testid={`reject-btn-${a.id}`}
-                    className="px-3 py-1.5 bg-red-900/40 border border-red-700 text-red-300 rounded text-sm"
+                    className="px-3 py-1.5 bg-destructive/15 border border-destructive/40 text-destructive rounded text-sm"
                   >
                     Reject
                   </button>

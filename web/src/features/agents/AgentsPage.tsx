@@ -211,7 +211,7 @@ export function AgentsPage() {
                     data-testid={`agent-row-${a.id}`}
                     className={cn(
                       'w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent/50',
-                      selected === a.id ? 'border-primary bg-primary/5' : 'border-border bg-card',
+                      selected === a.id ? 'border-primary bg-primary/5' : 'border-border bg-surface',
                     )}
                   >
                     <div className="font-medium">{a.name}</div>
