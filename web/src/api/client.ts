@@ -394,9 +394,9 @@ export const api = {
 
   // v1.2 Track 5: Post-Action Outcome Tracking
   getAssetActionOutcome: (actionId: string) =>
-    request<T.ActionOutcome>(teamPath(`/asset-actions/${actionId}/outcome`)),
+    request<T.ActionOutcome>(teamPath(`/assets/asset-actions/${actionId}/outcome`)),
   saveAssetActionOutcome: (actionId: string, data: Record<string, unknown>) =>
-    mutation<T.ActionOutcome>('POST', teamPath(`/asset-actions/${actionId}/outcome`), data),
+    mutation<T.ActionOutcome>('POST', teamPath(`/assets/asset-actions/${actionId}/outcome`), data),
   getRemediationOutcome: (proposalId: string) =>
     request<T.ActionOutcome>(teamPath(`/remediations/${proposalId}/outcome`)),
   saveRemediationOutcome: (proposalId: string, data: Record<string, unknown>) =>
@@ -408,20 +408,20 @@ export const api = {
 
   // v1.2 Track 3: Approval Policy Simulation
   simulateApprovalPolicy: (data: Record<string, unknown>) =>
-    mutation<T.PolicySimulationResponse>('POST', `/api/admin/approval-policy/simulate`, data),
+    mutation<T.PolicySimulationResponse>('POST', `/admin/approval-policy/simulate`, data),
 
   // v1.2 Track 7: Agent Recommendation Evaluation Harness
   runEvaluation: () =>
-    mutation<Record<string, unknown>>('POST', `/api/admin/agent-evaluation/run`, {}),
+    mutation<Record<string, unknown>>('POST', `/admin/agent-evaluation/run`, {}),
   getEvaluationResults: () =>
-    request<T.EvaluationResults>(`/api/admin/agent-evaluation/results`),
+    request<T.EvaluationResults>(`/admin/agent-evaluation/results`),
   getEvaluationRun: (runId: string) =>
-    request<T.EvaluationResults>(`/api/admin/agent-evaluation/runs/${runId}`),
+    request<T.EvaluationResults>(`/admin/agent-evaluation/runs/${runId}`),
 
   // ─── Recommendation Evidence (v1.2 Track 1) ───
   getEvidence: (recommendationId: string) =>
     request<T.RecommendationEvidence>(teamPath(`/recommendations/${recommendationId}/evidence`)),
-  getMetrics: () => request<T.AdminMetrics>('/api/admin/metrics'),
+  getMetrics: () => request<T.AdminMetrics>('/admin/metrics'),
 
   // v1.3 Track 1: Artifacts
   listArtifacts: (params?: { type?: string; status?: string; q?: string; include_archived?: boolean }) => {
@@ -453,7 +453,7 @@ export const api = {
 
   // v1.3 Track 4: Status Reports
   generateStatusReport: (data: { title: string; project_id?: string; period_start: string; period_end: string; include_sections: string[] }) =>
-    mutation<T.Artifact>('POST', teamPath('/status-reports/generate'), data),
+    mutation<T.Artifact>('POST', teamPath('/artifacts/status-reports/generate'), data),
 
   // v1.4 Track 6: Export endpoints
   exportDocumentUrl: (artifactId: string, format: 'markdown' | 'pdf' | 'docx') =>
