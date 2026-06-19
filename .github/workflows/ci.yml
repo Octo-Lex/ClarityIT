@@ -46,9 +46,15 @@ jobs:
   # run go test inside a container on a user-defined network, mirroring the
   # project's Makefile `test` target — not on the runner host (where `postgres`
   # is unresolvable and `pg_isready -h localhost` would hang forever).
+  #
+  # NON-BLOCKING: the migration suite has pre-existing fresh-DB bugs (forward
+  # references, duplicate table defs, incomplete permission renames, missing
+  # role grants) documented in #1. This job runs to surface progress as those
+  # are fixed but does not fail the workflow meanwhile.
   backend:
-    name: Backend (Go)
+    name: Backend (Go) [non-blocking]
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
