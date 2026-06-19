@@ -47,79 +47,12 @@
   --sidebar-accent-foreground: oklch(0.28 0.008 250);
   --sidebar-border: oklch(0.91 0.003 250);
   --sidebar-ring: oklch(0.50 0.13 277);
-  /* Legacy aliases — removed in T1b after purge tracks complete */
-  --bg: var(--background);
-  --text: var(--foreground);
-  --text-muted: var(--muted-foreground);
-  --danger: var(--destructive);
-  --primary-hover: var(--primary);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   margin: 0;
-}
-
-input, select, textarea {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 14px;
-  width: 100%;
-  &:focus { outline: none; border-color: var(--primary); }
-}
-
-button {
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  font-weight: 500;
-  &:hover { background: var(--primary-hover); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-}
-
-.btn-secondary {
-  background: var(--card);
-  border: 1px solid var(--border);
-  &:hover { background: var(--border); }
-}
-
-.btn-danger {
-  background: var(--danger);
-  &:hover { background: #dc2626; }
-}
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.badge-green { background: #166534; color: #bbf7d0; }
-.badge-yellow { background: #713f12; color: #fef08a; }
-.badge-red { background: #7f1d1d; color: #fecaca; }
-.badge-blue { background: #1e3a5f; color: #bfdbfe; }
-.badge-gray { background: #27272a; color: #a1a1aa; }
-
-.error-msg {
-  color: var(--danger);
-  font-size: 14px;
-  margin-top: 4px;
 }
 
 @theme inline {
@@ -148,7 +81,7 @@ button {
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
-  --color-danger: var(--danger);
+  --color-danger: var(--destructive);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
   --color-accent-foreground: var(--accent-foreground);
