@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en" class="">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ClarityIT — Design Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ===== Proposed token model (ground truth for this mockup) ===== */
+  :root {
+    /* Light — cool neutral */
+    --background: oklch(1 0 0);
+    --surface:    oklch(0.985 0.002 250);
+    --foreground: oklch(0.18 0.005 250);
+    --muted:      oklch(0.96 0.002 250);
+    --muted-fg:   oklch(0.50 0.012 250);
+    --border:     oklch(0.91 0.003 250);
+    --input:      oklch(0.93 0.003 250);
+    --primary:    oklch(0.50 0.13 277);
+    --primary-fg: oklch(0.99 0 0);
+    --ring:       oklch(0.50 0.13 277);
+    --destructive: oklch(0.54 0.15 27);
+    --success:    oklch(0.52 0.09 160);
+    --warning:    oklch(0.62 0.10 70);
+    --info:       oklch(0.55 0.09 240);
+    --radius:     10px;
+    --font-sans:  'Geist', system-ui, sans-serif;
+    --font-mono:  'Geist Mono', monospace;
+  }
+  .dark {
+    --background: oklch(0.155 0.005 257);
+    --surface:    oklch(0.195 0.006 257);
+    --foreground: oklch(0.95 0.002 257);
+    --muted:      oklch(0.25 0.006 257);
+    --muted-fg:   oklch(0.63 0.012 257);
+    --border:     oklch(1 0 0 / 9%);
+    --input:      oklch(1 0 0 / 14%);
+    --primary:    oklch(0.62 0.11 277);
+    --primary-fg: oklch(0.16 0.01 257);
+    --ring:       oklch(0.62 0.11 277);
+    --destructive: oklch(0.62 0.14 25);
+    --success:    oklch(0.66 0.10 162);
+    --warning:    oklch(0.74 0.10 75);
+    --info:       oklch(0.68 0.09 240);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== Layout frame for the mockup ===== */
+  .frame { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 232px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 8px 18px; font-weight: 600; font-size: 15px;
+  }
+  .brand .logo {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--primary); color: var(--primary-fg);
+    display: grid; place-items: center; font-weight: 700; font-size: 13px;
+  }
+  .nav-label {
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--muted-fg);
+    padding: 14px 10px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-radius: 7px;
+    color: var(--muted-fg); font-weight: 500; font-size: 13.5px;
+    cursor: default;
+  }
+  .nav-item .ico { width: 16px; height: 16px; opacity: 0.85; }
+  .nav-item.active { background: var(--muted); color: var(--foreground); }
+  .nav-item.active .ico { opacity: 1; }
+
+  .main { flex: 1; padding: 28px 36px 48px; min-width: 0; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 28px;
+  }
+  .crumb { color: var(--muted-fg); font-size: 13px; }
+  .crumb b { color: var(--foreground); font-weight: 600; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .theme-tag {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--primary); padding: 4px 10px; border-radius: 999px;
+    background: color-mix(in oklch, var(--primary) 12%, transparent);
+  }
+
+  h1.page-title { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .page-sub { color: var(--muted-fg); margin: 0 0 28px; font-size: 13.5px; }
+
+  /* ===== KPI cards ===== */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .kpi-label { font-size: 12px; color: var(--muted-fg); font-weight: 500; }
+  .kpi-value { font-size: 26px; font-weight: 600; margin-top: 6px; letter-spacing: -0.02em; font-family: var(--font-mono); }
+  .kpi-delta { font-size: 12px; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+
+  /* ===== Generic card ===== */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .card-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+
+  /* ===== Table ===== */
+  .table-card { margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    text-align: left; font-size: 11.5px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.03em;
+    color: var(--muted-fg); padding: 0 14px 10px; border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  tbody tr:last-child td { border-bottom: none; }
+  .mono { font-family: var(--font-mono); font-size: 13px; }
+
+  /* ===== Badges (new semantic variants) ===== */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 500;
+    line-height: 1.6;
+  }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .badge-default  { background: color-mix(in oklch, var(--primary) 10%, transparent); color: var(--primary); }
+  .badge-default .dot { background: var(--primary); }
+  .badge-success  { background: color-mix(in oklch, var(--success) 11%, transparent); color: var(--success); }
+  .badge-success .dot { background: var(--success); }
+  .badge-warning  { background: color-mix(in oklch, var(--warning) 12%, transparent); color: var(--warning); }
+  .badge-warning .dot { background: var(--warning); }
+  .badge-info     { background: color-mix(in oklch, var(--info) 11%, transparent); color: var(--info); }
+  .badge-info .dot { background: var(--info); }
+  .badge-destructive { background: color-mix(in oklch, var(--destructive) 10%, transparent); color: var(--destructive); }
+  .badge-destructive .dot { background: var(--destructive); }
+  .badge-muted    { background: var(--muted); color: var(--muted-fg); }
+
+  /* ===== Buttons ===== */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 34px; padding: 0 14px; border-radius: 8px;
+    font-size: 13.5px; font-weight: 500; font-family: inherit;
+    border: 1px solid transparent; cursor: default;
+    transition: none;
+  }
+  .btn svg { width: 15px; height: 15px; }
+  .btn-primary { background: var(--primary); color: var(--primary-fg); }
+  .btn-secondary { background: var(--surface); color: var(--foreground); border-color: var(--border); }
+  .btn-ghost { background: transparent; color: var(--muted-fg); }
+  .btn-destructive { background: color-mix(in oklch, var(--destructive) 12%, transparent); color: var(--destructive); }
+  .btn-icon { width: 34px; padding: 0; justify-content: center; }
+
+  /* ===== Inputs ===== */
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12.5px; font-weight: 500; margin-bottom: 6px; }
+  .input, .select {
+    width: 100%; height: 34px; padding: 0 12px;
+    background: var(--background);
+    border: 1px solid var(--input); border-radius: 8px;
+    color: var(--foreground); font-family: inherit; font-size: 13.5px;
+  }
+  .input::placeholder { color: var(--muted-fg); }
+  .input.focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 30%, transparent); }
+
+  /* ===== Sections within mockup ===== */
+  .swatch-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch { width: 84px; }
+  .swatch-chip { height: 44px; border-radius: 8px; border: 1px solid var(--border); }
+  .swatch-name { font-size: 11px; color: var(--muted-fg); margin-top: 6px; font-family: var(--font-mono); }
+  .section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-fg); margin: 0 0 10px; }
+  .stack { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mock-divider { height: 1px; background: var(--border); margin: 28px 0; }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">C</div> ClarityIT</div>
+    <div class="nav-label">Workspace</div>
+    <div class="nav-item active">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+      Incidents
+    </div>
+    <div class="nav-item">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/></svg>
+      Knowledge
+    </div>
+    <div class="nav-item">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+      Artifacts
+    </div>
+    <div class="nav-label">Operations</div>
+    <div class="nav-item">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>
+      Infrastructure
+    </div>
+    <div class="nav-item">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z"/></svg>
+      Approvals
+    </div>
+    <div class="nav-item">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 10v6M4.22 4.22l4.24 4.24m7.08 7.08 4.24 4.24M1 12h6m10 0h6"/></svg>
+      Agents
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div class="crumb">Operations · <b>Dashboard</b></div>
+      <div class="topbar-actions">
+        <span class="theme-tag" id="themeTag">Dark mode</span>
+      </div>
+    </div>
+
+    <h1 class="page-title">Operations Overview</h1>
+    <p class="page-sub">Live health across infrastructure, incidents, and agent activity.</p>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-label">Active Incidents</div>
+        <div class="kpi-value">3</div>
+        <div class="kpi-delta badge badge-warning"><span class="dot"></span>1 acknowledged</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">MTTR (24h)</div>
+        <div class="kpi-value">12m</div>
+        <div class="kpi-delta badge badge-success"><span class="dot"></span>↓ 18% vs avg</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Agent Runs</div>
+        <div class="kpi-value">847</div>
+        <div class="kpi-delta badge badge-info"><span class="dot"></span>92% autonomous</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Uptime</div>
+        <div class="kpi-value">99.98%</div>
+        <div class="kpi-delta badge badge-success"><span class="dot"></span>All systems normal</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card table-card">
+      <div class="card-header">
+        <div class="card-title">Recent Incidents</div>
+        <div class="stack">
+          <button class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M7 12h10M10 18h4"/></svg>
+            Filter
+          </button>
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New Incident
+          </button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Title</th><th>Severity</th><th>Status</th><th>Assignee</th><th>Updated</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">INC-1042</td>
+            <td>API latency spike on /v1/context</td>
+            <td><span class="badge badge-destructive"><span class="dot"></span>SEV-1</span></td>
+            <td><span class="badge badge-warning"><span class="dot"></span>Investigating</span></td>
+            <td>A. Rahman</td>
+            <td class="mono">2m ago</td>
+          </tr>
+          <tr>
+            <td class="mono">INC-1041</td>
+            <td>Outbox worker backpressure</td>
+            <td><span class="badge badge-warning"><span class="dot"></span>SEV-2</span></td>
+            <td><span class="badge badge-info"><span class="dot"></span>Acknowledged</span></td>
+            <td>M. Chen</td>
+            <td class="mono">14m ago</td>
+          </tr>
+          <tr>
+            <td class="mono">INC-1039</td>
+            <td>Proxmox node mem threshold</td>
+            <td><span class="badge badge-muted"><span class="dot"></span>SEV-3</span></td>
+            <td><span class="badge badge-success"><span class="dot"></span>Resolved</span></td>
+            <td>agent://sentinel</td>
+            <td class="mono">1h ago</td>
+          </tr>
+          <tr>
+            <td class="mono">INC-1038</td>
+            <td>Webhook delivery retries exhausted</td>
+            <td><span class="badge badge-muted"><span class="dot"></span>SEV-3</span></td>
+            <td><span class="badge badge-success"><span class="dot"></span>Resolved</span></td>
+            <td>S. Okoro</td>
+            <td class="mono">3h ago</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Component reference grid -->
+    <div class="grid2">
+      <div class="card">
+        <div class="section-title">Buttons</div>
+        <div class="stack">
+          <button class="btn btn-primary">Primary action</button>
+          <button class="btn btn-secondary">Secondary</button>
+          <button class="btn btn-ghost">Ghost</button>
+          <button class="btn btn-destructive">Delete</button>
+          <button class="btn btn-secondary btn-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Status badges</div>
+        <div class="stack">
+          <span class="badge badge-success"><span class="dot"></span>Operational</span>
+          <span class="badge badge-warning"><span class="dot"></span>Degraded</span>
+          <span class="badge badge-destructive"><span class="dot"></span>Outage</span>
+          <span class="badge badge-info"><span class="dot"></span>Info</span>
+          <span class="badge badge-default"><span class="dot"></span>Default</span>
+          <span class="badge badge-muted">Draft</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Form field</div>
+        <div class="field">
+          <label>Incident title</label>
+          <input class="input focus" value="API latency spike on /v1/context" />
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Assignee</label>
+          <select class="select"><option>A. Rahman</option><option>M. Chen</option></select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Palette</div>
+        <div class="swatch-row">
+          <div class="swatch"><div class="swatch-chip" style="background:var(--background);border-color:var(--border)"></div><div class="swatch-name">bg</div></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--surface)"></div><div class="swatch-name">surface</div></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--primary)"></div><div class="swatch-name">primary</div></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--success)"></div><div class="swatch-name">success</div></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--warning)"></div><div class="swatch-name">warning</div></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--destructive)"></div><div class="swatch-name">destruct</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // Auto-tag the body class so the screenshot label matches what's rendered
+  const isDark = document.documentElement.classList.contains('dark');
+  document.getElementById('themeTag').textContent = isDark ? 'Dark mode' : 'Light mode';
+</script>
+</body>
+</html>
