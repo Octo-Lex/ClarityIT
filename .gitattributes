@@ -1,0 +1,4 @@
+# Preserve canonical bytes for the checksummed v2 document set.
+docs/v2/** text eol=lf
+docs/v2/**/*.png binary
+docs/v2/**/*.docx binary

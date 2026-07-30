@@ -66,6 +66,13 @@ open http://localhost:3000
 
 See [CHANGELOG.md](CHANGELOG.md) for version history and [`docs/releases/`](docs/releases/) for detailed release notes.
 
+## ClarityIT v2
+
+The draft ClarityIT v2 specification program is maintained in
+[`docs/v2/`](docs/v2/README.md). It defines the target product, authoritative
+execution kernel, v1-to-v2 migration contract, WP-00 stabilization plan, and
+editable layered reference architecture.
+
 ## Architecture
 
 ```
