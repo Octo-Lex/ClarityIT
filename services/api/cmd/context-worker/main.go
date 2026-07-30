@@ -92,16 +92,36 @@ func main() {
 	}
 }
 
+// maxIngestRetries bounds redelivery for a single event. After this many failed
+// attempts the message is Terminated (Term = terminal Nak, no redelivery) so a
+// single poison-pill event can't pin a core forever in a tight Nak loop.
+// 13 days of CPU at ~100%/core in production traced to exactly this: one
+// unprocessable object.commented event redelivered nonstop with no escape.
+const maxIngestRetries = 10
+
 func processMessage(ctx context.Context, pool *pgxpool.Pool, msg jetstream.Msg) {
 	var env contextx.Envelope
 	if err := json.Unmarshal(msg.Data(), &env); err != nil {
-		log.Printf("Invalid message: %v", err)
-		msg.Nak()
+		log.Printf("Invalid message (unparseable JSON, term): %v", err)
+		msg.Term()
 		return
 	}
 
 	if err := contextx.Ingest(ctx, pool, env); err != nil {
-		log.Printf("Ingest failed %s: %v", env.EventType, err)
+		// Count deliveries; if we've retried too many times, dead-letter (Term)
+		// instead of Nak so the event stops redelivering.
+		delivered := uint64(1)
+		if meta, mErr := msg.Metadata(); mErr == nil {
+			delivered = meta.NumDelivered
+		}
+		if delivered >= maxIngestRetries {
+			log.Printf("Ingest failed %s after %d deliveries, terming (dead-letter): %v",
+				env.EventType, delivered, err)
+			msg.Term()
+			return
+		}
+		log.Printf("Ingest failed %s (delivery %d, will retry): %v",
+			env.EventType, delivered, err)
 		msg.Nak()
 		return
 	}

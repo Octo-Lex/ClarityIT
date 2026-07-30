@@ -144,7 +144,7 @@ func ingestWorkItemEdges(ctx context.Context, tx pgx.Tx, teamID, nodeID uuid.UUI
 	}
 }
 
-func ingestCommentEdge(ctx context.Context, tx pgx.Tx, teamID, objectNodeID uuid.UUID, env Envelope) {
+func ingestCommentEdge(ctx context.Context, tx pgx.Tx, teamID, _ /* commentNodeID from aggregate */ uuid.UUID, env Envelope) {
 	var payload struct {
 		CommentID string `json:"comment_id"`
 		ObjectID  string `json:"object_id"`
@@ -152,7 +152,7 @@ func ingestCommentEdge(ctx context.Context, tx pgx.Tx, teamID, objectNodeID uuid
 	if err := json.Unmarshal(env.Payload, &payload); err != nil {
 		return
 	}
-	if payload.CommentID == "" {
+	if payload.CommentID == "" || payload.ObjectID == "" {
 		return
 	}
 
@@ -160,8 +160,26 @@ func ingestCommentEdge(ctx context.Context, tx pgx.Tx, teamID, objectNodeID uuid
 	if err != nil {
 		return
 	}
+	objectUUID, err := uuid.Parse(payload.ObjectID)
+	if err != nil {
+		return
+	}
 
-	// Upsert comment node
+	// Upsert the OBJECT node — the passed-in nodeID is the comment aggregate
+	// node (env.AggregateID is the comment), not the object. The comment event
+	// carries object_id in its payload; that's the edge origin.
+	var objectNodeID uuid.UUID
+	err = tx.QueryRow(ctx, `
+		INSERT INTO context_nodes (team_id, entity_type, entity_id, source, properties)
+		VALUES ($1, 'object', $2, 'event', '{}')
+		ON CONFLICT (team_id, entity_type, entity_id) DO UPDATE SET updated_at = NOW()
+		RETURNING id
+	`, teamID, objectUUID).Scan(&objectNodeID)
+	if err != nil {
+		return
+	}
+
+	// Upsert the COMMENT node.
 	var commentNodeID uuid.UUID
 	err = tx.QueryRow(ctx, `
 		INSERT INTO context_nodes (team_id, entity_type, entity_id, source, properties)
@@ -170,6 +188,13 @@ func ingestCommentEdge(ctx context.Context, tx pgx.Tx, teamID, objectNodeID uuid
 		RETURNING id
 	`, teamID, commentUUID).Scan(&commentNodeID)
 	if err != nil {
+		return
+	}
+
+	// Guard against self-loops — if the object and comment resolve to the same
+	// node (shouldn't happen with distinct UUIDs, but the CHECK constraint is
+	// unforgiving), skip the edge rather than fail the whole ingest.
+	if objectNodeID == commentNodeID {
 		return
 	}
 
@@ -208,6 +233,14 @@ func ingestTimelineEdge(ctx context.Context, tx pgx.Tx, teamID, incidentNodeID u
 }
 
 func createDirectEdge(ctx context.Context, tx pgx.Tx, teamID, fromNodeID, toNodeID uuid.UUID, relationType string, env Envelope) {
+	// Defensive guard against self-loops — the context_edges CHECK constraint
+	// (from_node_id <> to_node_id) is unforgiving, and a violation fails the
+	// whole ingest transaction. Skip silently rather than fail; a self-edge
+	// carries no graph information anyway.
+	if fromNodeID == toNodeID {
+		return
+	}
+
 	eventUUID, err := uuid.Parse(env.EventID)
 	if err != nil {
 		return
