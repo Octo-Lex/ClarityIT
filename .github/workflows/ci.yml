@@ -47,10 +47,9 @@ jobs:
   # project's Makefile `test` target — not on the runner host (where `postgres`
   # is unresolvable and `pg_isready -h localhost` would hang forever).
   #
-  # NON-BLOCKING: the migration suite has pre-existing fresh-DB bugs (forward
-  # references, duplicate table defs, incomplete permission renames, missing
-  # role grants) documented in #1. This job runs to surface progress as those
-  # are fixed but does not fail the workflow meanwhile.
+  # NON-BLOCKING until WP-00 G5. A repository-derived P0 fixture provisions the
+  # database so backend tests execute, but it is not P1/P2/P3 evidence and does
+  # not claim G2/G3, install, or upgrade authority.
   backend:
     name: Backend (Go) [non-blocking]
     runs-on: ubuntu-latest
@@ -85,17 +84,84 @@ jobs:
           docker logs postgres
           exit 1
 
-      - name: Apply migrations
+      - name: Build repository-derived P0 test schema
         run: |
-          for f in $(ls migrations/*.sql | sort); do
-            echo "applying $f"
-            docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 < "$f"
-          done
+          python3 scripts/build-ci-p0-schema.py --output /tmp/clarityit-ci-p0.sql
 
-      - name: Run Go tests (in-container, on the clarityit-net network)
+      - name: Bootstrap P0 test role
+        run: |
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/bootstrap.sql
+
+      - name: Apply repository-derived P0 test schema
+        run: |
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < /tmp/clarityit-ci-p0.sql
+
+      - name: Verify P0 test schema
+        run: |
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/verify.sql
+
+      - name: Seed deterministic backend test principals
+        run: |
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/seed.sql
+
+      - name: Run context-worker tests
+        run: |
+          docker volume create clarityit-go-mod
+          docker volume create clarityit-go-build
+          docker run --rm \
+            -v "$PWD/services/api:/app" \
+            -v clarityit-go-mod:/go/pkg/mod \
+            -v clarityit-go-build:/root/.cache/go-build \
+            -w /app \
+            --network clarityit-net \
+            golang:1.25-alpine \
+            go test -p 1 -count=1 -timeout 60s ./cmd/context-worker/...
+
+      - name: Reset P0 test database for admin tests
+        run: |
+          docker exec postgres psql -U clarityit -d postgres -v ON_ERROR_STOP=1 \
+            -c "DROP DATABASE clarityit WITH (FORCE)"
+          docker exec postgres createdb -U clarityit clarityit
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < /tmp/clarityit-ci-p0.sql
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/verify.sql
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/seed.sql
+
+      - name: Run admin tests
         run: |
           docker run --rm \
             -v "$PWD/services/api:/app" \
+            -v clarityit-go-mod:/go/pkg/mod \
+            -v clarityit-go-build:/root/.cache/go-build \
+            -w /app \
+            --network clarityit-net \
+            golang:1.25-alpine \
+            go test -p 1 -count=1 -timeout 60s ./internal/admin/...
+
+      - name: Reset P0 test database for full Go tests
+        run: |
+          docker exec postgres psql -U clarityit -d postgres -v ON_ERROR_STOP=1 \
+            -c "DROP DATABASE clarityit WITH (FORCE)"
+          docker exec postgres createdb -U clarityit clarityit
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < /tmp/clarityit-ci-p0.sql
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/verify.sql
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/seed.sql
+
+      - name: Run full Go tests
+        run: |
+          docker run --rm \
+            -v "$PWD/services/api:/app" \
+            -v clarityit-go-mod:/go/pkg/mod \
+            -v clarityit-go-build:/root/.cache/go-build \
             -w /app \
             --network clarityit-net \
             golang:1.25-alpine \
