@@ -14,6 +14,10 @@
 
 **Specified source baseline:** main at b9d15877583e84c45ab5478dfaa6087966926fc5
 
+**Revision starting baseline:** main@318b4eba6ee298013fa8e949ba5d34d5f7d7dc30 (history: `b9d1587` → `995d9e0` [PR#2 CPU-loop fix] → `318b4eb` [PR#3 v2 docs]). Merging the durable-disposition follow-up advances main again.
+
+> **Revision note (2026-07-30):** This document was originally authored against `main=b9d1587` with PR#2 (`cad4230`) open. Since then PR#2 merged as squash `995d9e0` (bounded termination, but **without** the durable poison-event disposition its own AC-00-03 required) and PR#3 merged as `318b4eb` (v2 docs). References to `b9d1587`/`cad4230`/PR#2 below are retained as historical provenance where they describe the original baseline; where they describe *current* state they are corrected in place. The durable-disposition debt is discharged by the `fix/context-worker-durable-dlq` follow-up, which is a precondition for G0 acceptance.
+
 **Phase boundary:** Compatibility Specification phases 0-1 only
 
 **Exit decision:** Migration foundation accepted or blocked; no partial pass
@@ -22,7 +26,7 @@
 
 ## Decision snapshot
 
-- Start from the specified source implementation at b9d1587, but do not declare the operational freeze until every deployed byte and PR \#2 (or its approved replacement) is reconciled into one tagged source artifact.
+- Start from the specified source implementation at b9d1587 *(historical baseline; revision starting baseline is `main@318b4eb` per the revision note above)*. Do not declare the operational freeze until every deployed byte is reconciled into one tagged source artifact. PR \#2 has merged as squash `995d9e0`.
 
 - Do not edit and replay legacy migrations 001-040. Preserve them unchanged as historical provenance; fresh installations use one reconciled baseline followed by immutable checksummed forward migrations.
 
@@ -36,7 +40,7 @@
 
 - Make backend build, fresh install, approved-profile adoption, restart, negative-profile, and existing Go tests blocking. Remove continue-on-error only after the complete matrix passes.
 
-- Merge or supersede PR \#2 only after failed poison messages are durably recorded before terminal acknowledgement.
+- ~~Merge or supersede PR \#2 only after failed poison messages are durably recorded before terminal acknowledgement.~~ **(Historical — PR#2 merged as `995d9e0` with bounded termination but without durable disposition; the `fix/context-worker-durable-dlq` follow-up supplies the missing durable poison-event disposition that this requirement originally mandated before G0 acceptance.)**
 
 - Preserve legacy execution records as claims. WP-00 must establish a test fixture proving no legacy value maps to provider_completed, verified, or accepted.
 
@@ -92,17 +96,17 @@ This work package implements phases 0 and 1 of the ClarityIT v2 v1-to-v2 Compati
 
 ## 2. Confirmed starting baseline
 
-The source implementation was rechecked on 30 July 2026. Main still resolves to b9d1587. The repository contains 40 legacy SQL files and 64 nominal unique table definitions. The compatibility specification remains authoritative where it deliberately supersedes older repository guidance.
+The source implementation was rechecked on 30 July 2026. *(Historical: main resolved to `b9d1587` at original authoring. Current revision starting baseline is `main@318b4eb`.)* The repository contains 40 legacy SQL files and 64 nominal unique table definitions. The compatibility specification remains authoritative where it deliberately supersedes older repository guidance.
 
 | **Dimension**             | **Confirmed condition**                                  | **WP-00 consequence**                                                         |
 |---------------------------|----------------------------------------------------------|-------------------------------------------------------------------------------|
-| **Repository**            | Octo-Lex/ClarityIT; main=b9d1587                         | Use as specified logical source reference.                                    |
+| **Repository**            | Octo-Lex/ClarityIT; revision starting baseline `main@318b4eb` (was `b9d1587`)                         | Use as specified logical source reference.                                    |
 | **Database**              | PostgreSQL 16                                            | All baseline, restore, and CI scenarios target PostgreSQL 16.                 |
 | **Legacy migration path** | Sorted psql loop; no durable ledger/checksum/lock policy | Retire as a supported execution path.                                         |
 | **CI**                    | Backend job has continue-on-error: true                  | Replace with required blocking checks.                                        |
 | **Fresh install defect**  | Issue \#1 remains open                                   | Cannot close until WP-00 gates pass.                                          |
-| **Operational delta**     | PR \#2 at cad4230 is open and reported deployed          | Reconcile before source freeze.                                               |
-| **PR \#2 defect**         | Terminal retry loses durable poison-event visibility     | Persist sanitized dead-letter record before Term.                             |
+| **Operational delta**     | PR \#2 merged as squash `995d9e0` (was open at `cad4230`, reported deployed)          | Reconcile before source freeze.                                               |
+| **PR \#2 defect**         | Terminal retry lost durable poison-event visibility     | Persist sanitized dead-letter record before Term.                             |
 | **Existing tests**        | Go tests expect postgres:5432 inside Docker network      | Preserve the network alias during WP-00; broad test refactor is not required. |
 
 ### 2.1 Legacy migration conflicts
@@ -155,17 +159,17 @@ Gates are sequential authority boundaries, not presentation milestones. Work may
 
 ### 4.1 WS0 - Freeze repository and operational state
 
-**WS0-01.** Record b9d1587 as the specified logical source and capture the current main branch, open PRs, dependency lockfiles, workflow files, container definitions, and deploy scripts.
+**WS0-01.** Record `b9d1587` as the specified logical source *(historical; revision starting baseline is `main@318b4eb`)* and capture the current main branch, PRs, dependency lockfiles, workflow files, container definitions, and deploy scripts.
 
 **WS0-02.** Inventory production-deployed API and worker binaries/images, file-copy deltas, migration history evidence, feature flags, and configuration schema; compare hashes against source-built artifacts.
 
-**WS0-03.** Rework PR \#2 or create a superseding change that retains the object-to-comment edge fix and bounded backoff while writing a sanitized durable dead-letter record before terminal acknowledgement.
+**WS0-03.** ~~Rework PR \#2 or create a superseding change that retains the object-to-comment edge fix and bounded backoff while writing a sanitized durable dead-letter record before terminal acknowledgement.~~ **(Discharged: PR#2 merged as `995d9e0` carrying the self-loop fix and bounded termination; the `fix/context-worker-durable-dlq` follow-up added the sanitized durable dead-letter record written before Term.)**
 
-**WS0-04.** Add regression tests for self-loop prevention, bounded retry, unparseable message handling, durable poison-event visibility, and replay/disposition behavior.
+**WS0-04.** Add regression tests for self-loop prevention, bounded retry, unparseable message handling, durable poison-event visibility, and disposition behavior. *(Replay/redrive remains out of scope — future work — so "replay" is dropped from the test scope.)*
 
 **WS0-05.** Build the source-freeze candidate, reproduce its artifacts, verify that every deployed semantic change is represented, and tag the approved freeze commit. The tag name and SHA are recorded in A1; this plan does not invent the final SHA.
 
-**G0 pass.** The release artifact reproduces production behavior, PR \#2 is merged or explicitly superseded, no deployed code delta remains outside source control, and A1 is approved.
+**G0 pass.** The release artifact reproduces production behavior, PR \#2 is merged (as squash `995d9e0`) with durable poison-event disposition in place via the follow-up, no deployed code delta remains outside source control, and A1 is approved.
 
 ### 4.2 WS1 - Capture source profiles and prove restore
 
@@ -432,11 +436,11 @@ Target critical path: 15 working days from access to P1 and the restorable backu
 
 ### 10.1 Source freeze
 
-**AC-00-01.** A1 identifies b9d1587 as the specified source reference and an approved freeze commit/tag containing every deployed semantic delta.
+**AC-00-01.** A1 identifies `b9d1587` as the specified historical source reference and the revision starting baseline (`main@318b4eb`, advanced by the durable-disposition follow-up) as the approved freeze commit/tag containing every deployed semantic delta.
 
 **AC-00-02.** Production binaries/images/configuration schema are compared to reproducible source-built artifacts; every mismatch is resolved or blocks G0.
 
-**AC-00-03.** PR \#2 is merged or superseded only after durable dead-letter visibility is implemented and tested.
+**AC-00-03.** ~~PR \#2 is merged or superseded only after durable dead-letter visibility is implemented and tested.~~ **(Historically accurate rewording: PR#2 merged as `995d9e0` with bounded termination; this follow-up (`fix/context-worker-durable-dlq`) supplies the missing durable poison-event disposition the original AC-00-03 required before G0 acceptance. Do not read this as "PR#2 merged only after durable DLQ" — that ordering did not occur.)**
 
 **AC-00-04.** No file-copy-only production change remains outside the freeze artifact.
 
@@ -512,9 +516,9 @@ Acceptance authorizes the next implementation-ready contract: Generic Compute Ad
 
 - Create the WP-00 integration branch and protect main from direct schema changes.
 
-- Capture main=b9d1587, PR \#2=cad4230, current workflow, Makefile, dependency locks, and deployment inventory.
+- Capture the revision starting baseline (`main@318b4eb`; historically `main=b9d1587`, PR \#2 now merged as `995d9e0`), current workflow, Makefile, dependency locks, and deployment inventory.
 
-- Open the PR \#2 superseding task with durable dead-letter acceptance criteria.
+- ~~Open the PR \#2 superseding task with durable dead-letter acceptance criteria.~~ **(Discharged: the durable-disposition follow-up `fix/context-worker-durable-dlq` implements this.)**
 
 - Provision the isolated PostgreSQL 16 restore environment and secure evidence location.
 
@@ -530,8 +534,8 @@ Acceptance authorizes the next implementation-ready contract: Generic Compute Ad
 | **Authoritative Execution Kernel Specification v0.1**       | Truth and separation invariants carried into fixtures   | Engineering semantics |
 | **v1-to-v2 Compatibility and Migration Specification v0.1** | Profiles, baseline, migration control, CI, and gates    | Migration             |
 | **Updated ClarityIT v2 reference architecture**             | Component and persistence boundaries                    | Architecture          |
-| **Octo-Lex/ClarityIT b9d1587**                              | Specified v1 source implementation                      | Source implementation |
+| **Octo-Lex/ClarityIT b9d1587** *(historical)*               | Specified v1 source implementation (revision starting baseline now `main@318b4eb`) | Source implementation |
 | **GitHub issue \#1**                                        | Fresh-install defect record                             | Known defect          |
-| **GitHub PR \#2 / cad4230**                                 | Operational retry delta requiring reconciliation        | Operational delta     |
+| **GitHub PR \#2 / cad4230** *(historical)*                  | Operational retry delta — merged as squash `995d9e0`; durable disposition discharged by `fix/context-worker-durable-dlq` | Operational delta     |
 | **Approved P1/P2/P3 profile pack**                          | Actual source database authority                        | Upgrade source        |
 | **This work package**                                       | Execution order, tasks, gates, evidence, and acceptance | WP-00 delivery        |
