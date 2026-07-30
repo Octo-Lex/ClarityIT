@@ -103,6 +103,11 @@ jobs:
           docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
             < migrations/ci/p0/verify.sql
 
+      - name: Seed deterministic backend test principals
+        run: |
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/seed.sql
+
       - name: Run context-worker tests
         run: |
           docker volume create clarityit-go-mod
@@ -125,6 +130,8 @@ jobs:
             < /tmp/clarityit-ci-p0.sql
           docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
             < migrations/ci/p0/verify.sql
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/seed.sql
 
       - name: Run admin tests
         run: |
@@ -146,6 +153,8 @@ jobs:
             < /tmp/clarityit-ci-p0.sql
           docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
             < migrations/ci/p0/verify.sql
+          docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
+            < migrations/ci/p0/seed.sql
 
       - name: Run full Go tests
         run: |

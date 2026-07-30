@@ -15,6 +15,8 @@ commit with three narrowly scoped repairs:
 - replace migration 016 with deterministic permission-name reconciliation;
 - create the environment-level `clarityit_app` group role before migration 029
   grants privileges to it.
+- seed only the deterministic `owner@test.dev` and `member@test.dev` principals,
+  team memberships, and platform-owner assignment expected by repository tests.
 
 These choices make the repository-shaped database testable. They do not claim
 that it matches any live database. G2/G3 remain blocked until the required
