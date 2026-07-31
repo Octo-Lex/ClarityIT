@@ -42,7 +42,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-PROFILER_VERSION = "3.1.0-p1p2"
+PROFILER_VERSION = "3.2.0-p1p2"
 
 
 # ─── Read-only connection ────────────────────────────────────────────────────
@@ -91,8 +91,7 @@ def pg_info(cur):
     # from fingerprint). This makes the fingerprint stable across PG patch versions.
     cur.execute(
         "SELECT name, setting FROM pg_settings "
-        "WHERE name IN ('integer_datetime',"
-        "'lc_collate','lc_ctype','standard_conforming_strings','TimeZone') ORDER BY name;"
+        "WHERE name IN ('standard_conforming_strings','TimeZone') ORDER BY name;"
     )
     settings = {r[0]: r[1] for r in cur.fetchall()}
     return {"settings": settings}

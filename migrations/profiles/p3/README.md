@@ -33,7 +33,7 @@ infrastructure details.**
 
 ## Golden fingerprint
 
-`a3e97ea4ffb059a30d98da3ea2729e7a32d3465592cef8b503f3311841e4c111`
+`d64b83f81b652724dd12210890a1701e2877a44c382bbcaca6a2a72b2f821df7`
 
 Proven: self-consistent, deterministic (two captures match), secret-scan clean,
 matches committed golden. See `GOLDEN.md` for details.

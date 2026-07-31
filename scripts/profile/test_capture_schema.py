@@ -35,7 +35,7 @@ _spec.loader.exec_module(cs)
 def _base_manifest():
     """A minimal but representative manifest covering all fingerprinted sections."""
     return {
-        "profiler_version": "3.1.0-p1p2",
+        "profiler_version": "3.2.0-p1p2",
         "captured_at_utc": "2026-07-31T00:00:00+00:00",
         "source_label": "test",
         "fingerprint_sha256": "",  # will be set; must NOT affect recompute
