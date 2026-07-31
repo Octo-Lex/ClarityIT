@@ -1,7 +1,7 @@
 -- P3: ClarityIT sanitized CI legacy fixture (synthetic)
 -- Deterministic; generated from P1 manifest structural metadata.
 -- NO production data, identifiers, credentials, or hostnames.
--- Generated: 2026-07-31T03:11:14+00:00
+-- Deterministic: identical P1 input produces identical bytes.
 -- DO NOT EDIT BY HAND — regenerate via scripts/profile/generate_p3.py
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

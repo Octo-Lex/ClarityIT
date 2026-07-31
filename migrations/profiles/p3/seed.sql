@@ -48,3 +48,18 @@ VALUES ('00000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-0000000
         '{"asset_id":"00000000-0000-0000-0000-000000000003"}'::jsonb, 'medium',
         'p3 synthetic approval', 'approved', '00000000-0000-0000-0000-000000000002', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING;
+
+-- Legacy-truth case 4: asset_actions.status='executing' (→ legacy_outcome_unknown)
+INSERT INTO asset_actions (id, team_id, asset_id, action_type, status, proxmox_task_id,
+                           requested_by, created_at, updated_at)
+VALUES ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'proxmox.start', 'executing',
+        'UPID:p3:0000DEF:00000000:00000001', '00000000-0000-0000-0000-000000000002', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING;
+
+-- Legacy-truth case 5: action_outcomes (→ legacy_operator_assessment)
+INSERT INTO action_outcomes (id, team_id, asset_action_id, expected_result, actual_result,
+                             operator_feedback, outcome_status, created_by, created_at, updated_at)
+VALUES ('00000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000005', 'VM running',
+        'VM started successfully', 'Operator confirmed workload healthy', 'successful',
+        '00000000-0000-0000-0000-000000000002', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING;

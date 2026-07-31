@@ -166,6 +166,10 @@ jobs:
             golang:1.25-alpine \
             go test -p 1 -count=1 -timeout 600s ./...
 
+      - name: Validate P3 fixture (two PG16 builds, fingerprint + secret scan)
+        run: |
+          python scripts/profile/validate_p3.py
+
   # ─── Python worker ───
   worker:
     name: Worker (Python)

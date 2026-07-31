@@ -344,7 +344,13 @@ def rls_state(cur, sch):
 
 
 def migration_state(cur):
-    """Detect any migration ledger table and read its state (no row data)."""
+    """Detect any migration ledger table and read its state (no row data).
+
+    Uses catalog-driven column detection (not hardcoded column names) so it
+    works regardless of whether the ledger uses created_at, applied_at, or
+    another timestamp column. Wraps the read in a savepoint so a failure
+    (missing column, permissions) does not abort the surrounding read-only
+    transaction."""
     candidates = [
         "schema_migrations",
         "platform.schema_revisions",
@@ -352,21 +358,52 @@ def migration_state(cur):
         "goose_db_version",
     ]
     for tbl in candidates:
+        schema, name = (tbl.split(".", 1) + [None])[:2] if "." in tbl else ("public", tbl)
         cur.execute(
             "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-            "WHERE table_name = %s);",
-            [tbl.split(".")[-1]],
+            "WHERE table_schema = %s AND table_name = %s);",
+            [schema, name],
         )
-        if cur.fetchone()[0]:
-            try:
-                # read distinct status / version summary only
+        if not cur.fetchone()[0]:
+            continue
+
+        # Catalog-driven: find a timestamp column to use for "latest"
+        cur.execute(
+            """
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = %s
+              AND data_type LIKE '%%timestamp%%'
+            ORDER BY column_name LIMIT 1;
+            """,
+            [schema, name],
+        )
+        row = cur.fetchone()
+        ts_col = row[0] if row else None
+
+        # Savepoint so a failure here doesn't abort the read-only transaction
+        cur.execute("SAVEPOINT migration_state_probe")
+        try:
+            if ts_col:
+                # qualify the column to avoid SQL injection from catalog content;
+                # column names are validated to be identifiers via information_schema
                 cur.execute(
-                    f"SELECT count(*), max(created_at::text) FROM {tbl};"  # noqa: S608
+                    'SELECT count(*), max("' + ts_col.replace('"', '""') + '"::text) '
+                    "FROM " + schema + "." + name
                 )
                 cnt, latest = cur.fetchone()
-                return {"table": tbl, "row_count": cnt, "latest_recorded_at": latest}
-            except Exception:
-                return {"table": tbl, "note": "exists but unreadable"}
+                cur.execute("RELEASE SAVEPOINT migration_state_probe")
+                return {
+                    "table": tbl, "row_count": cnt,
+                    "latest_column": ts_col, "latest_recorded_at": latest,
+                }
+            cur.execute("SELECT count(*) FROM " + schema + "." + name)
+            cnt = cur.fetchone()[0]
+            cur.execute("RELEASE SAVEPOINT migration_state_probe")
+            return {"table": tbl, "row_count": cnt, "latest_column": None}
+        except Exception:
+            cur.execute("ROLLBACK TO SAVEPOINT migration_state_probe")
+            cur.execute("RELEASE SAVEPOINT migration_state_probe")
+            return {"table": tbl, "note": "exists but unreadable"}
     return {"table": None, "note": "no migration ledger table detected"}
 
 

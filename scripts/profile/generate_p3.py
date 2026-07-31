@@ -31,7 +31,6 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
 
 # Import the capture profiler for fingerprint computation
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -80,7 +79,7 @@ def generate_schema_ddl(manifest: dict) -> str:
         "-- P3: ClarityIT sanitized CI legacy fixture (synthetic)",
         "-- Deterministic; generated from P1 manifest structural metadata.",
         "-- NO production data, identifiers, credentials, or hostnames.",
-        f"-- Generated: {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
+        "-- Deterministic: identical P1 input produces identical bytes.",
         "-- DO NOT EDIT BY HAND — regenerate via scripts/profile/generate_p3.py",
         "",
     ]
@@ -278,6 +277,21 @@ INSERT INTO approval_requests (id, team_id, action_type, action_target, risk_lev
 VALUES ('{SEED_APPROVAL}', '{SEED_TEAM}', 'proxmox.start',
         '{{"asset_id":"{SEED_OBJECT}"}}'::jsonb, 'medium',
         'p3 synthetic approval', 'approved', '{SEED_USER}', '{FIXED_TS}', '{FIXED_TS}', '{FIXED_TS}')
+ON CONFLICT (id) DO NOTHING;
+
+-- Legacy-truth case 4: asset_actions.status='executing' (→ legacy_outcome_unknown)
+INSERT INTO asset_actions (id, team_id, asset_id, action_type, status, proxmox_task_id,
+                           requested_by, created_at, updated_at)
+VALUES ('{SEED_STEP}', '{SEED_TEAM}', '{SEED_OBJECT}', 'proxmox.start', 'executing',
+        'UPID:p3:0000DEF:00000000:00000001', '{SEED_USER}', '{FIXED_TS}', '{FIXED_TS}')
+ON CONFLICT (id) DO NOTHING;
+
+-- Legacy-truth case 5: action_outcomes (→ legacy_operator_assessment)
+INSERT INTO action_outcomes (id, team_id, asset_action_id, expected_result, actual_result,
+                             operator_feedback, outcome_status, created_by, created_at, updated_at)
+VALUES ('{SEED_PROPOSAL}', '{SEED_TEAM}', '{SEED_ACTION}', 'VM running',
+        'VM started successfully', 'Operator confirmed workload healthy', 'successful',
+        '{SEED_USER}', '{FIXED_TS}', '{FIXED_TS}')
 ON CONFLICT (id) DO NOTHING;
 """
 
