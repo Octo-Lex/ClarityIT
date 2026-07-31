@@ -27,13 +27,13 @@ infrastructure details.**
 | File | Purpose |
 |---|---|
 | `schema.sql` | Synthetic DDL matching P1 shape (64 tables + sequences + functions) |
-| `seed.sql` | Minimal legacy-truth seed rows (9 synthetic rows) |
+| `seed.sql` | Minimal legacy-truth seed rows (11 synthetic rows: 6 bootstrap + 5 truth cases) |
 | `golden-manifest.json` | Expected capture manifest (the golden profile) |
 | `GOLDEN.md` | Fingerprint reference + validation proof |
 
 ## Golden fingerprint
 
-`3ef228814184a20b1d0162bc0aff4395b474a3dbadf4e51c1e102963b5537be4`
+`88563c6e7a89f494c31ff364bbfe30ac28b00b323ef577e3b10777fd27151d20`
 
 Proven: self-consistent, deterministic (two captures match), secret-scan clean,
 matches committed golden. See `GOLDEN.md` for details.
