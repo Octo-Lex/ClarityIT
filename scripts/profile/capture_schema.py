@@ -42,7 +42,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-PROFILER_VERSION = "2.0.0-p1p2"
+PROFILER_VERSION = "3.0.0-p1p2"
 
 
 # ─── Read-only connection ────────────────────────────────────────────────────
@@ -212,15 +212,24 @@ def sequences(cur, sch):
     rows = q(
         cur,
         """
-        SELECT n.nspname, c.relname
+        SELECT n.nspname, c.relname,
+               s.seqtypid::regtype, s.seqstart, s.seqincrement,
+               s.seqmax, s.seqmin, s.seqcache, s.seqcycle
         FROM pg_class c
         JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_sequence s ON s.seqrelid = c.oid
         WHERE n.nspname = ANY(%s) AND c.relkind = 'S'
         ORDER BY n.nspname, c.relname;
         """,
         [sch],
     )
-    return [{"schema": r[0], "name": r[1]} for r in rows]
+    return [
+        {
+            "schema": r[0], "name": r[1], "type": r[2], "start": r[3],
+            "increment": r[4], "max": r[5], "min": r[6], "cache": r[7], "cycle": r[8],
+        }
+        for r in rows
+    ]
 
 
 def functions(cur, sch):
@@ -235,7 +244,8 @@ def functions(cur, sch):
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace
         WHERE n.nspname = ANY(%s) AND p.prokind IN ('f','p','w')
-        ORDER BY n.nspname, p.proname;
+        ORDER BY n.nspname, p.proname,
+                 pg_get_function_identity_arguments(p.oid);
         """,
         [sch],
     )
@@ -288,8 +298,11 @@ def rls_policies(cur, sch):
     rows = q(
         cur,
         """
-        SELECT n.nspname, c.relname, p.polname, p.polpermissive,
-               pg_get_expr(p.polqual, p.polrelid), pg_get_expr(p.polwithcheck, p.polrelid)
+        SELECT n.nspname, c.relname, p.polname, p.polcmd, p.polpermissive,
+               pg_get_expr(p.polqual, p.polrelid),
+               pg_get_expr(p.polwithcheck, p.polrelid),
+               (SELECT array_agg(rolname) FROM pg_roles r2, unnest(p.polroles) AS proid
+                WHERE r2.oid = proid)
         FROM pg_policy p
         JOIN pg_class c ON c.oid = p.polrelid
         JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -300,9 +313,32 @@ def rls_policies(cur, sch):
     )
     return [
         {
-            "schema": r[0], "table": r[1], "name": r[2], "permissive": r[3],
-            "using": r[4], "with_check": r[5],
+            "schema": r[0], "table": r[1], "name": r[2], "cmd": r[3],
+            "permissive": r[4], "using": r[5], "with_check": r[6],
+            "roles": list(r[7]) if r[7] else [],
         }
+        for r in rows
+    ]
+
+
+def rls_state(cur, sch):
+    """Per-table RLS enabled/forced flags (separate from policies)."""
+    if not sch:
+        return []
+    rows = q(
+        cur,
+        """
+        SELECT n.nspname, c.relname, c.relrowsecurity, c.relforcerowsecurity
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s) AND c.relkind IN ('r','v','m')
+          AND (c.relrowsecurity OR c.relforcerowsecurity)
+        ORDER BY n.nspname, c.relname;
+        """,
+        [sch],
+    )
+    return [
+        {"schema": r[0], "table": r[1], "rls_enabled": r[2], "rls_forced": r[3]}
         for r in rows
     ]
 
@@ -335,8 +371,9 @@ def migration_state(cur):
 
 
 def roles_and_grants(cur):
-    """Roles, memberships, ownership, grants, default privileges — DIGESTED
-    to avoid leaking role attributes. rolpassword is never selected."""
+    """Roles, memberships, grants, default privileges. Ownership is captured
+    SEPARATELY (see ownership()) so it can be excluded from the fingerprint
+    per spec §4.3. rolpassword is never selected."""
     # Roles (no password column)
     cur.execute(
         """
@@ -366,32 +403,14 @@ def roles_and_grants(cur):
         """
     )
     memberships = [{"member": r[0], "role_of": r[1]} for r in cur.fetchall()]
-    # Table/object ownership
-    cur.execute(
-        """
-        SELECT n.nspname, c.relname, r.rolname
-        FROM pg_class c
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        JOIN pg_roles r ON r.oid = c.relowner
-        WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast')
-          AND n.nspname NOT LIKE 'pg_temp_%'
-          AND c.relkind IN ('r','v','m','S','f','p')
-        ORDER BY n.nspname, c.relname;
-        """
-    )
-    ownership = [{"schema": r[0], "relation": r[1], "owner": r[2]} for r in cur.fetchall()]
-    # Grants digest (sanitized — only digest, never raw grant list in manifest)
-    cur.execute(
-        """
-        SELECT grantee, table_schema, table_name, privilege_type
-        FROM information_schema.role_table_grants
-        WHERE grantee NOT IN ('postgres','PUBLIC')
-          AND table_schema NOT IN ('pg_catalog','information_schema')
-        ORDER BY grantee, table_schema, table_name, privilege_type;
-        """
-    )
-    grant_material = "\n".join(f"{r[0]}|{r[1]}|{r[2]}|{r[3]}" for r in cur.fetchall())
+
+    # Comprehensive grants via aclexplode — covers ALL object classes:
+    # tables, sequences, functions, schemas, types, databases, columns,
+    # large objects, plus PUBLIC grantee. This supersedes the prior
+    # information_schema.role_table_grants approach which missed most classes.
+    grant_material = _all_grants_material(cur)
     grants_digest = hashlib.sha256(grant_material.encode("utf-8")).hexdigest()
+
     # Default privileges (ACL stored as defaclacl; render to text)
     cur.execute(
         """
@@ -409,10 +428,115 @@ def roles_and_grants(cur):
     return {
         "roles": roles,
         "memberships": memberships,
-        "ownership": ownership,
         "grants_sha256": grants_digest,
         "default_privileges": default_privs,
     }
+
+
+def ownership(cur):
+    """Object ownership — captured but EXCLUDED from the fingerprint (spec §4.3
+    excludes ownership). Reported for the manifest, not hashed."""
+    cur.execute(
+        """
+        SELECT n.nspname, c.relname, r.rolname
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_roles r ON r.oid = c.relowner
+        WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast')
+          AND n.nspname NOT LIKE 'pg_temp_%%'
+          AND c.relkind IN ('r','v','m','S','f','p')
+        ORDER BY n.nspname, c.relname;
+        """
+    )
+    return [{"schema": r[0], "relation": r[1], "owner": r[2]} for r in cur.fetchall()]
+
+
+def _all_grants_material(cur):
+    """Build a canonical string of ALL ACL grants across object classes for
+    digesting. Covers: relations (r), schemas (n), sequences (S), functions (f),
+    databases (d), types (T), columns, large objects — including PUBLIC.
+    Uses pg_acldatacl / aclexplode for completeness."""
+    parts = []
+    # Relation-level grants (tables, views, sequences, matviews) via pg_class.relacl
+    cur.execute(
+        """
+        SELECT n.nspname, c.relname, c.relkind,
+               pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace,
+        aclexplode(c.relacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE n.nspname !~ '^(pg_|information_schema|pg_toast)'
+          AND c.relkind IN ('r','v','m','S','f','p')
+        ORDER BY 1,2,3,4,5,6;
+        """
+    )
+    for r in cur.fetchall():
+        parts.append(f"rel|{r[0]}|{r[1]}|{r[2]}|{r[3]}|{r[4]}|{r[5]}|{r[6]}")
+
+    # Database-level grants
+    cur.execute(
+        """
+        SELECT datname, pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_database d,
+        aclexplode(d.datacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE datname !~ '^template'
+        ORDER BY 1,2,3,4;
+        """
+    )
+    for r in cur.fetchall():
+        parts.append(f"db|{r[0]}|{r[1]}|{r[2]}|{r[3]}|{r[4]}")
+
+    # Schema-level grants
+    cur.execute(
+        """
+        SELECT n.nspname, pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_namespace n,
+        aclexplode(n.nspacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE n.nspname !~ '^(pg_|information_schema|pg_toast)'
+        ORDER BY 1,2,3,4;
+        """
+    )
+    for r in cur.fetchall():
+        parts.append(f"schema|{r[0]}|{r[1]}|{r[2]}|{r[3]}|{r[4]}")
+
+    # Function/procedure grants
+    cur.execute(
+        """
+        SELECT n.nspname, p.proname,
+               pg_get_function_identity_arguments(p.oid),
+               pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace,
+        aclexplode(p.proacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE n.nspname !~ '^(pg_|information_schema)'
+        ORDER BY 1,2,3,4,5,6;
+        """
+    )
+    for r in cur.fetchall():
+        parts.append(f"func|{r[0]}|{r[1]}|{r[2]}|{r[3]}|{r[4]}|{r[5]}|{r[6]}")
+
+    # Sequence grants (column-level covered via relacl above for kind 'S')
+    # Type grants (T)
+    cur.execute(
+        """
+        SELECT n.nspname, t.typname,
+               pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace,
+        aclexplode(t.typacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE n.nspname !~ '^(pg_|information_schema)'
+        ORDER BY 1,2,3,4,5;
+        """
+    )
+    for r in cur.fetchall():
+        parts.append(f"type|{r[0]}|{r[1]}|{r[2]}|{r[3]}|{r[4]}|{r[5]}")
+
+    return "\n".join(parts)
 
 
 def table_counts(cur, rels):
@@ -486,8 +610,10 @@ FINGERPRINT_EXCLUDE = {
     "row_counts",
     "source_label",
     "integrity_checks",
-    "schema_dump_sha256",  # capture artifact, not schema
-    "schema_dump_error",   # capture artifact, not schema
+    "schema_dump_sha256",   # capture artifact, not schema
+    "schema_dump_error",    # capture artifact, not schema
+    "fingerprint_sha256",   # MUST be excluded: the digest cannot include itself
+    "ownership",            # spec §4.3 explicitly excludes ownership from fingerprint
 }
 
 
@@ -509,8 +635,10 @@ def build_manifest(cur, source_label):
         "triggers": triggers(cur, sch),
         "views": views(cur, sch),
         "rls_policies": rls_policies(cur, sch),
+        "rls_state": rls_state(cur, sch),
         "migration_state": migration_state(cur),
         "roles_and_grants": roles_and_grants(cur),
+        "ownership": ownership(cur),
         "integrity_checks": integrity_checks(cur, sch),
         "row_counts": table_counts(cur, rels),
     }
@@ -604,7 +732,7 @@ def cmd_compare(args):
     print("DIFFER — canonical schema differs. Sections differing:")
     for section in (
         "schemas", "relations", "columns", "constraints", "indexes",
-        "sequences", "functions", "triggers", "views", "rls_policies",
+        "sequences", "functions", "triggers", "views", "rls_policies", "rls_state",
         "migration_state", "roles_and_grants",
     ):
         sa, sb = a.get(section), b.get(section)

@@ -1,90 +1,86 @@
 # WP-00 G1 — P1/P2 Schema Capture Report
 
 **Date:** 31 July 2026
-**Source:** Production database on Proxmox CT 150 (`root@192.168.3.5`, container `clarityit-postgres-1`)
-**Profiler:** `scripts/profile/capture_schema.py` v`2.0.0-p1p2`
-**Status:** Captured and compared; awaiting owner approval (see §6).
+**Profiler:** `scripts/profile/capture_schema.py` v`3.0.0-p1p2` (12 unit tests passing)
+**Source:** Production database on Proxmox CT 150 (`clarityit-postgres-1`)
+**Evidence store:** External (outside this repo) — see §7. Only digests and references are in-repo.
+**Status:** Captured and compared; awaiting owner approval (§6).
 
 ---
 
 ## 1. What was captured
 
-Per the Migration spec §2.2 / §4.3 and the WP-00 G1 requirements:
+Per Migration spec §2.2 / §4.3 and WP-00 G1:
 
-- **P1:** read-only production schema capture (live `clarityit-postgres-1`).
-- **P2:** the same capture from an independently restored production backup (isolated `p2-restore-pg` container, ephemeral, torn down after capture).
-- PostgreSQL version and extensions.
-- Schema-only dump (`pg_dump --schema-only`) and deterministic schema fingerprint.
-- Tables, columns, constraints, indexes, sequences, functions, triggers, views, RLS policies.
-- Migration-history state (migration ledger table).
-- Roles, memberships, ownership, grants digest, default privileges.
-- Required table counts and integrity checks — **no business data or secrets exported.**
+- **P1:** read-only production schema capture.
+- **P2:** the same capture from an independently restored current-production dump (two isolated restores, proving repeatability).
+- PostgreSQL version + extensions, schema-only dump, deterministic fingerprint.
+- Tables, columns, constraints, indexes, **sequences (with properties)**, functions, triggers, views, **RLS policies (with commands, roles, enabled/forced flags)**.
+- Migration-history state, roles, memberships, **ownership (reported, excluded from fingerprint)**, **comprehensive grants (PUBLIC + all object classes via aclexplode)**, default privileges.
+- Table counts and integrity checks — **no business data or secrets.**
 
 ## 2. Capture facts
 
-| Item | P1 (production) | P2 (restored) |
-|---|---|---|
-| PostgreSQL | 16.14 (Alpine) | 16.14 (Alpine) |
-| Schemas | `public` | `public` |
-| Relations | 65 | 65 |
-| Functions | 91 | 91 |
-| Fingerprint (sha256) | `aaf09d492e3d561b760338a410567007ec0dcf14bf347d0e0c00469d48f33cf0` | `dff1eb7a62ecd7e3b10e09fdac8eb43652400d0b2357eb530d78348c90ae43a7` |
-| Schema dump bytes | 119,707 | 119,707 |
-| Schema dump sha256 | `5e9e19b4fb1e9161def563ddf50537aa3e7edb03b773a5ba0203ab6c64770361` | `5de6005367cde9d4fa6a4d6f6272b5da9d11efa4df0689a57b766f67693c1135` |
-| Deterministic (re-capture) | ✅ identical fingerprint | — |
+| Item | Value |
+|---|---|
+| PostgreSQL | 16.14 (Alpine) |
+| Schema fingerprint (P1 = P2a = P2b) | `32f7a06eb7ae8c8f96547bd494f66b26468fba103dbde50fe08c5bf9d0e1402c` |
+| Relations | 65 |
+| Functions | 91 |
+| Schemas | `public` |
+| Self-consistent fingerprint | ✅ (recomputed == stored) |
+| Deterministic | ✅ (re-capture identical) |
+| Repeatability (P2a == P2b) | ✅ (two independent restores, identical fingerprint) |
 
-> **Note on fingerprint difference:** P1 and P2 fingerprints differ by **one role only**: `clarityit_ro_profile` (the read-only role created for this capture, present in P1's cluster but absent from P2's restored cluster because `pg_dump` does not export cluster-level roles). This is a **benign, documented capture artifact**, not a schema drift. See §3.
+**P1 == P2: MATCH.** The production schema restores cleanly and is reproducible.
 
-## 3. P1 ↔ P2 comparison
+## 3. Fingerprint properties (corrected from v2)
 
-`compare` reports `roles_and_grants` as the only differing section. Drilling in:
+The v3 profiler fixes the v2 blockers:
+- `fingerprint_sha256` is excluded from its own computation → **self-consistent**.
+- Overloaded functions are totally ordered by `(schema, name, args)` → **no false diffs**.
+- Ownership is excluded (spec §4.3) → reported in manifest, not hashed.
+- Proven by 12 unit tests in `scripts/profile/test_capture_schema.py`.
 
-- **functions:** identical (91 functions, confirmed by canonical sort — the raw comparison's initial false positive was list ordering).
-- **roles:** P1 has `clarityit` + `clarityit_ro_profile`; P2 has `clarityit` only. Difference = the capture role.
-- **memberships, ownership, grants_sha256, default_privileges:** identical.
-- **schema dumps:** byte-identical except for the `\restrict`/`\unrestrict` session token (a pg_dump 16.4 random guard, not schema content).
+## 4. Findings
 
-**Conclusion: P1 and P2 are schema-equivalent.** The production database restores cleanly and its schema is reproducible from backup.
+1. **Production has NO migration ledger table.** Schema provenance is unverifiable from the DB — confirming the Migration spec's premise that the live schema (this capture) is the upgrade authority.
+2. **The scheduled operational backup is stale.** `postgresql_20260614_083025.sql.gz` (the most recent scheduled backup) is **missing 16 tables and 5 functions** added since 2026-06-14 (knowledge/artifact/webauthn/evaluation features). It cannot serve as rollback evidence for the current schema. P2 was therefore captured from a fresh dump of the current production state. **Action: tighten the backup schedule** so operational backups track production.
+3. **No orphan FKs, no invalid constraints.** Schema is structurally sound.
+4. **No RLS policies enabled** in production (`rls_state` empty).
 
-## 4. Migration-history state
+## 5. P1↔P2 comparison
 
-The production database has **no migration ledger table** (`schema_migrations`, `platform.schema_revisions`, etc. all absent). This confirms the Migration spec's finding: the deployed schema was produced by the broken `make migrate` psql loop with no durable record of which migrations applied. The 65 relations exist but their provenance is unverifiable from the database itself — which is why this P1 capture (not the migration files) is the upgrade authority.
+Both restores from the fresh current-production dump produce fingerprint `32f7a06e…`, identical to P1. The comparison reports **MATCH — identical canonical schema**.
 
-## 5. Integrity checks
+## 6. Approval (A2)
 
-- **Orphan foreign keys:** none (all FKs reference tables within `public`).
-- **Invalid constraints:** none (all constraints validated).
-
-## 6. Approval
-
-P1/P2 require Database + Operations + Security approval (Migration spec §2.2).
+P1/P2 require Database + Security approval (Migration spec §2.2).
 
 | Role | Owner | Decision | Signature | Date |
 |---|---|---|---|---|
-| Database | | | | |
-| Operations | | | | |
-| Security | | | | |
+| Database | | ☐ accept ☐ block | | |
+| Security | | ☐ accept ☐ block | | |
 
-**Acceptance condition:** All three sign *accept*. On acceptance, P1/P2 fingerprints are added to the migration runner's source-profile allowlist. Unknown or drifted fingerprints fail closed (G4 preflight).
+**Acceptance condition:** Both sign *accept*. On acceptance, the P1 fingerprint enters the migration runner's source-profile allowlist. Unknown/drifted fingerprints fail closed (G4).
 
-## 7. Artifacts
+## 7. Evidence storage (external)
 
-```
-migrations/profiles/
-├── p1-production/
-│   ├── manifest.json     # full catalog capture + fingerprint
-│   └── schema.sql        # pg_dump --schema-only
-├── p2-restored/
-│   ├── manifest.json
-│   └── schema.sql
-├── CAPTURE-REPORT.md     # this file
-├── RESTORE-PROOF.md      # A3 restore-rehearsal evidence
-└── SHA256SUMS.txt        # artifact checksum manifest
-```
+Per WP-00 evidence policy, sensitive P1/P2 bytes remain **outside the repository**. The raw manifests, schema dumps, and restore logs are stored externally with immutable hash references:
 
-## 8. What this capture does NOT do
+| Artifact | External path | SHA-256 |
+|---|---|---|
+| P1 manifest | `clarityit-g1-evidence/p1-production/manifest.json` | `261f1fa47227767ca7abf1d41c0e9b791649459f7eb823f8f9474bcf371d5f35` |
+| P2 manifest | `clarityit-g1-evidence/p2-restored/manifest.json` | `59398b8f66e04a92a7a8af7f53e6cf2a54843bd5e559be311781ba518c7b576f` |
+| P2 source dump | `clarityit-g1-evidence/p2-restored/source-dump.sql` | `a21085637ca165ad50c27d1cab109a22d0580708f2b797f4e41b3f6df7e9013f` |
+| Restore logs | `clarityit-g1-evidence/restore-logs/` | (in EVIDENCE-SHA256SUMS.txt) |
+| Evidence manifest | `clarityit-g1-evidence/EVIDENCE-SHA256SUMS.txt` | (self-referential) |
 
-- It is **not** a data export. Only counts; no row data, no credentials, no PII.
-- It does **not** resolve migrations 016/018/029 (that is G2, which consumes P1 as input).
-- It does **not** authorize an upgrade. It establishes the approved source profile on the allowlist.
-- The CI-only P0 fixture (`migrations/ci/p0/`) is **not** a substitute for P1/P2. P0 is application-test evidence; P1/P2 are production-schema authority.
+The repo contains **only this report, the capture script, and the unit tests** — no raw manifests or dumps.
+
+## 8. What this does NOT do
+
+- Not a data export (counts only; no row data, credentials, or PII).
+- Does not resolve 016/018/029 (that is G2, consuming P1).
+- Does not authorize an upgrade (establishes the allowlist profile only).
+- The CI-only P0 fixture (`migrations/ci/p0/`) is **not** a substitute for P1/P2.
