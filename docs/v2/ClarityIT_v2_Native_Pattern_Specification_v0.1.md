@@ -9,7 +9,7 @@
 
 > **Specification purpose:** Define the reusable patterns ClarityIT v2 will implement after the migration baseline, so that experience expansion, operational intelligence, private access, routines, projects, and multi-target work extend the same authority and evidence model rather than creating parallel execution semantics.
 
-# Normative decision snapshot
+## Normative decision snapshot
 
 - A Case is the shared governed work context for consequential work. Conversation coordinates activity but does not create authority or truth.
 - People, agents, services, policies, and execution workloads are separately identifiable principals. Agents may investigate and propose but cannot approve, issue authority, hold target credentials, verify their own work, or accept an outcome.
@@ -26,9 +26,9 @@
 - Multi-target execution is deferred until the single-target verified pilot passes. Every target then retains its own authority, attempt, evidence, verification, and outcome.
 - Workspace isolation applies to authoritative state, search, evidence, messages, object storage, caches, identities, and target routes.
 
-# 1. Authority, scope, and terminology
+## 1. Authority, scope, and terminology
 
-## 1.1 Authority hierarchy
+### 1.1 Authority hierarchy
 
 This specification is normative for the semantics of the patterns it defines. It does not weaken higher-order ClarityIT authorities.
 
@@ -43,7 +43,7 @@ This specification is normative for the semantics of the patterns it defines. It
 
 If a pattern conflicts with the kernel, the kernel governs. If a roadmap item conflicts with this specification, the pattern specification governs until an approved revision changes it.
 
-## 1.2 Scope
+### 1.2 Scope
 
 This document specifies:
 
@@ -56,7 +56,7 @@ This document specifies:
 
 This document does not specify detailed screen layouts, provider request payloads, model selection, a general workflow language, calendar dates, staffing estimates, pricing, or provider-specific implementation code.
 
-## 1.3 Pattern conformance language
+### 1.3 Pattern conformance language
 
 **MUST** and **MUST NOT** are mandatory. **SHOULD** and **SHOULD NOT** require a recorded architecture decision and risk rationale when deviated from. **MAY** is optional but must preserve all invariants.
 
@@ -72,7 +72,7 @@ Each pattern uses the following fields:
 - **Conformance:** externally testable acceptance criteria.
 - **Roadmap:** work package that introduces or matures the pattern.
 
-# 2. Global invariants for every pattern
+## 2. Global invariants for every pattern
 
 | ID | Invariant |
 |---|---|
@@ -89,7 +89,7 @@ Each pattern uses the following fields:
 | GP-11 | Workspace isolation is enforced server-side and preserved in data, search, transport, storage, caches, and runtime routes. |
 | GP-12 | Projections, timelines, summaries, search results, and dashboards are derived and rebuildable. |
 
-# 3. Pattern catalog and dependency map
+## 3. Pattern catalog and dependency map
 
 | ID | Native pattern | Primary outcome | First owning package |
 |---|---|---|---|
@@ -114,19 +114,19 @@ Each pattern uses the following fields:
 
 The dependency rule is strict: P-06 through P-11 must pass for one target before P-12, P-15, P-16, or P-17 may introduce a new mutation path. P-17 cannot begin before the verified single-target pilot is accepted.
 
-# 4. P-01 - Governed Case Workspace
+## 4. P-01 - Governed Case Workspace
 
-## Intent
+### Intent
 
 Provide one coherent operational work context in which an accountable person and bounded agents can understand an objective, examine evidence, propose a change, obtain authority, observe execution, verify the result, and decide the outcome without relying on an external ticket or terminal to reconstruct the chain.
 
-## Use when
+### Use when
 
 Use a Case for controlled, consequential, or critical work; uncertain investigation; cross-role decisions; effects on real systems; evidence obligations; or work that may require correction. Assisted or collaborative work MAY remain a lighter Work Item until policy, risk, or exception promotes it to a Case.
 
 Do not use a Case as a generic chat room, raw log stream, credential container, or substitute for the external managed system.
 
-## Participants and contract
+### Participants and contract
 
 - **Accountable owner:** owns success criteria and outcome acceptance or rejection.
 - **Participants:** humans and agents with explicit workspace membership and Case role.
@@ -145,7 +145,7 @@ The first-release lifecycle projection is:
 
 Projection state MUST be derived from underlying immutable records and MUST be rebuildable. Optimistic UI MAY be used for drafts and comments; it MUST NOT be used for approval, grant, attempt, verification, or outcome state.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Concurrent commands use expected aggregate version and return a conflict without overwriting later work. If a projection consumer fails, the authoritative records continue and the projection rebuilds. If a target becomes unresolved, the Case remains open but mutation controls fail closed.
 
@@ -160,13 +160,13 @@ The sealed Case evidence must identify objective, owner, participants, resources
 
 **Roadmap:** domain skeleton in WP-01; complete experience and live acceptance in WP-03.
 
-# 5. P-02 - Identifiable Human-Agent Participation
+## 5. P-02 - Identifiable Human-Agent Participation
 
-## Intent
+### Intent
 
 Allow humans and agents to work in the same Case while keeping identity, provenance, responsibility, and prohibited powers explicit.
 
-## Contract
+### Contract
 
 Every actor MUST use a typed `PrincipalRef` with principal ID, principal type, workspace, authentication or workload identity context, status, and display metadata. Principal types are human, reasoning agent, service, execution workload, policy, and external source. Shared identities without workload attribution do not satisfy this pattern.
 
@@ -193,7 +193,7 @@ Human participation MUST distinguish proposer, approver, accountable owner, exec
 
 Agent-produced prose MUST retain run provenance even when edited by a human. Human adoption of a draft is a new authored revision or explicit endorsement, not silent provenance replacement.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Revoked or disabled principals cannot create new artifacts or commands. Existing records remain attributable. If workload attestation is unavailable, dispatch fails before provider submission. If an agent run loses its context or policy binding, its draft remains evidence but cannot continue under a new binding without a successor run.
 
@@ -205,13 +205,13 @@ Revoked or disabled principals cannot create new artifacts or commands. Existing
 
 **Roadmap:** WP-01, surfaced and usability-tested in WP-03.
 
-# 6. P-03 - Typed Work Record and Provenance Timeline
+## 6. P-03 - Typed Work Record and Provenance Timeline
 
-## Intent
+### Intent
 
 Create a durable, reconstructable record of work while preserving the different evidentiary and authoritative meanings of collaboration, decisions, execution claims, verification, and outcomes.
 
-## Contract
+### Contract
 
 The canonical record families are:
 
@@ -233,7 +233,7 @@ Timeline order uses authoritative recorded time and explicit causal links, not b
 
 NATS messages MUST reference already committed records. A message replay may rebuild a projection but may not create a second authoritative transition. Search and summaries MUST preserve record class and source in their result schema.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Malformed or unsupported record versions are quarantined with reason codes. Duplicate message delivery returns the recorded result. An absent artifact is represented as missing evidence, not by deleting the manifest reference.
 
@@ -245,13 +245,13 @@ Malformed or unsupported record versions are quarantined with reason codes. Dupl
 
 **Roadmap:** WP-01; evidence-centered rendering in WP-03; extended record classes in later packages.
 
-# 7. P-04 - Evidence-Backed Operational Answer
+## 7. P-04 - Evidence-Backed Operational Answer
 
-## Intent
+### Intent
 
 Answer operational questions from bounded, source-attributed evidence while making freshness, uncertainty, disagreement, and missing evidence visible.
 
-## Contract
+### Contract
 
 An operational answer MUST be an artifact, not an authoritative state transition. Its minimum contract is:
 
@@ -275,7 +275,7 @@ If sources disagree, the answer MUST preserve both claims, identify their source
 
 Answers MAY propose read-only next checks or draft an Operation Packet. They MUST NOT execute a mutation, issue authority, or mark the question resolved solely because prose was generated.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 If no adequate source exists, the result is `insufficient_evidence`, not a fabricated answer. Retrieval or source failure records the missing source and may remain partially useful. Restricted sources are omitted with a visible access-limited indication; access control is not weakened to improve completeness.
 
@@ -287,13 +287,13 @@ If no adequate source exists, the result is `insufficient_evidence`, not a fabri
 
 **Roadmap:** basic Case answers in WP-03; mature reviewed retrieval in WP-05.
 
-# 8. P-05 - Resource-Aware Bounded Context
+## 8. P-05 - Resource-Aware Bounded Context
 
-## Intent
+### Intent
 
 Provide reasoning workers only the operational context needed for the current objective, resource, and policy scope, with explicit provenance and deterministic limits.
 
-## Contract
+### Contract
 
 A Context Bundle is derived and immutable for one reasoning turn or run. It MUST include bundle ID and digest, workspace, Case, objective, target Resource IDs, resource and binding versions, selected fieldsets, Observation references and freshness, topology edges, ownership, health contracts, relevant prior Cases, approved knowledge versions, allowed read capabilities, exclusions, size limits, and builder version.
 
@@ -312,7 +312,7 @@ Topology expansion MUST have explicit depth, relationship allowlist, and target-
 
 Context cache entries MUST be workspace-keyed, access-scope-keyed, versioned, and invalidated by relevant Resource, Observation, permission, or knowledge-version changes. Cache content is non-authoritative.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 If a critical source is unavailable or freshness cannot be determined, the bundle records the gap. A reasoning worker may continue only if policy permits degraded investigation; it cannot produce an executable packet that depends on missing preconditions.
 
@@ -324,13 +324,13 @@ If a critical source is unavailable or freshness cannot be determined, the bundl
 
 **Roadmap:** context contract in WP-01; Case implementation in WP-03; reviewed knowledge expansion in WP-05.
 
-# 9. P-06 - Intent-to-Immutable Operation Packet
+## 9. P-06 - Intent-to-Immutable Operation Packet
 
-## Intent
+### Intent
 
 Translate a natural-language objective into a provider-neutral, reviewable, machine-checkable proposal before any consequential action can be authorized.
 
-## Contract
+### Contract
 
 The user may express the objective in natural language. A reasoning worker MAY investigate and draft a proposal, but the Control API must validate and canonicalize the proposal into the kernel Operation Packet contract.
 
@@ -347,7 +347,7 @@ Free-form shell commands, SQL, provider URLs, or opaque tool names MUST NOT be t
 
 Any material edit after proposal creates a successor packet and invalidates bound approval or grant as required by the kernel. The UI MUST show both the generic capability meaning and the redacted provider translation before an approver decides.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Unsupported capability, unresolved target, stale baseline, adapter prepare failure, missing verifier, or ambiguous parameter blocks proposal or authority. A draft may remain editable, but it has no execution meaning.
 
@@ -359,13 +359,13 @@ Unsupported capability, unresolved target, stale baseline, adapter prepare failu
 
 **Roadmap:** WP-01 contract; WP-02 first capability; WP-03 approval and preview experience.
 
-# 10. P-07 - Typed Capability and Adapter Boundary
+## 10. P-07 - Typed Capability and Adapter Boundary
 
-## Intent
+### Intent
 
 Keep ClarityIT product behavior stable across providers by separating provider-neutral capability semantics from provider translation and deployment route.
 
-## Contract
+### Contract
 
 The capability registry MUST define capability name and version, resource type and version, parameter schema, required Observations, preconditions, direct effects, expected result fields, verifier requirements, idempotency semantics, cancellation semantics, risk inputs, and compensation candidates.
 
@@ -385,7 +385,7 @@ An extension or plugin MAY register an adapter, observer, verifier, connector, o
 
 Provider-prefixed compatibility APIs may exist during migration but MUST translate to generic v2 objects and commands. Route changes are deployment changes and require authority re-evaluation; they do not create new product capabilities.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Adapters return precise rejection, pre-send failure, accepted, running, terminal, unknown, and reconciliation states with raw provider codes preserved and secrets redacted. An ambiguous submission cannot be automatically resubmitted.
 
@@ -397,13 +397,13 @@ Adapters return precise rejection, pre-send failure, accepted, running, terminal
 
 **Roadmap:** first conformance in WP-02; extension SDK and second provider in WP-09.
 
-# 11. P-08 - Scoped Authority and Trusted Dispatch
+## 11. P-08 - Scoped Authority and Trusted Dispatch
 
-## Intent
+### Intent
 
 Ensure that every consequential effect is explicitly permitted for the exact packet, resource, capability, route, workload identity, policy revision, time, and use count.
 
-## Contract
+### Contract
 
 Policy Decision, Approval Decision, Authority Grant, and execution preflight answer separate questions and remain separate records. Approval does not itself dispatch, provide a credential, or become a grant.
 
@@ -421,7 +421,7 @@ The execution route MUST independently revalidate packet signature, grant, route
 
 Changing route after approval requires a new grant and policy evaluation. Changing target binding, provider translation, risk, or packet content requires a successor packet when the approved subject changes.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Denied policy creates no grant. Expired, revoked, consumed, mismatched, or replayed grants block before provider submission. Duplicate commands return the existing attempt. A failure after submission may have occurred consumes the grant and enters `outcome_unknown` until reconciliation.
 
@@ -433,13 +433,13 @@ Denied policy creates no grant. Expired, revoked, consumed, mismatched, or repla
 
 **Roadmap:** WP-01 kernel foundation; WP-02 live compute proof.
 
-# 12. P-09 - Credentialless Reasoning and Executor-Held Secrets
+## 12. P-09 - Credentialless Reasoning and Executor-Held Secrets
 
-## Intent
+### Intent
 
 Allow agents to investigate and propose operations without receiving reusable or target-operational credentials.
 
-## Contract
+### Contract
 
 Reasoning workers receive capability descriptions and secret references only. Secret values are resolved at the narrowest trusted executor: central connector, Site Runtime, verifier, or native enforcement integration.
 
@@ -451,7 +451,7 @@ The Secrets service MUST enforce workload identity, route, workspace, and purpos
 
 Verifiers use independent secret references where practical so that executor compromise does not automatically compromise proof. Secret rotation cannot mutate sealed historical packets; historical records retain key identifiers and redaction metadata, not values.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Secret resolution failure, expired credential, identity mismatch, or excessive permission fails the operation at a precise stage. It cannot fall back to a broader credential. Logs preserve provider error classification without including values.
 
@@ -463,13 +463,13 @@ Secret resolution failure, expired credential, identity mismatch, or excessive p
 
 **Roadmap:** trust foundation in WP-01; connector enforcement in WP-02; local resolution in WP-04.
 
-# 13. P-10 - Independent Verification and Human Acceptance
+## 13. P-10 - Independent Verification and Human Acceptance
 
-## Intent
+### Intent
 
 Prove the intended outcome through fresh, versioned, read-only checks that are independent from the executor's success report, then obtain the accountable outcome decision.
 
-## Contract
+### Contract
 
 Every consequential packet MUST reference an immutable Verification Spec version. The spec defines required sources, predicates, freshness, aggregation, thresholds, timeouts, secret references, result classification, and evidence sealing.
 
@@ -479,7 +479,7 @@ Verification results are `passed`, `failed`, or `inconclusive`. Missing, stale, 
 
 For the first release, `Accepted` requires passed Verification and an explicit accountable human decision. Acceptance records the principal, rationale, time, exact Verification, and lineage. Verification does not automatically close the Case.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 If provider completion succeeds but result state or health fails, execution completion remains visible and the outcome cannot be Accepted. If the verifier is unavailable, the system remains outcome-pending or requires correction under policy; it cannot infer pass from elapsed time.
 
@@ -491,13 +491,13 @@ If provider completion succeeds but result state or health fails, execution comp
 
 **Roadmap:** contracts in WP-01; compute verifier in WP-02; outcome experience and pilot in WP-03.
 
-# 14. P-11 - Successor Correction and Compensation
+## 14. P-11 - Successor Correction and Compensation
 
-## Intent
+### Intent
 
 Correct failed, partial, rejected, stale, or harmful outcomes without erasing prior attempts or treating a rollback mechanism as proof of recovery.
 
-## Contract
+### Contract
 
 Correction changes the plan for achieving the objective. Compensation proposes an explicit effect intended to counter a prior effect. Both are successor Operation Packets with new digest, current baseline, policy evaluation, authority, attempt, Verification, and outcome.
 
@@ -507,7 +507,7 @@ A compensation candidate in an earlier packet is advisory. It MUST NOT carry sta
 
 The UI MUST preserve both original and successor lineages, explain why the successor exists, and avoid a single mutable success label. Aggregate Case status is derived from the active lineage and does not alter historical outcomes.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Compensation failure creates its own failed or unknown outcome and escalation. It cannot change the original result. Reconciliation may resolve an unknown provider submission but cannot fabricate a missing receipt.
 
@@ -519,13 +519,13 @@ Compensation failure creates its own failed or unknown outcome and escalation. I
 
 **Roadmap:** lineage model in WP-01; first correction experience in WP-03; automated profiles remain deferred.
 
-# 15. P-12 - Deterministic Site Runtime and Private Access
+## 15. P-12 - Deterministic Site Runtime and Private Access
 
-## Intent
+### Intent
 
 Reach private network zones and clusters without placing an AI agent on every target or exposing target credentials to the central reasoning plane.
 
-## Contract
+### Contract
 
 One signed Site Runtime is deployed per approved network zone, data center, or cluster when direct central connectivity is insufficient. It initiates outbound mTLS, authenticates to the Remote-Site Edge Gateway, advertises signed route and adapter inventory, and executes only typed authorized commands.
 
@@ -542,7 +542,7 @@ During disconnection:
 - new consequential mutations, grants, approvals, or expiry extensions are denied by default;
 - pre-authorized containment is allowed only under signed emergency policy.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Unhealthy clock, invalid identity, incompatible runtime version, queue exhaustion, policy mismatch, or disconnected pre-dispatch state blocks mutation. Local receipts are signed, sequenced, deduplicated at ingress, and committed before progress publication.
 
@@ -554,13 +554,13 @@ Unhealthy clock, invalid identity, incompatible runtime version, queue exhaustio
 
 **Roadmap:** WP-04, only after the central single-target pilot passes.
 
-# 16. P-13 - Reviewed Operational Knowledge
+## 16. P-13 - Reviewed Operational Knowledge
 
-## Intent
+### Intent
 
 Convert evidence-backed experience into reusable institutional knowledge without allowing unreviewed Case content or generated summaries to become operational authority.
 
-## Contract
+### Contract
 
 Knowledge items use the lifecycle:
 
@@ -574,7 +574,7 @@ Retrieval indexes are derived. Search results MUST enforce workspace and access 
 
 Material content change, applicability change, source change, or review-policy change creates a new version. Retirement removes an item from default retrieval but preserves history and references from prior Cases.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Expired or review-overdue knowledge is visibly stale and excluded from high-confidence operational guidance by policy. Missing source artifacts block publication or mark the item incomplete. Conflicting approved items are surfaced for resolution rather than silently ranked away.
 
@@ -586,13 +586,13 @@ Expired or review-overdue knowledge is visibly stale and excluded from high-conf
 
 **Roadmap:** WP-05; basic attached context remains available in WP-03.
 
-# 17. P-14 - Versioned Operational Skill and Playbook
+## 17. P-14 - Versioned Operational Skill and Playbook
 
-## Intent
+### Intent
 
 Make repeatable operational procedures reusable while ensuring that each consequential step still becomes a typed packet with current authority and evidence.
 
-## Contract
+### Contract
 
 An operational skill or playbook is a reviewed plan template, not executable authority. Its minimum manifest is:
 
@@ -618,7 +618,7 @@ Instantiation MUST resolve exact Resources, current Observations, capability sup
 
 Automatic generation from Case history may create a candidate only. Publication requires human review, conformance tests, and a recorded owner. Scripts or commands embedded in a future skill must use a separately governed typed capability and content digest.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Unsupported version, stale applicability, missing capability, failed precondition, or changed resource binding blocks instantiation or the affected step. Partial completion leaves per-step evidence and requires a successor decision.
 
@@ -630,13 +630,13 @@ Unsupported version, stale applicability, missing capability, failed preconditio
 
 **Roadmap:** WP-05; general authoring marketplace remains excluded.
 
-# 18. P-15 - Signal-Triggered Routine and Exception Case
+## 18. P-15 - Signal-Triggered Routine and Exception Case
 
-## Intent
+### Intent
 
 Turn schedules, alerts, webhooks, and operational events into deduplicated accountable work while reserving consequential effects for the normal kernel path.
 
-## Contract
+### Contract
 
 A Signal is a source-attributed observation candidate with signal ID, workspace, source, type, occurred and received times, subject hints, payload digest, severity, deduplication key, correlation key, schema version, and artifact references. Signal normalization validates source and maps exact Resources where possible; ambiguous subjects remain unresolved.
 
@@ -650,7 +650,7 @@ Signals and routines MAY create Work Items, observations, notifications, knowled
 
 If a routine proposes a consequential effect, the exact target set is resolved, a Case is created or selected, and the normal packet, policy, approval, grant, execution, verification, and outcome sequence applies.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Duplicate or storming signals collapse into one correlation group without losing source counts. Source outage creates a visible routine-health exception. Missed schedules are handled by an explicit catch-up policy; the system does not silently run an accumulated set of consequential actions.
 
@@ -662,13 +662,13 @@ Duplicate or storming signals collapse into one correlation group without losing
 
 **Roadmap:** WP-06, after reviewed knowledge and playbook foundations.
 
-# 19. P-16 - Project and Software-Delivery Context Binding
+## 19. P-16 - Project and Software-Delivery Context Binding
 
-## Intent
+### Intent
 
 Organize longer-lived objectives, milestones, repositories, branches, changes, reviews, releases, and linked Cases without turning project metadata or source-control state into execution authority.
 
-## Contract
+### Contract
 
 A Project is a coordination aggregate with workspace, objective, owners, participants, milestones, dependencies, linked Work Items and Cases, resource scope, delivery-context bindings, status, and version. Delivery-context bindings may reference external repositories, branches, commits, pull requests, builds, deployments, environments, and releases by stable external identity and observed revision.
 
@@ -678,7 +678,7 @@ Project views MAY provide discussion, agent findings, review requests, evidence,
 
 Repository content included in reasoning context MUST be bound to repository identity, commit digest, path scope, access policy, and context-bundle digest. Uncommitted or mutable working-copy content is explicitly labeled.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Deleted branches, rebases, force pushes, renamed repositories, or missing permissions produce updated observations and unresolved bindings; historical references retain the original commit identity. Project status cannot hide a failed or unknown Case lineage.
 
@@ -690,17 +690,17 @@ Deleted branches, rebases, force pushes, renamed repositories, or missing permis
 
 **Roadmap:** WP-07; Git or deployment mutation capabilities remain separately gated.
 
-# 20. P-17 - Controlled Multi-Target Execution
+## 20. P-17 - Controlled Multi-Target Execution
 
-## Intent
+### Intent
 
 Execute a bounded operation across multiple resources without losing per-target authority, idempotency, progress, failure isolation, verification, or evidence.
 
-## Entry gate
+### Entry gate
 
 This pattern MUST NOT be implemented until the single-target `compute.virtual_machine.start` pilot has passed all product and kernel acceptance criteria. It begins with one capability, one provider profile, one environment class, and a small policy-defined target limit.
 
-## Contract
+### Contract
 
 A target set MUST resolve to an immutable snapshot of exact Resource IDs and binding versions before approval. Dynamic labels such as `all`, `production`, or a mutable query cannot be the execution target. The packet or batch plan records selection query for explanation and resolved targets for authority.
 
@@ -717,7 +717,7 @@ Each target retains:
 
 Aggregate progress is a derived projection. `80% succeeded` cannot convert failed, unknown, or inconclusive targets into success. Stop-on-threshold prevents new submissions at a safe boundary; it does not claim cancellation of submitted operations.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 Partial failure preserves successful targets and separately handles failed or unknown targets. Worker restart resumes from persisted per-target checkpoints without resubmission. A target whose baseline changed is blocked without blocking unrelated targets unless policy defines atomic group semantics.
 
@@ -729,13 +729,13 @@ Partial failure preserves successful targets and separately handles failed or un
 
 **Roadmap:** WP-08, after WP-03 acceptance and preferably after WP-04 route conformance.
 
-# 21. P-18 - Workspace Isolation and Sovereign Deployment
+## 21. P-18 - Workspace Isolation and Sovereign Deployment
 
-## Intent
+### Intent
 
 Keep each organization's product state, evidence, knowledge, messages, runtime routes, and secrets isolated while supporting customer-controlled deployment and provider-neutral operation.
 
-## Contract
+### Contract
 
 Workspace scope MUST be enforced in PostgreSQL queries and constraints, API authorization, NATS subject or envelope handling, object-storage paths and access policies, search indexes, vector retrieval, caches, WebSocket subscriptions, background jobs, secret references, adapter configuration, Site Runtime routes, evidence exports, and operational telemetry.
 
@@ -747,7 +747,7 @@ Customer-controlled deployments MUST preserve the same authority, evidence, and 
 
 Data export and retention MUST preserve workspace policy, redaction, manifest digests, and lifecycle records. Deletion and legal hold are explicit records, not silent disappearance.
 
-## Failure, evidence, and conformance
+### Failure, evidence, and conformance
 
 A missing workspace scope or ambiguous route is a security failure and fails closed. Cache, index, or transport partition mismatch triggers quarantine and incident evidence. Backup and restore tests must prove workspace separation and preserve sealed evidence.
 
@@ -759,7 +759,7 @@ A missing workspace scope or ambiguous route is a security failure and fails clo
 
 **Roadmap:** foundation in WP-01; exercised by every package; production hardening in WP-10.
 
-# 22. Cross-pattern conformance matrix
+## 22. Cross-pattern conformance matrix
 
 | Concern | Governing patterns | Required release evidence |
 |---|---|---|
@@ -773,7 +773,7 @@ A missing workspace scope or ambiguous route is a security failure and fails clo
 | Controlled scale | P-17 | Resolved target snapshots, budgets, per-target attempts and proof |
 | Trust and deployment | P-18 plus all | Isolation matrix, signed artifacts, restore and export proof |
 
-# 23. Prohibited shortcuts
+## 23. Prohibited shortcuts
 
 - No terminal-first or unrestricted shell-agent execution model.
 - No credential-bearing reasoning worker, prompt, browser session, or general agent tool.
@@ -786,7 +786,7 @@ A missing workspace scope or ambiguous route is a security failure and fails clo
 - No new SSH, Kubernetes, database, public-cloud, browser, desktop, Git, or multi-target mutation before the verified VM-start release gate.
 - No cross-workspace retrieval, transport, caching, runtime, or evidence shortcut.
 
-# 24. Required follow-on detailed specifications
+## 24. Required follow-on detailed specifications
 
 | Specification | Required before | Minimum content |
 |---|---|---|
@@ -799,7 +799,7 @@ A missing workspace scope or ambiguous route is a security failure and fails clo
 | Multi-Target Coordination Specification | WP-08 implementation | Target snapshot, budgets, concurrency, partial failure, aggregate projection |
 | Extension SDK and Conformance Specification | WP-09 implementation | Signed manifests, APIs, sandboxing, versioning, isolation, compatibility tests |
 
-# 25. Release rule
+## 25. Release rule
 
 No pattern is accepted because its UI exists or its happy path runs. Acceptance requires its normative conformance criteria, cross-pattern invariants, security tests, failure scenarios, evidence reconstruction, and owning roadmap gate to pass under blocking CI and, where the pattern touches real systems, a controlled non-production environment.
 
