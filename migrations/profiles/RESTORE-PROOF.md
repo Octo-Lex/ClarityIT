@@ -1,7 +1,7 @@
 # WP-00 G1 — A3 Restore Proof (Operational Backup)
 
 **Date:** 1 August 2026
-**Profiler:** v`3.1.0-p1p2`
+**Profiler:** v`3.2.0-p1p2`
 **Status:** ✅ Restore verified — operational backup recovery proven from two isolated restores.
 
 ---
@@ -104,7 +104,7 @@ Full transcripts retained externally: `clarityit-g1-evidence/restore-logs/`.
 
 | Profile | Fingerprint | Manifest SHA-256 |
 |---|---|---|
-| P1 (production, v3.1.0) | `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83` | `0f81cf9369c5139ce680b049981676adc5ff9811037dba866326886579c4d994` |
+| P1 (production, v3.2.0) | `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83` | `0f81cf9369c5139ce680b049981676adc5ff9811037dba866326886579c4d994` |
 | P2a (restore #1) | `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83` | `d32f4b9c4d85a66c7c095adec7b1a11cb1b03271a7916b6134d797535a521ecb` |
 | P2b (restore #2) | `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83` | `db7578616d1acddc74885a5c67e4724cc83c9fd698bb56765deed260afb1c173` |
 

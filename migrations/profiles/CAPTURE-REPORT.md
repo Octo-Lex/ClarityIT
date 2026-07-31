@@ -1,7 +1,7 @@
 # WP-00 G1 — P1/P2 Schema Capture Report
 
 **Date:** 1 August 2026
-**Profiler:** `scripts/profile/capture_schema.py` v`3.1.0-p1p2` (13 unit tests passing)
+**Profiler:** `scripts/profile/capture_schema.py` v`3.2.0-p1p2` (13 unit tests passing)
 **Source:** Production database on Proxmox CT 150 (`clarityit-postgres-1`)
 **Evidence store:** External (outside this repo) — see §7. Only digests and references are in-repo.
 **Status:** Captured and compared; awaiting owner approval (§6).
@@ -28,16 +28,16 @@ Per Migration spec §2.2 / §4.3 and WP-00 G1:
 | Relations | 65 |
 | Functions | 91 |
 | Schemas | `public` |
-| Profiler version | `3.1.0-p1p2` |
+| Profiler version | `3.2.0-p1p2` |
 | Self-consistent fingerprint | ✅ (recomputed == stored) |
 | Deterministic | ✅ (re-capture identical) |
 | Repeatability (P2a == P2b) | ✅ (two independent restores from operational backup, identical fingerprint) |
 
 **P1 == P2: MATCH.** The production schema restores cleanly and is reproducible from the operational backup.
 
-## 3. Fingerprint properties (v3.1.0)
+## 3. Fingerprint properties (v3.2.0)
 
-The v3.1.0 profiler excludes ALL version metadata from the fingerprint:
+The v3.2.0 profiler excludes ALL version metadata from the fingerprint:
 - `pg_version_string`, `server_version`, AND `server_version_num` are excluded.
 - `fingerprint_sha256` is excluded from its own computation (self-consistent).
 - Overloaded functions are totally ordered by `(schema, name, args)`.
@@ -71,12 +71,18 @@ Per WP-00 evidence policy, sensitive P1/P2 bytes remain **outside the repository
 
 | Artifact | External path | SHA-256 |
 |---|---|---|
-| P1 manifest (v3.1.0) | `clarityit-g1-evidence/p1-production/manifest.json` | `0f81cf9369c5139ce680b049981676adc5ff9811037dba866326886579c4d994` |
+| P1 manifest (v3.2.0) | `clarityit-g1-evidence/p1-production/manifest.json` | `0f81cf9369c5139ce680b049981676adc5ff9811037dba866326886579c4d994` |
 | P2a manifest | `clarityit-g1-evidence/p2-restored/manifest-p2a.json` | `d32f4b9c4d85a66c7c095adec7b1a11cb1b03271a7916b6134d797535a521ecb` |
 | P2b manifest | `clarityit-g1-evidence/p2-restored/manifest-p2b.json` | `db7578616d1acddc74885a5c67e4724cc83c9fd698bb56765deed260afb1c173` |
 | Operational backup | `postgresql_20260731_173628.sql.gz` (on CT 150) | `6d0f6e65712183a3b4bfc918d8c469a0c1db08a349cd0080939560b96881abb2` |
 | Restore log #1 | `clarityit-g1-evidence/restore-logs/p2a-restore.log` | `541ba3cbebbaaa97497bb7e4729ae513bb1d43e0470bf431c2e9d0d24ff69c74` |
 | Restore log #2 | `clarityit-g1-evidence/restore-logs/p2b-restore.log` | `9c9f5a6454bff50d2110a093233948e4859e128fe52a96cde3843b140363ae3a` |
+| Sanitized backup-job log | `clarityit-g1-evidence/backup-job/job-log-sanitized.txt` | `a43e20e30db13e779c18d5e75e3662970a629003033657e92c14b8100eb9a7c8` |
+| Service unit configuration | `clarityit-g1-evidence/backup-job/service.conf` | `ecfa4f6c54160917c831eb53fe374392c2d7961eb69c70c51d3467e115fbda8f` |
+| Timer unit configuration | `clarityit-g1-evidence/backup-job/timer.conf` | `56c4f90534281cfff2f076e7151cdef57ebab40575aa448f7ba67334a80580ec` |
+| `systemctl cat` capture | `clarityit-g1-evidence/backup-job/systemctl-cat.txt` | `99d7378cbacc8c882b74d6baf2002b2db5133159fb90c17719e79f7334b5696d` |
+| `systemctl list-timers` capture | `clarityit-g1-evidence/backup-job/systemctl-list-timers.txt` | `18f5e770160b0bf4ea783ceda3efdf8d20e7ea428e6480982e058a753a098b89` |
+| `timedatectl` capture | `clarityit-g1-evidence/backup-job/timedatectl.txt` | `f0dcac7b1d721d2f68937a71f0229b4c4f88564fd711339951528889913cd85d` |
 
 The repo contains **only this report, the capture script, the P3 fixture, and the unit tests** — no raw manifests or dumps.
 

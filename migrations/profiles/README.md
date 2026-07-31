@@ -15,7 +15,7 @@ directory contains only:
 
 External evidence location and hashes are documented in `CAPTURE-REPORT.md §7`.
 
-## Key results (v3.1.0 profiler)
+## Key results (v3.2.0 profiler)
 
 - **P1 = P2a = P2b fingerprint:** `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83`
 - **Self-consistent** (recomputed == stored), **deterministic**, **repeatable** (two restores from operational backup).
@@ -25,7 +25,7 @@ External evidence location and hashes are documented in `CAPTURE-REPORT.md §7`.
 
 ## Capture tooling
 
-`scripts/profile/capture_schema.py` (v3.1.0-p1p2) — read-only, secret-excluding,
+`scripts/profile/capture_schema.py` (v3.2.0-p1p2) — read-only, secret-excluding,
 deterministic. 13 unit tests in `test_capture_schema.py` prove self-consistency,
 determinism, P1==P2, ownership-exclusion, and version-independence.
 
