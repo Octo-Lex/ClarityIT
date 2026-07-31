@@ -692,9 +692,15 @@ func TestPhase4(t *testing.T) {
 		w2 := httptest.NewRecorder()
 		r.ServeHTTP(w2, req2)
 
-		// The idempotency middleware returns cached response on completed key
-		// regardless of body difference (it already stored the response)
-		// This is by design — same key always replays the original response
+		// Reusing a key for a different request must not replay the first result.
+		if w2.Code != 409 {
+			t.Fatalf("Different request with same key: expected 409, got %d %s", w2.Code, w2.Body.String())
+		}
+		var conflictResp map[string]string
+		json.Unmarshal(w2.Body.Bytes(), &conflictResp)
+		if conflictResp["detail"] != "Idempotency key reused with different request" {
+			t.Errorf("Unexpected conflict response: %s", w2.Body.String())
+		}
 
 		// Verify only ONE work item row
 		var count int
