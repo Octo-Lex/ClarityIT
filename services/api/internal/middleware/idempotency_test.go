@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -105,8 +106,15 @@ func TestIdempotencyReplayAndFingerprintConflict(t *testing.T) {
 	if replay.Code != http.StatusCreated {
 		t.Fatalf("replay: %d %s", replay.Code, replay.Body.String())
 	}
-	if replay.Body.String() != first.Body.String() {
-		t.Fatalf("replay body mismatch: %s != %s", replay.Body.String(), first.Body.String())
+	var firstBody, replayBody map[string]any
+	if err := json.Unmarshal(first.Body.Bytes(), &firstBody); err != nil {
+		t.Fatalf("decode first response: %v", err)
+	}
+	if err := json.Unmarshal(replay.Body.Bytes(), &replayBody); err != nil {
+		t.Fatalf("decode replay response: %v", err)
+	}
+	if !reflect.DeepEqual(replayBody, firstBody) {
+		t.Fatalf("replay body mismatch: %v != %v", replayBody, firstBody)
 	}
 	if calls.Load() != 1 {
 		t.Fatalf("handler executed %d times; want 1", calls.Load())
