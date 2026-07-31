@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -50,6 +51,40 @@ func TestRequestFingerprintCanonicalJSONAndRestoresBody(t *testing.T) {
 	}
 	if string(restored) != `{"b":2,"a":1}` {
 		t.Fatalf("request body was not restored: %q", restored)
+	}
+}
+
+func TestIdempotencyRejectsOversizedBodyBeforeHandler(t *testing.T) {
+	var calls atomic.Int32
+	handler := Idempotency(IdempotencyConfig{
+		Scope:  "anonymous",
+		Expiry: time.Hour,
+	})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	body := strings.NewReader(strings.Repeat("x", int(maxIdempotencyRequestBodyBytes)+1))
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", body)
+	req.ContentLength = -1 // Exercise the bounded-read path for a streamed body.
+	req.Header.Set("Idempotency-Key", "oversized-body")
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized request: got %d %s, want 413", recorder.Code, recorder.Body.String())
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("handler executed for oversized request; calls=%d", calls.Load())
+	}
+
+	var response map[string]string
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode oversized response: %v", err)
+	}
+	if response["detail"] != "Request body exceeds 1 MiB limit" {
+		t.Fatalf("unexpected oversized response: %s", recorder.Body.String())
 	}
 }
 
