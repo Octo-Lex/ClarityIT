@@ -36,6 +36,13 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(_HERE))
 PROFILER = os.path.join(_HERE, "capture_schema.py")
 
+# Import the profiler module so we use its canonical fingerprint_of (DRY —
+# the harness must not duplicate fingerprint logic, or it drifts).
+import importlib.util as _ilutil
+_spec = _ilutil.spec_from_file_location("capture_schema", PROFILER)
+cs = _ilutil.module_from_spec(_spec)
+_spec.loader.exec_module(cs)
+
 # Patterns that indicate production data leakage (never in a synthetic fixture).
 # The scan must substantiate claims about tokens, credentials, emails, hostnames,
 # and production identifiers. These cover both the SQL files and JSON manifests.
@@ -134,15 +141,9 @@ def capture(name, network, out_dir, label):
 
 
 def fingerprint_of(manifest_path):
-    """Recompute the fingerprint from a manifest file."""
+    """Recompute the fingerprint from a manifest file using the profiler's logic."""
     m = json.load(open(manifest_path, encoding="utf-8"))
-    stable = {k: v for k, v in m.items() if k not in {
-        "captured_at_utc", "row_counts", "source_label", "integrity_checks",
-        "schema_dump_sha256", "schema_dump_error", "fingerprint_sha256",
-        "ownership",
-    }}
-    canon = json.dumps(stable, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
-    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+    return cs.fingerprint_of(m)
 
 
 def secret_scan(path):

@@ -40,7 +40,7 @@ def _base_manifest():
         "source_label": "test",
         "fingerprint_sha256": "",  # will be set; must NOT affect recompute
         "postgres": {
-            "settings": {"server_version_num": "160004"},
+            "settings": {"TimeZone": "UTC"},
             "extensions": [{"name": "pgcrypto", "version": "1.3"}],
         },
         "pg_version_string": "PostgreSQL 16.4 on x86_64-pc-linux-musl",

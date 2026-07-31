@@ -86,17 +86,15 @@ def q(cur, sql, args=None):
 def pg_info(cur):
     cur.execute("SELECT version();")
     version = cur.fetchone()[0]
+    # Schema-affecting settings only. server_version and server_version_num are
+    # version-specific (not schema) and are captured in pg_version_string (excluded
+    # from fingerprint). This makes the fingerprint stable across PG patch versions.
     cur.execute(
         "SELECT name, setting FROM pg_settings "
-        "WHERE name IN ('server_version','server_version_num','integer_datetime',"
+        "WHERE name IN ('integer_datetime',"
         "'lc_collate','lc_ctype','standard_conforming_strings','TimeZone') ORDER BY name;"
     )
     settings = {r[0]: r[1] for r in cur.fetchall()}
-    # 'version' is build-specific (compiler, musl label) and must NOT be in the
-    # fingerprint (it changes across patch builds of the same major version).
-    # It's reported under pg_version_string (excluded from fingerprint) for
-    # human reference. server_version_num (e.g. 160004) stays in settings and
-    # IS fingerprinted — it detects major-version mismatches.
     return {"settings": settings}
 
 

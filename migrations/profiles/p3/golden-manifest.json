@@ -6266,7 +6266,7 @@
       }
     ]
   },
-  "fingerprint_sha256": "de644996a57b582f09aeb1f5f56882b1ba4c61c987c645c98e398c916b6d8134",
+  "fingerprint_sha256": "5d90b4f315a2b11f07ac2c045755a3b5c9fba753d9483ca8c8249807c4f0e610",
   "functions": [
     {
       "args": "",
@@ -8496,8 +8496,6 @@
     ],
     "settings": {
       "TimeZone": "UTC",
-      "server_version": "16.4",
-      "server_version_num": "160004",
       "standard_conforming_strings": "on"
     }
   },
