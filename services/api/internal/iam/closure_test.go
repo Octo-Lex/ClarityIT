@@ -170,8 +170,14 @@ func TestClosurePatch(t *testing.T) {
 
 		// First insert succeeds
 		_, err := pool.Exec(ctx, `
-			INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, expires_at)
-			VALUES ('user', 'test-user-id', 'test-key-123', 'POST', '/api/auth/register', 'completed', NOW() + INTERVAL '1 hour')
+			INSERT INTO idempotency_keys (
+				scope_type, scope_id, key, request_method, request_path,
+				request_fingerprint, status, expires_at
+			)
+			VALUES (
+				'user', 'test-user-id', 'test-key-123', 'POST', '/api/auth/register',
+				'test-fingerprint', 'completed', NOW() + INTERVAL '1 hour'
+			)
 		`)
 		if err != nil {
 			t.Fatalf("First insert: %v", err)
@@ -179,8 +185,14 @@ func TestClosurePatch(t *testing.T) {
 
 		// Second insert with same key fails (unique constraint)
 		_, err = pool.Exec(ctx, `
-			INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, expires_at)
-			VALUES ('user', 'test-user-id', 'test-key-123', 'POST', '/api/auth/register', 'processing', NOW() + INTERVAL '1 hour')
+			INSERT INTO idempotency_keys (
+				scope_type, scope_id, key, request_method, request_path,
+				request_fingerprint, status, expires_at
+			)
+			VALUES (
+				'user', 'test-user-id', 'test-key-123', 'POST', '/api/auth/register',
+				'test-fingerprint', 'processing', NOW() + INTERVAL '1 hour'
+			)
 		`)
 		if err == nil {
 			t.Error("Expected unique constraint violation for duplicate idempotency key")
