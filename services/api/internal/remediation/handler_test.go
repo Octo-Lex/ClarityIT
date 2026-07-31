@@ -2,6 +2,7 @@ package remediation
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/clarityit/api/internal/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -177,6 +179,56 @@ func highSteps() []map[string]any {
 	}
 }
 
+// grantRemediationExecutor provisions the explicit test-only authority needed
+// for a remediation step to pass the real policy evaluator. Runtime code must
+// never create its own grants while executing a proposal.
+func (e *testEnv) grantRemediationExecutor(t *testing.T, toolName string) {
+	t.Helper()
+
+	var agentID uuid.UUID
+	err := e.pool.QueryRow(t.Context(), `
+		SELECT id
+		FROM agent_identities
+		WHERE team_id = $1
+		  AND name = 'remediation-executor'
+		  AND deleted_at IS NULL
+		LIMIT 1
+	`, e.teamID).Scan(&agentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = e.pool.QueryRow(t.Context(), `
+			INSERT INTO agent_identities (
+				team_id, name, description, max_autonomy, created_by
+			)
+			VALUES (
+				$1, 'remediation-executor',
+				'System agent for remediation step execution', 'A4', $2
+			)
+			RETURNING id
+		`, e.teamID, e.userID).Scan(&agentID)
+	}
+	if err != nil {
+		t.Fatalf("provision remediation executor: %v", err)
+	}
+
+	if _, err := e.pool.Exec(t.Context(), `
+		INSERT INTO agent_tool_grants (
+			agent_id, team_id, tool_name, max_autonomy_level,
+			requires_approval, requires_mfa, created_by
+		)
+		SELECT $1, $2, $3, 'A3', FALSE, FALSE, $4
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM agent_tool_grants
+			WHERE agent_id = $1
+			  AND team_id = $2
+			  AND tool_name = $3
+			  AND revoked_at IS NULL
+		)
+	`, agentID, e.teamID, toolName, e.userID); err != nil {
+		t.Fatalf("grant remediation executor tool %q: %v", toolName, err)
+	}
+}
+
 // ─── Tests ───
 
 // Test 1: Agent creates remediation draft
@@ -278,6 +330,7 @@ func TestExecutionBlockedWithoutMFAHighRisk(t *testing.T) {
 // Test 6: Step execution writes effect result
 func TestStepExecutionWritesEffectResult(t *testing.T) {
 	e := setupTest(t)
+	e.grantRemediationExecutor(t, "objects.add_comment")
 	id := e.createProposal(t, "operator", "low", lowSteps())
 	e.approveProposal(t, id)
 	w := e.executeProposal(t, id, "exec-effect-"+uniq())
@@ -298,6 +351,7 @@ func TestStepExecutionWritesEffectResult(t *testing.T) {
 func TestPartialFailureStored(t *testing.T) {
 	e := setupTest(t)
 	e.setMFA(t)
+	e.grantRemediationExecutor(t, "objects.add_comment")
 
 	// Create a step with a tool that will be denied by policy (medium risk requires approval)
 	steps := []map[string]any{
@@ -395,6 +449,7 @@ func TestCancelledCannotExecute(t *testing.T) {
 // Test 10: Completed remediation cannot execute again except idempotent replay
 func TestCompletedIdempotentReplay(t *testing.T) {
 	e := setupTest(t)
+	e.grantRemediationExecutor(t, "objects.add_comment")
 	id := e.createProposal(t, "operator", "low", lowSteps())
 	e.approveProposal(t, id)
 
@@ -402,6 +457,11 @@ func TestCompletedIdempotentReplay(t *testing.T) {
 	w1 := e.executeProposal(t, id, key)
 	if w1.Code != 200 {
 		t.Fatalf("first exec: %d %s", w1.Code, w1.Body.String())
+	}
+	var firstResp map[string]any
+	json.Unmarshal(w1.Body.Bytes(), &firstResp)
+	if firstResp["status"] != "completed" {
+		t.Fatalf("first exec status: got %v, want completed", firstResp["status"])
 	}
 
 	// Second execution with same key should return cached response (idempotent)
@@ -560,6 +620,7 @@ func TestHighRiskSelfApprovalBlocked(t *testing.T) {
 // Test 16: Idempotency replay returns same result
 func TestIdempotencyReplay(t *testing.T) {
 	e := setupTest(t)
+	e.grantRemediationExecutor(t, "objects.add_comment")
 	id := e.createProposal(t, "operator", "low", lowSteps())
 	e.approveProposal(t, id)
 
@@ -580,10 +641,18 @@ func TestIdempotencyConflict(t *testing.T) {
 	u := uniq()
 
 	// Insert processing key
-	e.pool.Exec(t.Context(),
-		`INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, expires_at)
-		 VALUES ('user', $1, $2, 'POST', '/remediations', 'processing', NOW() + interval '1 hour')`,
-		e.userID, "idem-conflict-"+u)
+	if _, err := e.pool.Exec(t.Context(),
+		`INSERT INTO idempotency_keys (
+			scope_type, scope_id, key, request_method, request_path,
+			request_fingerprint, status, expires_at
+		 )
+		 VALUES (
+			'user', $1, $2, 'POST', '/remediations',
+			'test-processing-fingerprint', 'processing', NOW() + interval '1 hour'
+		 )`,
+		e.userID, "idem-conflict-"+u); err != nil {
+		t.Fatalf("insert processing idempotency key: %v", err)
+	}
 
 	body := fmt.Sprintf(`{"title":"Conflict","source":"operator","risk_level":"low","steps":[{"step_order":1,"tool_name":"objects.add_comment","risk_level":"low","parameters":{}}]}`)
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/remediations", e.teamID), strings.NewReader(body))

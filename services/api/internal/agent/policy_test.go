@@ -593,10 +593,19 @@ func TestPolicy_IdempotencyConflictRejected(t *testing.T) {
 
 	// Insert a 'processing' idempotency key directly to simulate concurrent request
 	key := "pol-idem-conflict-" + u
-	e.pool.Exec(t.Context(),
-		`INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, expires_at)
-		 VALUES ('tool-gateway', $1, $2, 'POST', '/api/teams/' || $3 || '/tool-gateway/execute', 'processing', NOW() + interval '1 hour')`,
-		e.userID, key, e.teamID)
+	if _, err := e.pool.Exec(t.Context(),
+		`INSERT INTO idempotency_keys (
+			scope_type, scope_id, key, request_method, request_path,
+			request_fingerprint, status, expires_at
+		 )
+		 VALUES (
+			'tool-gateway', $1, $2, 'POST',
+			'/api/teams/' || $3 || '/tool-gateway/execute',
+			'test-processing-fingerprint', 'processing', NOW() + interval '1 hour'
+		 )`,
+		e.userID, key, e.teamID); err != nil {
+		t.Fatalf("insert processing idempotency key: %v", err)
+	}
 
 	// Try to use the same key → should get 409 conflict
 	agentID, runID, intID := e.createPipeline(t, "A4", "objects.add_comment", "A4", false, false, "low", "A3")

@@ -590,10 +590,18 @@ func TestAction_IdempotencyConflict(t *testing.T) {
 	var userID string
 	e.pool.QueryRow(t.Context(),
 		"SELECT id::text FROM users WHERE email='owner@test.dev'").Scan(&userID)
-	e.pool.Exec(t.Context(),
-		`INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, expires_at)
-		 VALUES ('tool-gateway', $1, $2, 'POST', '/execute', 'processing', NOW() + interval '1 hour')`,
-		userID, key)
+	if _, err := e.pool.Exec(t.Context(),
+		`INSERT INTO idempotency_keys (
+			scope_type, scope_id, key, request_method, request_path,
+			request_fingerprint, status, expires_at
+		 )
+		 VALUES (
+			'tool-gateway', $1, $2, 'POST', '/execute',
+			'test-processing-fingerprint', 'processing', NOW() + interval '1 hour'
+		 )`,
+		userID, key); err != nil {
+		t.Fatalf("insert processing idempotency key: %v", err)
+	}
 
 	w := e.executeAction(t, actionID, key)
 	if w.Code != 409 {

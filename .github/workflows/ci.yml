@@ -47,13 +47,12 @@ jobs:
   # project's Makefile `test` target — not on the runner host (where `postgres`
   # is unresolvable and `pg_isready -h localhost` would hang forever).
   #
-  # NON-BLOCKING until WP-00 G5. A repository-derived P0 fixture provisions the
-  # database so backend tests execute, but it is not P1/P2/P3 evidence and does
-  # not claim G2/G3, install, or upgrade authority.
+  # BLOCKING application test gate. A deterministic repository-derived P0
+  # fixture provisions the database so the backend suites execute. It is not
+  # P1/P2/P3 evidence and does not claim G2/G3, install, or upgrade authority.
   backend:
-    name: Backend (Go) [non-blocking]
+    name: Backend (Go)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
