@@ -193,15 +193,27 @@ func TestPhase3Closure(t *testing.T) {
 		// Simulate idempotency middleware: insert completed key
 		claims, _ := iam.ParseAccessToken(cfg.JWTSecret, ownerToken)
 		pool.Exec(ctx, `
-			INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, response_code, response_body, expires_at)
-			VALUES ('user', $1, 'replay-key-001', 'PATCH', $2, 'completed', 200, $3, NOW() + INTERVAL '1 hour')
+			INSERT INTO idempotency_keys (
+				scope_type, scope_id, key, request_method, request_path,
+				request_fingerprint, status, response_code, response_body, expires_at
+			)
+			VALUES (
+				'user', $1, 'replay-key-001', 'PATCH', $2,
+				'test-fingerprint', 'completed', 200, $3, NOW() + INTERVAL '1 hour'
+			)
 		`, claims.UserID, "/api/teams/"+teamID+"/settings", w1.Body.String())
 
 		// Second request should be intercepted by idempotency middleware (in production)
 		// For this test, verify that inserting a duplicate key fails (proving the constraint works)
 		_, err := pool.Exec(ctx, `
-			INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, expires_at)
-			VALUES ('user', $1, 'replay-key-001', 'PATCH', $2, 'processing', NOW() + INTERVAL '1 hour')
+			INSERT INTO idempotency_keys (
+				scope_type, scope_id, key, request_method, request_path,
+				request_fingerprint, status, expires_at
+			)
+			VALUES (
+				'user', $1, 'replay-key-001', 'PATCH', $2,
+				'test-fingerprint', 'processing', NOW() + INTERVAL '1 hour'
+			)
 		`, claims.UserID, "/api/teams/"+teamID+"/settings")
 		if err == nil {
 			t.Error("Duplicate idempotency key should violate unique constraint")
@@ -223,8 +235,14 @@ func TestPhase3Closure(t *testing.T) {
 
 		// Insert a completed key
 		_, err := pool.Exec(ctx, `
-			INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, response_code, response_body, expires_at)
-			VALUES ('user', $1, 'conflict-key-001', 'PATCH', $2, 'completed', 200, '{"message":"ok"}', NOW() + INTERVAL '1 hour')
+			INSERT INTO idempotency_keys (
+				scope_type, scope_id, key, request_method, request_path,
+				request_fingerprint, status, response_code, response_body, expires_at
+			)
+			VALUES (
+				'user', $1, 'conflict-key-001', 'PATCH', $2,
+				'test-fingerprint', 'completed', 200, '{"message":"ok"}', NOW() + INTERVAL '1 hour'
+			)
 		`, claims.UserID, path)
 		if err != nil {
 			t.Fatalf("Insert: %v", err)
@@ -232,8 +250,14 @@ func TestPhase3Closure(t *testing.T) {
 
 		// Duplicate key insert should fail
 		_, err = pool.Exec(ctx, `
-			INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, expires_at)
-			VALUES ('user', $1, 'conflict-key-001', 'PATCH', $2, 'processing', NOW() + INTERVAL '1 hour')
+			INSERT INTO idempotency_keys (
+				scope_type, scope_id, key, request_method, request_path,
+				request_fingerprint, status, expires_at
+			)
+			VALUES (
+				'user', $1, 'conflict-key-001', 'PATCH', $2,
+				'test-fingerprint', 'processing', NOW() + INTERVAL '1 hour'
+			)
 		`, claims.UserID, path)
 		if err == nil {
 			t.Error("Expected unique constraint violation")
