@@ -11,9 +11,10 @@ infrastructure details.**
   structural metadata (tables, columns, types, constraints, indexes, functions,
   triggers, sequences).
 - Represents the **single captured P1 source shape**.
-- Seeded with 9 synthetic rows exercising the legacy-truth classifications
-  (Migration spec §6.1): `agent_effect_results.status='succeeded'`,
-  `asset_actions` with `proxmox_task_id`, `approval_requests approved`, etc.
+- Seeded with 11 synthetic rows (6 bootstrap + 5 legacy-truth cases) exercising
+  the classifications (Migration spec §6.1): `agent_effect_results.status='succeeded'`,
+  `asset_actions` with `proxmox_task_id`, `asset_actions` executing,
+  `approval_requests approved`, `action_outcomes`.
 
 ## What P3 is NOT
 

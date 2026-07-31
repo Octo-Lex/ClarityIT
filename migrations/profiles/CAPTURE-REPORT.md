@@ -40,12 +40,13 @@ The v3 profiler fixes the v2 blockers:
 - `fingerprint_sha256` is excluded from its own computation → **self-consistent**.
 - Overloaded functions are totally ordered by `(schema, name, args)` → **no false diffs**.
 - Ownership is excluded (spec §4.3) → reported in manifest, not hashed.
-- Proven by 12 unit tests in `scripts/profile/test_capture_schema.py`.
+- `pg_version_string` (build-specific compiler/musl label) is excluded from the fingerprint while `server_version_num` (major-version detection) remains fingerprinted.
+- Proven by 13 unit tests in `scripts/profile/test_capture_schema.py`.
 
 ## 4. Findings
 
 1. **Production has NO migration ledger table.** Schema provenance is unverifiable from the DB — confirming the Migration spec's premise that the live schema (this capture) is the upgrade authority.
-2. **The scheduled operational backup is stale.** `postgresql_20260614_083025.sql.gz` (the most recent scheduled backup) is **missing 16 tables and 5 functions** added since 2026-06-14 (knowledge/artifact/webauthn/evaluation features). It cannot serve as rollback evidence for the current schema. P2 was therefore captured from a fresh dump of the current production state. **Action: tighten the backup schedule** so operational backups track production.
+2. **The scheduled operational backup is stale — a G1 blocker.** `postgresql_20260614_083025.sql.gz` (the most recent scheduled backup) is **missing 16 tables and 5 functions** added since 2026-06-14 (knowledge/artifact/webauthn/evaluation features). It cannot serve as rollback evidence for the current schema. P2 was captured from a fresh dump (proving current-state restorability), but the Migration spec requires recovery from a *current operational backup*. The backup process must be repaired and the A3 drill repeated before G1 can pass.
 3. **No orphan FKs, no invalid constraints.** Schema is structurally sound.
 4. **No RLS policies enabled** in production (`rls_state` empty).
 

@@ -6266,7 +6266,7 @@
       }
     ]
   },
-  "fingerprint_sha256": "3ef228814184a20b1d0162bc0aff4395b474a3dbadf4e51c1e102963b5537be4",
+  "fingerprint_sha256": "de644996a57b582f09aeb1f5f56882b1ba4c61c987c645c98e398c916b6d8134",
   "functions": [
     {
       "args": "",
@@ -8474,6 +8474,7 @@
       "schema": "public"
     }
   ],
+  "pg_version_string": "PostgreSQL 16.4 on x86_64-pc-linux-musl, compiled by gcc (Alpine 13.2.1_git20240309) 13.2.1 20240309, 64-bit",
   "postgres": {
     "extensions": [
       {
@@ -8498,8 +8499,7 @@
       "server_version": "16.4",
       "server_version_num": "160004",
       "standard_conforming_strings": "on"
-    },
-    "version": "PostgreSQL 16.4 on x86_64-pc-linux-musl, compiled by gcc (Alpine 13.2.1_git20240309) 13.2.1 20240309, 64-bit"
+    }
   },
   "profiler_version": "3.0.0-p1p2",
   "relations": [

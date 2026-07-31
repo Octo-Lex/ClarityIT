@@ -19,7 +19,7 @@ P2 was therefore captured from a **fresh dump of the current production state**:
 | Size | 5,223,115 bytes |
 | Taken at (UTC) | 2026-07-31 (capture session) |
 
-> **Action item:** The scheduled backup cadence must be tightened so operational backups track production. This is recorded as a finding, not a blocker for G1 (the fresh dump proves current-state restorability).
+> **G1 BLOCKER:** The scheduled backup is stale (missing 16 tables since 2026-06-14) and cannot serve as rollback evidence for the current schema. The fresh dump above proves *current-state restorability* but does **not** satisfy the Migration spec's A3 requirement for recovery from a *current operational backup*. This is a **G1 blocker**: the backup process must be repaired and the two-restore drill repeated from a current scheduled backup before A3 can be accepted.
 
 ## 2. Restore environment
 

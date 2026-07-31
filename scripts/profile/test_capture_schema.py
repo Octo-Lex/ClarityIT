@@ -40,10 +40,10 @@ def _base_manifest():
         "source_label": "test",
         "fingerprint_sha256": "",  # will be set; must NOT affect recompute
         "postgres": {
-            "version": "PostgreSQL 16.4",
-            "settings": {"server_version": "16.4"},
+            "settings": {"server_version_num": "160004"},
             "extensions": [{"name": "pgcrypto", "version": "1.3"}],
         },
+        "pg_version_string": "PostgreSQL 16.4 on x86_64-pc-linux-musl",
         "schemas": ["public"],
         "relations": [
             {"schema": "public", "name": "users", "kind": "r",
@@ -135,6 +135,18 @@ class TestOwnershipExclusion(unittest.TestCase):
         self.assertEqual(fa, fb, "ownership must not affect the fingerprint")
 
 
+class TestPgVersionStringExclusion(unittest.TestCase):
+    def test_pg_version_string_excluded_from_fingerprint(self):
+        """The build-specific version string must not affect the fingerprint.
+        This is what caused the CI golden mismatch (16.4 local vs 16.x CI)."""
+        m = _base_manifest()
+        m["pg_version_string"] = "PostgreSQL 16.4 on x86_64-pc-linux-musl"
+        fa = cs.fingerprint_of(m)
+        m["pg_version_string"] = "PostgreSQL 16.99 on x86_64-pc-linux-musl, different compiler"
+        fb = cs.fingerprint_of(m)
+        self.assertEqual(fa, fb, "pg_version_string must not affect the fingerprint")
+
+
 class TestDeterminism(unittest.TestCase):
     def test_timestamp_label_rowcounts_irrelevant(self):
         """Two captures of the same schema with different volatile fields match."""
@@ -215,11 +227,13 @@ class TestCanonicalization(unittest.TestCase):
     def test_excluded_fields_not_in_canonical(self):
         m = _base_manifest()
         m["fingerprint_sha256"] = "SHOULD_NOT_APPEAR"
+        m["pg_version_string"] = "SHOULD_NOT_APPEAR_EITHER"
         canon = cs.canonicalize(m)
         self.assertNotIn(b"fingerprint_sha256", canon)
         self.assertNotIn(b"SHOULD_NOT_APPEAR", canon)
         self.assertNotIn(b"ownership", canon)
         self.assertNotIn(b"row_counts", canon)
+        self.assertNotIn(b"pg_version_string", canon)
 
 
 if __name__ == "__main__":

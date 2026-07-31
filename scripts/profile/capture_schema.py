@@ -92,7 +92,18 @@ def pg_info(cur):
         "'lc_collate','lc_ctype','standard_conforming_strings','TimeZone') ORDER BY name;"
     )
     settings = {r[0]: r[1] for r in cur.fetchall()}
-    return {"version": version, "settings": settings}
+    # 'version' is build-specific (compiler, musl label) and must NOT be in the
+    # fingerprint (it changes across patch builds of the same major version).
+    # It's reported under pg_version_string (excluded from fingerprint) for
+    # human reference. server_version_num (e.g. 160004) stays in settings and
+    # IS fingerprinted — it detects major-version mismatches.
+    return {"settings": settings}
+
+
+def pg_version_string(cur):
+    """Full version string — reported but EXCLUDED from the fingerprint."""
+    cur.execute("SELECT version();")
+    return cur.fetchone()[0]
 
 
 def extensions(cur):
@@ -651,6 +662,7 @@ FINGERPRINT_EXCLUDE = {
     "schema_dump_error",    # capture artifact, not schema
     "fingerprint_sha256",   # MUST be excluded: the digest cannot include itself
     "ownership",            # spec §4.3 explicitly excludes ownership from fingerprint
+    "pg_version_string",    # build-specific (compiler/musl label); not schema
 }
 
 
@@ -662,6 +674,7 @@ def build_manifest(cur, source_label):
         "captured_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source_label": source_label,
         "postgres": {**pg_info(cur), "extensions": extensions(cur)},
+        "pg_version_string": pg_version_string(cur),
         "schemas": sch,
         "relations": rels,
         "columns": columns(cur, sch),

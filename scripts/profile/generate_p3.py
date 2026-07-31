@@ -20,8 +20,12 @@ Usage:
 
 This produces:
     p3/schema.sql      — synthetic DDL matching P1 shape
-    p3/seed.sql        — minimal legacy-truth seed rows
-    p3/golden-manifest.json  — expected manifest with fingerprint
+    p3/seed.sql        — minimal legacy-truth seed rows (5 legacy-truth cases)
+
+The golden manifest (golden-manifest.json) is NOT generated here. It is
+produced by applying schema.sql + seed.sql to a fresh PostgreSQL 16.14
+database and running the profiler (capture_schema.py). Use validate_p3.py
+to build, capture, and verify the golden profile end-to-end.
 """
 from __future__ import annotations
 

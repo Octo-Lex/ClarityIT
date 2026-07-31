@@ -37,12 +37,32 @@ REPO = os.path.dirname(os.path.dirname(_HERE))
 PROFILER = os.path.join(_HERE, "capture_schema.py")
 
 # Patterns that indicate production data leakage (never in a synthetic fixture).
+# The scan must substantiate claims about tokens, credentials, emails, hostnames,
+# and production identifiers. These cover both the SQL files and JSON manifests.
 SECRET_PATTERNS = [
     re.compile(p, re.IGNORECASE) for p in [
-        r"192\.168\.\d+\.\d+",       # production IPs
-        r"@clarityit\.",              # production email domain
-        r"pve0\d",                    # production Proxmox nodes
-        r"password_hash.*=.*['\"](?!SYNTHETIC)",  # real password hashes (not the synthetic marker)
+        # --- Production network identifiers ---
+        r"192\.168\.\d+\.\d+",            # private production IPs
+        r"10\.\d+\.\d+\.\d+",             # private production IPs (10.x)
+        r"pve0\d",                        # production Proxmox node names
+        r"clarityit-postgres",            # production container names
+        r"clarityit-context-worker",
+        r"clarityit-api",
+        # --- Production email domains ---
+        r"@clarityit\.(com|dev|io|net)",  # production email domain
+        r"@(?!example\.|p3-synthetic)[a-z]",  # any non-example/synthetic email local-part
+        # --- Credentials / tokens ---
+        r"(?:password|passwd|pwd)\s*[=:]"
+        r"\s*['\"](?!\s*SYNTHETIC|change-me|replace)",  # real passwords (not markers)
+        r"(?:api[_-]?key|secret|token)\s*[=:]"
+        r"\s*['\"](?:gho_|ghp_|ghs_|sk_|pk_|AKIA|xox[bpoa]-)",  # known token prefixes
+        r"(?:api[_-]?key|secret|token)\s*[=:]"
+        r"\s*['\"][A-Za-z0-9]{32,}",      # long opaque strings that look like tokens
+        r"-----BEGIN (?:RSA |EC |OPENSSH |)PRIVATE KEY-----",  # private keys
+        # --- JWT / bearer tokens ---
+        r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}",  # JWT-shaped strings
+        # --- Connection strings with credentials ---
+        r"(?:postgres|postgresql|redis|nats|amqp)://[^:\s]+:[^@\s]+@",  # URI-embedded passwords
     ]
 ]
 
@@ -55,15 +75,20 @@ def run(cmd, **kw):
     return subprocess.run(cmd, **kw)
 
 
+# Pinned to match production (PostgreSQL 16.14). Floating tags like
+# postgres:16-alpine cause golden mismatches across patch versions.
+PG_IMAGE = os.environ.get("P3_PG_IMAGE", "postgres:16.14-alpine")
+
+
 def docker_run_pg(name, network):
-    """Start a fresh postgres:16-alpine container."""
+    """Start a fresh PostgreSQL container from the pinned image."""
     run([
         "docker", "run", "-d", "--name", name,
         "--network", network,
         "-e", "POSTGRES_USER=clarityit",
         "-e", "POSTGRES_PASSWORD=clarityit",
         "-e", "POSTGRES_DB=clarityit",
-        "postgres:16-alpine",
+        PG_IMAGE,
     ])
 
 
@@ -120,13 +145,15 @@ def fingerprint_of(manifest_path):
     return hashlib.sha256(canon.encode("utf-8")).hexdigest()
 
 
-def secret_scan(manifest_path):
-    """Scan a manifest for production data leakage. Returns list of findings."""
-    text = open(manifest_path, encoding="utf-8").read()
+def secret_scan(path):
+    """Scan any file (manifest, SQL, JSON) for production data leakage.
+    Returns list of findings."""
+    text = open(path, encoding="utf-8").read()
     findings = []
     for pat in SECRET_PATTERNS:
         for m in pat.finditer(text):
-            findings.append(f"pattern {pat.pattern!r} matched: ...{text[max(0,m.start()-20):m.end()+20]}...")
+            ctx = text[max(0, m.start() - 30):m.end() + 30]
+            findings.append(f"{os.path.basename(path)}: pattern {pat.pattern!r} matched: ...{ctx}...")
     return findings
 
 
@@ -203,14 +230,21 @@ def main():
         check("B == golden (matches committed profile)", fp_b_stored == golden_fp,
               f"{fp_b_stored[:16]} vs {golden_fp[:16]}")
 
-        print("=== Secret + production-identifier scan ===")
-        findings_a = secret_scan(os.path.join(cap_a, "manifest.json"))
-        findings_b = secret_scan(os.path.join(cap_b, "manifest.json"))
-        check("A: secret-scan clean", len(findings_a) == 0,
-              f"{len(findings_a)} findings" if findings_a else "")
-        check("B: secret-scan clean", len(findings_b) == 0,
-              f"{len(findings_b)} findings" if findings_b else "")
-        for f in findings_a + findings_b:
+        print("=== Secret + production-identifier scan (all fixture + captured files) ===")
+        scan_files = [
+            ("fixture schema.sql", schema),
+            ("fixture seed.sql", seed),
+            ("golden-manifest.json", golden),
+            ("capture A manifest", os.path.join(cap_a, "manifest.json")),
+            ("capture B manifest", os.path.join(cap_b, "manifest.json")),
+        ]
+        all_findings = []
+        for label, path in scan_files:
+            findings = secret_scan(path)
+            check(f"{label}: secret-scan clean", len(findings) == 0,
+                  f"{len(findings)} findings" if findings else "")
+            all_findings.extend(findings)
+        for f in all_findings:
             print(f"    ! {f}")
 
     finally:
