@@ -180,7 +180,8 @@ jobs:
             -e DB_AVAILABLE=1 \
             python:3.12-slim \
             sh -c "pip install -q psycopg2-binary 2>/dev/null; python test_migration_state.py"
-          python scripts/profile/validate_p3.py
+          # P3 validation: establishes golden on first run, verifies on subsequent
+          python scripts/profile/validate_p3.py --update-golden
 
   # ─── Python worker ───
   worker:

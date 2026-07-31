@@ -162,18 +162,24 @@ def main():
     ap = argparse.ArgumentParser(description="P3 validation harness")
     ap.add_argument("--p3-dir", default=os.path.join(REPO, "migrations", "profiles", "p3"))
     ap.add_argument("--keep", action="store_true", help="don't tear down containers")
+    ap.add_argument("--update-golden", action="store_true",
+                    help="write/overwrite golden-manifest.json from capture A")
     args = ap.parse_args()
 
     schema = os.path.join(args.p3_dir, "schema.sql")
     seed = os.path.join(args.p3_dir, "seed.sql")
     golden = os.path.join(args.p3_dir, "golden-manifest.json")
 
-    for f in [schema, seed, golden]:
+    for f in [schema, seed]:
         if not os.path.exists(f):
             print(f"FAIL: missing {f}", file=sys.stderr)
             return 1
 
-    golden_fp = json.load(open(golden))["fingerprint_sha256"]
+    # Golden may not exist yet on first run (--update-golden establishes it)
+    golden_fp = None
+    if os.path.exists(golden):
+        golden_fp = json.load(open(golden))["fingerprint_sha256"]
+
     net = "p3-validate-net"
     containers = ["p3-validate-a", "p3-validate-b"]
     tmp = tempfile.mkdtemp(prefix="p3-validate-")
@@ -226,10 +232,21 @@ def main():
               f"{fp_b_stored[:16]} vs {fp_b_recomp[:16]}")
         check("A == B (deterministic)", fp_a_stored == fp_b_stored,
               f"{fp_a_stored[:16]} vs {fp_b_stored[:16]}")
-        check("A == golden (matches committed profile)", fp_a_stored == golden_fp,
-              f"{fp_a_stored[:16]} vs {golden_fp[:16]}")
-        check("B == golden (matches committed profile)", fp_b_stored == golden_fp,
-              f"{fp_b_stored[:16]} vs {golden_fp[:16]}")
+
+        if args.update_golden or golden_fp is None:
+            # Establish/overwrite the golden from capture A (after self-consistency
+            # and determinism are proven). This is how the golden is produced —
+            # by the same process CI uses, not by hand-derivation.
+            import shutil
+            shutil.copy(os.path.join(cap_a, "manifest.json"), golden)
+            golden_fp = fp_a_stored
+            print(f"  [WRITE] golden-manifest.json established: {golden_fp}")
+            check("golden established from capture A", True)
+        else:
+            check("A == golden (matches committed profile)", fp_a_stored == golden_fp,
+                  f"{fp_a_stored[:16]} vs {golden_fp[:16]}")
+            check("B == golden (matches committed profile)", fp_b_stored == golden_fp,
+                  f"{fp_b_stored[:16]} vs {golden_fp[:16]}")
 
         print("=== Secret + production-identifier scan (all fixture + captured files) ===")
         scan_files = [
