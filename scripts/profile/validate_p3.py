@@ -82,9 +82,12 @@ def run(cmd, **kw):
     return subprocess.run(cmd, **kw)
 
 
-# Pinned to match production (PostgreSQL 16.14). Floating tags like
-# postgres:16-alpine cause golden mismatches across patch versions.
-PG_IMAGE = os.environ.get("P3_PG_IMAGE", "postgres:16.14-alpine")
+# Pinned by digest for immutability (matches production PostgreSQL 16.14).
+# Floating tags like postgres:16-alpine drift across patch versions.
+PG_IMAGE = os.environ.get(
+    "P3_PG_IMAGE",
+    "postgres@sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382",
+)
 
 
 def docker_run_pg(name, network):
@@ -175,10 +178,13 @@ def main():
             print(f"FAIL: missing {f}", file=sys.stderr)
             return 1
 
-    # Golden may not exist yet on first run (--update-golden establishes it)
+    # Golden must exist for verify mode. Only --update-golden can establish it.
     golden_fp = None
     if os.path.exists(golden):
         golden_fp = json.load(open(golden))["fingerprint_sha256"]
+    elif not args.update_golden:
+        print(f"FAIL: {golden} not found. Run with --update-golden to establish it.", file=sys.stderr)
+        return 1
 
     net = "p3-validate-net"
     containers = ["p3-validate-a", "p3-validate-b"]
@@ -233,7 +239,7 @@ def main():
         check("A == B (deterministic)", fp_a_stored == fp_b_stored,
               f"{fp_a_stored[:16]} vs {fp_b_stored[:16]}")
 
-        if args.update_golden or golden_fp is None:
+        if args.update_golden:
             # Establish/overwrite the golden from capture A — but ONLY if
             # self-consistency and determinism checks passed.
             if not failures:

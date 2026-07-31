@@ -180,8 +180,14 @@ jobs:
             -e DB_AVAILABLE=1 \
             python:3.12-slim \
             sh -c "pip install -q psycopg2-binary 2>/dev/null; python test_migration_state.py"
-          # P3 validation: establishes golden on first run, verifies on subsequent
+          # P3 validation: establish golden as artifact (temporary — remove after committing)
           python scripts/profile/validate_p3.py --update-golden
+
+      - name: Upload P3 golden artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-golden-manifest
+          path: migrations/profiles/p3/golden-manifest.json
 
   # ─── Python worker ───
   worker:
