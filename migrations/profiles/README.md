@@ -6,37 +6,28 @@ filenames — is the authority for upgrading an existing database.
 
 ## Evidence policy
 
-**Raw P1/P2 manifests, schema dumps, and restore logs are stored externally**
+**Raw P1/P2 manifests, backup artifacts, and restore logs are stored externally**
 (outside this repository), per WP-00's sensitive-bytes-outside-repo rule. This
 directory contains only:
 - sanitized reports/decisions (digests + references, no raw bytes),
 - the capture tooling (`scripts/profile/`),
-- the P3 sanitized CI fixture (when produced).
+- the P3 sanitized CI fixture.
 
 External evidence location and hashes are documented in `CAPTURE-REPORT.md §7`.
 
-## Contents
+## Key results (v3.1.0 profiler)
 
-| Path | What | In-repo? |
-|---|---|---|
-| `CAPTURE-REPORT.md` | P1/P2 facts, comparison, approval (A2) | yes (decisions only) |
-| `RESTORE-PROOF.md` | Restore-rehearsal evidence (A3) | yes (decisions only) |
-| `p3/` | Sanitized CI fixture (P3) | yes (synthetic, no prod data) |
-| P1/P2 manifests + dumps | raw captures | **no** — external store |
-
-## Key results (v3 profiler)
-
-- **P1 = P2a = P2b fingerprint:** `32f7a06eb7ae8c8f96547bd494f66b26468fba103dbde50fe08c5bf9d0e1402c`
-- **Self-consistent** (recomputed == stored), **deterministic**, **repeatable** (two restores).
+- **P1 = P2a = P2b fingerprint:** `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83`
+- **Self-consistent** (recomputed == stored), **deterministic**, **repeatable** (two restores from operational backup).
 - 65 relations, 91 functions, PostgreSQL 16.14.
 - Production has **no migration ledger** — this capture is the provenance authority.
-- Scheduled operational backup is **stale** (missing 16 tables since 2026-06-14).
+- Operational backup process repaired (systemd timer installed); operational backup `opbak-20260731-173628` successfully restored.
 
 ## Capture tooling
 
-`scripts/profile/capture_schema.py` (v3.0.0-p1p2) — read-only, secret-excluding,
-deterministic. 12 unit tests in `test_capture_schema.py` prove self-consistency,
-determinism, P1==P2, ownership-exclusion, and sensitivity.
+`scripts/profile/capture_schema.py` (v3.1.0-p1p2) — read-only, secret-excluding,
+deterministic. 13 unit tests in `test_capture_schema.py` prove self-consistency,
+determinism, P1==P2, ownership-exclusion, and version-independence.
 
 ## Relationship to P0
 

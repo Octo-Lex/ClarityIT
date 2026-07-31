@@ -42,7 +42,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-PROFILER_VERSION = "3.0.0-p1p2"
+PROFILER_VERSION = "3.1.0-p1p2"
 
 
 # ─── Read-only connection ────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 {
-  "captured_at_utc": "2026-07-31T15:56:56+00:00",
+  "captured_at_utc": "2026-07-31T22:13:36+00:00",
   "columns": {
     "public.action_outcomes": [
       {
@@ -6266,11 +6266,11 @@
       }
     ]
   },
-  "fingerprint_sha256": "88563c6e7a89f494c31ff364bbfe30ac28b00b323ef577e3b10777fd27151d20",
+  "fingerprint_sha256": "a3e97ea4ffb059a30d98da3ea2729e7a32d3465592cef8b503f3311841e4c111",
   "functions": [
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.adoc_set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.updated_at = NOW();\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.adoc_set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.updated_at = NOW();\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "adoc_set_updated_at",
       "schema": "public"
     },
@@ -6600,31 +6600,31 @@
     },
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.kc_search_vector_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.search_vector :=\n        setweight(to_tsvector('english', coalesce(NEW.heading, '')), 'B') ||\n        setweight(to_tsvector('english', coalesce(NEW.content_text, '')), 'C');\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.kc_search_vector_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.search_vector :=\r\n        setweight(to_tsvector('english', coalesce(NEW.heading, '')), 'B') ||\r\n        setweight(to_tsvector('english', coalesce(NEW.content_text, '')), 'C');\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "kc_search_vector_update",
       "schema": "public"
     },
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.ki_search_vector_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.search_vector :=\n        setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||\n        setweight(to_tsvector('english', coalesce(NEW.summary, '')), 'B') ||\n        setweight(to_tsvector('english', coalesce(NEW.content_text, '')), 'C');\n    NEW.updated_at := NOW();\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.ki_search_vector_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.search_vector :=\r\n        setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||\r\n        setweight(to_tsvector('english', coalesce(NEW.summary, '')), 'B') ||\r\n        setweight(to_tsvector('english', coalesce(NEW.content_text, '')), 'C');\r\n    NEW.updated_at := NOW();\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "ki_search_vector_update",
       "schema": "public"
     },
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.ki_set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    -- Don't override if search_vector trigger already set it\n    IF NEW.updated_at = OLD.updated_at THEN\n        NEW.updated_at := NOW();\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.ki_set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    -- Don't override if search_vector trigger already set it\r\n    IF NEW.updated_at = OLD.updated_at THEN\r\n        NEW.updated_at := NOW();\r\n    END IF;\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "ki_set_updated_at",
       "schema": "public"
     },
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.normalize_team_slug()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.slug := LOWER(TRIM(REGEXP_REPLACE(NEW.slug, '[^a-z0-9-]', '-', 'g')));\n    NEW.slug := TRIM(BOTH '-' FROM NEW.slug);\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.normalize_team_slug()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.slug := LOWER(TRIM(REGEXP_REPLACE(NEW.slug, '[^a-z0-9-]', '-', 'g')));\r\n    NEW.slug := TRIM(BOTH '-' FROM NEW.slug);\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "normalize_team_slug",
       "schema": "public"
     },
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.normalize_user_email()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.email := LOWER(TRIM(NEW.email));\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.normalize_user_email()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.email := LOWER(TRIM(NEW.email));\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "normalize_user_email",
       "schema": "public"
     },
@@ -6750,13 +6750,13 @@
     },
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.prevent_bootstrap_unlock()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    IF OLD.is_locked = TRUE AND NEW.is_locked = FALSE THEN\n        RAISE EXCEPTION 'Bootstrap lock cannot be reversed';\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.prevent_bootstrap_unlock()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    IF OLD.is_locked = TRUE AND NEW.is_locked = FALSE THEN\r\n        RAISE EXCEPTION 'Bootstrap lock cannot be reversed';\r\n    END IF;\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "prevent_bootstrap_unlock",
       "schema": "public"
     },
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.protect_last_team_owner()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nDECLARE\n    owner_role_id UUID;\n    admin_count INT;\nBEGIN\n    SELECT id INTO owner_role_id FROM roles WHERE name = 'owner';\n\n    -- On role change away from owner\n    IF TG_OP = 'UPDATE' AND OLD.role_id = owner_role_id AND NEW.role_id != owner_role_id THEN\n        SELECT COUNT(*) INTO admin_count\n        FROM team_memberships\n        WHERE team_id = NEW.team_id AND role_id = owner_role_id;\n        IF admin_count <= 1 THEN\n            RAISE EXCEPTION 'Cannot remove the last owner from team';\n        END IF;\n    END IF;\n\n    -- On deletion of an owner\n    IF TG_OP = 'DELETE' AND OLD.role_id = owner_role_id THEN\n        SELECT COUNT(*) INTO admin_count\n        FROM team_memberships\n        WHERE team_id = OLD.team_id AND role_id = owner_role_id;\n        IF admin_count <= 1 THEN\n            RAISE EXCEPTION 'Cannot remove the last owner from team';\n        END IF;\n    END IF;\n\n    IF TG_OP = 'DELETE' THEN\n        RETURN OLD;\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.protect_last_team_owner()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    owner_role_id UUID;\r\n    admin_count INT;\r\nBEGIN\r\n    SELECT id INTO owner_role_id FROM roles WHERE name = 'owner';\r\n\r\n    -- On role change away from owner\r\n    IF TG_OP = 'UPDATE' AND OLD.role_id = owner_role_id AND NEW.role_id != owner_role_id THEN\r\n        SELECT COUNT(*) INTO admin_count\r\n        FROM team_memberships\r\n        WHERE team_id = NEW.team_id AND role_id = owner_role_id;\r\n        IF admin_count <= 1 THEN\r\n            RAISE EXCEPTION 'Cannot remove the last owner from team';\r\n        END IF;\r\n    END IF;\r\n\r\n    -- On deletion of an owner\r\n    IF TG_OP = 'DELETE' AND OLD.role_id = owner_role_id THEN\r\n        SELECT COUNT(*) INTO admin_count\r\n        FROM team_memberships\r\n        WHERE team_id = OLD.team_id AND role_id = owner_role_id;\r\n        IF admin_count <= 1 THEN\r\n            RAISE EXCEPTION 'Cannot remove the last owner from team';\r\n        END IF;\r\n    END IF;\r\n\r\n    IF TG_OP = 'DELETE' THEN\r\n        RETURN OLD;\r\n    END IF;\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "protect_last_team_owner",
       "schema": "public"
     },
@@ -6834,7 +6834,7 @@
     },
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.updated_at := NOW();\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.updated_at := NOW();\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "set_updated_at",
       "schema": "public"
     },
@@ -6966,7 +6966,7 @@
     },
     {
       "args": "",
-      "body": "CREATE OR REPLACE FUNCTION public.trg_artifacts_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.updated_at = NOW();\n    RETURN NEW;\nEND;\n$function$\n",
+      "body": "CREATE OR REPLACE FUNCTION public.trg_artifacts_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.updated_at = NOW();\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
       "name": "trg_artifacts_updated_at",
       "schema": "public"
     },
@@ -8499,7 +8499,7 @@
       "standard_conforming_strings": "on"
     }
   },
-  "profiler_version": "3.0.0-p1p2",
+  "profiler_version": "3.1.0-p1p2",
   "relations": [
     {
       "kind": "S",
