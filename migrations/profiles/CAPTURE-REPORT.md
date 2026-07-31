@@ -24,15 +24,15 @@ Per Migration spec §2.2 / §4.3 and WP-00 G1:
 | Item | Value |
 |---|---|
 | PostgreSQL | 16.14 (Alpine) |
-| Schema fingerprint (P1 = P2a = P2b) | `32f7a06eb7ae8c8f96547bd494f66b26468fba103dbde50fe08c5bf9d0e1402c` |
+| Schema fingerprint (P1 = P2a = P2b) | `100cb5f30a45b77728da369291eae60a7538a7545c521308548d8b2570c48dab` |
 | Relations | 65 |
 | Functions | 91 |
 | Schemas | `public` |
 | Self-consistent fingerprint | ✅ (recomputed == stored) |
 | Deterministic | ✅ (re-capture identical) |
-| Repeatability (P2a == P2b) | ✅ (two independent restores, identical fingerprint) |
+| Repeatability (P2a == P2b) | ✅ (two independent restores from operational backup, identical fingerprint) |
 
-**P1 == P2: MATCH.** The production schema restores cleanly and is reproducible.
+**P1 == P2: MATCH.** The production schema restores cleanly and is reproducible from the operational backup.
 
 ## 3. Fingerprint properties (corrected from v2)
 
