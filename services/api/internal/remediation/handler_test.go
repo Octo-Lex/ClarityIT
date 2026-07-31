@@ -580,10 +580,18 @@ func TestIdempotencyConflict(t *testing.T) {
 	u := uniq()
 
 	// Insert processing key
-	e.pool.Exec(t.Context(),
-		`INSERT INTO idempotency_keys (scope_type, scope_id, key, request_method, request_path, status, expires_at)
-		 VALUES ('user', $1, $2, 'POST', '/remediations', 'processing', NOW() + interval '1 hour')`,
-		e.userID, "idem-conflict-"+u)
+	if _, err := e.pool.Exec(t.Context(),
+		`INSERT INTO idempotency_keys (
+			scope_type, scope_id, key, request_method, request_path,
+			request_fingerprint, status, expires_at
+		 )
+		 VALUES (
+			'user', $1, $2, 'POST', '/remediations',
+			'test-processing-fingerprint', 'processing', NOW() + interval '1 hour'
+		 )`,
+		e.userID, "idem-conflict-"+u); err != nil {
+		t.Fatalf("insert processing idempotency key: %v", err)
+	}
 
 	body := fmt.Sprintf(`{"title":"Conflict","source":"operator","risk_level":"low","steps":[{"step_order":1,"tool_name":"objects.add_comment","risk_level":"low","parameters":{}}]}`)
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/teams/%s/remediations", e.teamID), strings.NewReader(body))
