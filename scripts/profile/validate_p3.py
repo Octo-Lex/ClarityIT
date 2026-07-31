@@ -234,14 +234,17 @@ def main():
               f"{fp_a_stored[:16]} vs {fp_b_stored[:16]}")
 
         if args.update_golden or golden_fp is None:
-            # Establish/overwrite the golden from capture A (after self-consistency
-            # and determinism are proven). This is how the golden is produced —
-            # by the same process CI uses, not by hand-derivation.
-            import shutil
-            shutil.copy(os.path.join(cap_a, "manifest.json"), golden)
-            golden_fp = fp_a_stored
-            print(f"  [WRITE] golden-manifest.json established: {golden_fp}")
-            check("golden established from capture A", True)
+            # Establish/overwrite the golden from capture A — but ONLY if
+            # self-consistency and determinism checks passed.
+            if not failures:
+                import shutil
+                shutil.copy(os.path.join(cap_a, "manifest.json"), golden)
+                golden_fp = fp_a_stored
+                print(f"  [WRITE] golden-manifest.json established: {golden_fp}")
+                check("golden established from capture A", True)
+            else:
+                check("golden established from capture A", False,
+                      "skipped — prior checks failed")
         else:
             check("A == golden (matches committed profile)", fp_a_stored == golden_fp,
                   f"{fp_a_stored[:16]} vs {golden_fp[:16]}")
