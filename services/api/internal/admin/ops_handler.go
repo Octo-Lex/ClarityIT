@@ -84,7 +84,7 @@ func (h *OpsHandler) Outbox(w http.ResponseWriter, r *http.Request) {
 	limit := parseLimit(r.URL.Query().Get("limit"), 50)
 
 	rows, err := h.pool.Query(ctx, `
-		SELECT id::text, event_type, aggregate_type, aggregate_id, created_at, processed_at, dead_lettered_at, attempts, last_error
+		SELECT id::text, event_type, aggregate_type, aggregate_id::text, created_at, processed_at, dead_lettered_at, attempts, last_error
 		FROM outbox_events
 		WHERE processed_at IS NULL
 		ORDER BY created_at DESC
@@ -99,20 +99,27 @@ func (h *OpsHandler) Outbox(w http.ResponseWriter, r *http.Request) {
 	type OutboxEvent struct {
 		ID             string     `json:"id"`
 		EventType      string     `json:"event_type"`
-		AggregateType  string     `json:"aggregate_type"`
-		AggregateID    string     `json:"aggregate_id"`
+		AggregateType  *string    `json:"aggregate_type"`
+		AggregateID    *string    `json:"aggregate_id"`
 		CreatedAt      time.Time  `json:"created_at"`
 		ProcessedAt    *time.Time `json:"processed_at"`
 		DeadLetteredAt *time.Time `json:"dead_lettered_at"`
 		Attempts       int        `json:"attempts"`
-		ErrorMesssage  string     `json:"error_message"`
+		ErrorMessage   *string    `json:"error_message"`
 	}
 
 	var events []OutboxEvent
 	for rows.Next() {
 		var e OutboxEvent
-		rows.Scan(&e.ID, &e.EventType, &e.AggregateType, &e.AggregateID, &e.CreatedAt, &e.ProcessedAt, &e.DeadLetteredAt, &e.Attempts, &e.ErrorMesssage)
+		if sErr := rows.Scan(&e.ID, &e.EventType, &e.AggregateType, &e.AggregateID, &e.CreatedAt, &e.ProcessedAt, &e.DeadLetteredAt, &e.Attempts, &e.ErrorMessage); sErr != nil {
+			writeErr(w, http.StatusInternalServerError, "Failed to scan outbox row")
+			return
+		}
 		events = append(events, e)
+	}
+	if err := rows.Err(); err != nil {
+		writeErr(w, http.StatusInternalServerError, "Outbox row iteration error")
+		return
 	}
 	if events == nil {
 		events = []OutboxEvent{}
@@ -127,7 +134,7 @@ func (h *OpsHandler) DeadLetters(w http.ResponseWriter, r *http.Request) {
 	limit := parseLimit(r.URL.Query().Get("limit"), 50)
 
 	rows, err := h.pool.Query(ctx, `
-		SELECT id::text, event_type, aggregate_type, aggregate_id, created_at, dead_lettered_at, attempts, last_error
+		SELECT id::text, event_type, aggregate_type, aggregate_id::text, created_at, dead_lettered_at, attempts, last_error
 		FROM outbox_events
 		WHERE dead_lettered_at IS NOT NULL
 		ORDER BY dead_lettered_at DESC
@@ -142,20 +149,27 @@ func (h *OpsHandler) DeadLetters(w http.ResponseWriter, r *http.Request) {
 	type DeadLetter struct {
 		ID             string    `json:"id"`
 		EventType      string    `json:"event_type"`
-		AggregateType  string    `json:"aggregate_type"`
-		AggregateID    string    `json:"aggregate_id"`
+		AggregateType  *string   `json:"aggregate_type"`
+		AggregateID    *string   `json:"aggregate_id"`
 		CreatedAt      time.Time `json:"created_at"`
 		DeadLetteredAt time.Time `json:"dead_lettered_at"`
 		Attempts       int       `json:"attempts"`
-		ErrorMessage   string    `json:"error_message"`
+		ErrorMessage   *string   `json:"error_message"`
 		// NOTE: payload intentionally excluded — never expose raw event payloads
 	}
 
 	var items []DeadLetter
 	for rows.Next() {
 		var d DeadLetter
-		rows.Scan(&d.ID, &d.EventType, &d.AggregateType, &d.AggregateID, &d.CreatedAt, &d.DeadLetteredAt, &d.Attempts, &d.ErrorMessage)
+		if sErr := rows.Scan(&d.ID, &d.EventType, &d.AggregateType, &d.AggregateID, &d.CreatedAt, &d.DeadLetteredAt, &d.Attempts, &d.ErrorMessage); sErr != nil {
+			writeErr(w, http.StatusInternalServerError, "Failed to scan dead-letter row")
+			return
+		}
 		items = append(items, d)
+	}
+	if err := rows.Err(); err != nil {
+		writeErr(w, http.StatusInternalServerError, "Dead-letter row iteration error")
+		return
 	}
 	if items == nil {
 		items = []DeadLetter{}
