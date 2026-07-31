@@ -25,6 +25,10 @@ type IdempotencyConfig struct {
 	Expiry time.Duration
 }
 
+const maxIdempotencyRequestBodyBytes int64 = 1 << 20
+
+var errIdempotencyRequestBodyTooLarge = errors.New("idempotency request body too large")
+
 // Idempotency reserves and validates idempotency keys for mutating requests.
 // Returns a chi-compatible middleware function.
 // Usage: pass an Idempotency-Key header. If the key was already used, returns the cached response.
@@ -47,6 +51,10 @@ func Idempotency(cfg IdempotencyConfig) func(http.Handler) http.Handler {
 
 			fingerprint, err := requestFingerprint(r)
 			if err != nil {
+				if errors.Is(err, errIdempotencyRequestBodyTooLarge) {
+					writeErr(w, http.StatusRequestEntityTooLarge, "Request body exceeds 1 MiB limit")
+					return
+				}
 				writeErr(w, http.StatusBadRequest, "Unable to fingerprint request")
 				return
 			}
@@ -152,14 +160,22 @@ func Idempotency(cfg IdempotencyConfig) func(http.Handler) http.Handler {
 // requestFingerprint returns a stable digest over the request semantics used by
 // the idempotency contract. JSON bodies and query maps are canonicalized so
 // insignificant object-key order and JSON whitespace do not change the digest.
-// The request body is restored before returning.
+// The request body is restored before returning. Reads are capped so an
+// idempotency key cannot turn an unbounded request body into unbounded memory.
 func requestFingerprint(r *http.Request) (string, error) {
 	var bodyBytes []byte
 	if r.Body != nil {
+		if r.ContentLength > maxIdempotencyRequestBodyBytes {
+			return "", errIdempotencyRequestBodyTooLarge
+		}
+
 		var err error
-		bodyBytes, err = io.ReadAll(r.Body)
+		bodyBytes, err = io.ReadAll(io.LimitReader(r.Body, maxIdempotencyRequestBodyBytes+1))
 		if err != nil {
 			return "", err
+		}
+		if int64(len(bodyBytes)) > maxIdempotencyRequestBodyBytes {
+			return "", errIdempotencyRequestBodyTooLarge
 		}
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	}
