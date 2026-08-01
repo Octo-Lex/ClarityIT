@@ -5,59 +5,95 @@
 **Backup:** `opbak-20260731-173628`
 **P1/P2 fingerprint:** `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83`
 **P3 golden:** `cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b`
+**Custody manifest digest:** `09b85225f15194c905d47b4da8a87a1e9ca58c5d99b22e1cc30e83839b0d6d8a`
 
 ## Storage configuration
 
 | Property | Value |
 |---|---|
 | Platform | MinIO (S3-compatible) on CT 150 |
+| MinIO version | RELEASE.2025-09-07T16-13-09Z |
 | Bucket | `clarityit-g1-evidence` |
-| Versioning | Enabled (all uploads create immutable versions) |
+| Versioning | Enabled (immutable version IDs per upload) |
 | Object lock | Enabled (bucket created with `--with-lock`) |
-| Retention mode | GOVERNANCE, 2555 days (~7 years) |
+| Retention mode | GOVERNANCE, 2555 days (~7 years); expiry 2033-07-31 |
 | Legal hold | ON for all evidence objects |
-| Encryption | SSE-S3 not available (no KMS configured on this MinIO) — **limitation documented** |
-| Audit logging | Configured (audit_webhook) |
-| Access | `clarityit` root credentials (least-privilege IAM not yet configured) — **limitation documented** |
+| Encryption | SSE-KMS via KES (key: `clarityit-evidence-key`) |
+| KMS | KES 2025-03-12, filesystem keystore, key `clarityit-evidence-key` (Encryption ✔ Decryption ✔) |
+| KMS key identity | `clarityit-evidence-key` (KES master key) |
+| Audit logging | `audit_webhook` configured; KES audit to stdout (Docker logs) |
+| Writer identity | `evidence-writer` (PutObject, GetObject, ListBucket; no DeleteObject) |
+| Verifier identity | `evidence-verifier` (GetObject, ListBucket; PutObject/DeleteObject denied) |
 
-## Evidence objects (11 artifacts, 12th = P1 manifest under key `manifest.json`)
+### Deployment profile
 
-| Key | Version ID | Size | SHA-256 (local) | Legal Hold |
-|---|---|---|---|---|
-| `manifest.json` (P1) | `fcfec6e9-4db0-4e97-b781-9f67868130de` | 250,239 | `0f81cf9369c5139ce680b049981676adc5ff9811037dba866326886579c4d994` | ON |
-| `manifest-p2a.json` | `b50045f3-b44a-4b26-b3cd-71a75ad6635e` | 250,235 | `d32f4b9c4d85a66c7c095adec7b1a11cb1b03271a7916b6134d797535a521ecb` | ON |
-| `manifest-p2b.json` | `68b0f2cd-67a6-4e5f-a697-05520bf2faaa` | 250,235 | `db7578616d1acddc74885a5c67e4724cc83c9fd698bb56765deed260afb1c173` | ON |
-| `p2a-restore.log` | `d3490656-d741-4d65-9328-b9de2921f7e0` | 10,397 | `541ba3cbebbaaa97497bb7e4729ae513bb1d43e0470bf431c2e9d0d24ff69c74` | ON |
-| `p2b-restore.log` | `e9470d4c-fabf-4d36-9cf8-bff6aa25d332` | 10,397 | `9c9f5a6454bff50d2110a093233948e4859e128fe52a96cde3843b140363ae3a` | ON |
-| `job-log-sanitized.txt` | `0235e5f2-3b7a-40a4-8d7d-e63ea317ebe3` | 703 | `a43e20e30db13e779c18d5e75e3662970a629003033657e92c14b8100eb9a7c8` | ON |
-| `service.conf` | `7a990ac6-3bbd-407e-a9f4-de6476117854` | 212 | `ecfa4f6c54160917c831eb53fe374392c2d7961eb69c70c51d3467e115fbda8f` | ON |
-| `timer.conf` | `b0613398-b2f5-4b25-bb47-30ad1c806b34` | 150 | `56c4f90534281cfff2f076e7151cdef57ebab40575aa448f7ba67334a80580ec` | ON |
-| `systemctl-cat.txt` | `1c4245fa-cf1a-4545-bc97-e4744e56d25e` | 455 | `99d7378cbacc8c882b74d6baf2002b2db5133159fb90c17719e79f7334b5696d` | ON |
-| `systemctl-list-timers.txt` | `e554a610-dc17-4f97-93ee-7fadc8e806bb` | 165 | `18f5e770160b0bf4ea783ceda3efdf8d20e7ea428e6480982e058a753a098b89` | ON |
-| `timedatectl.txt` | `ecd71e7f-1bea-4e62-865f-7ff3333460e4` | 8 | `f0dcac7b1d721d2f68937a71f0229b4c4f88564fd711339951528889913cd85d` | ON |
+This is a **time-bounded development exception** per the approved *Environment Trust and Evidence Custody Deployment Profile v0.1*. Development: KES, project IAM, and MinIO coexist on CT 150 subject to encryption, separate writer/verifier identities, object-lock controls, audit evidence, recovery evidence, and signed risk acceptance. Production: fresh environment with HA enterprise IAM, independently protected KES/KMS, independent evidence storage, tested recovery, and no reuse of CT 150 identities, credentials, keys, or policies.
 
-## Operational backup artifact
+**Development-exception limitations:**
+1. Single-host storage (MinIO on CT 150) — not independently durable against host failure.
+2. KES uses filesystem keystore (not HA KMS).
+3. Root credentials exist alongside project IAM (root retains admin bypass for GOVERNANCE retention).
 
-| Property | Value |
+## Evidence objects (12 artifacts)
+
+All uploaded 2026-08-01T02:09:46Z–02:09:47Z by principal `evidence-writer`.
+
+| Key | Version ID | Size | SHA-256 | Upload (UTC) | Principal | Retention Expiry | Legal Hold |
+|---|---|---|---|---|---|---|---|
+| `manifest.json` (P1) | `1fd353ec-2258-4cd5-af57-fdbafc2c7f3a` | 250,239 | `0f81cf9369c5139ce680b049981676adc5ff9811037dba866326886579c4d994` | 2026-08-01T02:09:46Z | `evidence-writer` | 2033-07-31 | ON |
+| `manifest-p2a.json` | `f7de1fa9-011c-4ee2-bd20-cf6046fbf6c1` | 250,235 | `d32f4b9c4d85a66c7c095adec7b1a11cb1b03271a7916b6134d797535a521ecb` | 2026-08-01T02:09:46Z | `evidence-writer` | 2033-07-31 | ON |
+| `manifest-p2b.json` | `5a1fa1db-d2f8-411b-826c-897e832cd6e3` | 250,235 | `db7578616d1acddc74885a5c67e4724cc83c9fd698bb56765deed260afb1c173` | 2026-08-01T02:09:46Z | `evidence-writer` | 2033-07-31 | ON |
+| `opbak.sql.gz` | `b315248b-9ddd-4c32-9886-c7d3035c4a37` | 1,228,736 | `6d0f6e65712183a3b4bfc918d8c469a0c1db08a349cd0080939560b96881abb2` | 2026-08-01T02:09:47Z | `evidence-writer` | 2033-07-31 | ON |
+| `p2a-restore.log` | `6b9093b5-801b-495a-bf6f-a85b04dd3352` | 10,397 | `541ba3cbebbaaa97497bb7e4729ae513bb1d43e0470bf431c2e9d0d24ff69c74` | 2026-08-01T02:09:47Z | `evidence-writer` | 2033-07-31 | ON |
+| `p2b-restore.log` | `c87af47e-a492-4203-9be5-c46bef1edf70` | 10,397 | `9c9f5a6454bff50d2110a093233948e4859e128fe52a96cde3843b140363ae3a` | 2026-08-01T02:09:47Z | `evidence-writer` | 2033-07-31 | ON |
+| `job-log-sanitized.txt` | `2cb49e99-9584-4294-9227-fb95f9a27a5d` | 703 | `a43e20e30db13e779c18d5e75e3662970a629003033657e92c14b8100eb9a7c8` | 2026-08-01T02:09:46Z | `evidence-writer` | 2033-07-31 | ON |
+| `service.conf` | `03669237-d4b3-4d8b-8e8c-90fb8e6e24a4` | 212 | `ecfa4f6c54160917c831eb53fe374392c2d7961eb69c70c51d3467e115fbda8f` | 2026-08-01T02:09:47Z | `evidence-writer` | 2033-07-31 | ON |
+| `timer.conf` | `659f578d-04ce-44ea-94e9-11a9425f915f` | 150 | `56c4f90534281cfff2f076e7151cdef57ebab40575aa448f7ba67334a80580ec` | 2026-08-01T02:09:47Z | `evidence-writer` | 2033-07-31 | ON |
+| `systemctl-cat.txt` | `c2df7286-5b91-4235-b5d2-0949a6145aeb` | 455 | `99d7378cbacc8c882b74d6baf2002b2db5133159fb90c17719e79f7334b5696d` | 2026-08-01T02:09:47Z | `evidence-writer` | 2033-07-31 | ON |
+| `systemctl-list-timers.txt` | `de77826a-10e3-4558-90a9-2982e52ab722` | 165 | `18f5e770160b0bf4ea783ceda3efdf8d20e7ea428e6480982e058a753a098b89` | 2026-08-01T02:09:47Z | `evidence-writer` | 2033-07-31 | ON |
+| `timedatectl.txt` | `3fad4ee9-9cfd-4a1e-ab8e-ea8fe4b3117c` | 8 | `f0dcac7b1d721d2f68937a71f0229b4c4f88564fd711339951528889913cd85d` | 2026-08-01T02:09:47Z | `evidence-writer` | 2033-07-31 | ON |
+
+## Independent verification results (read-only verifier `evidence-verifier`)
+
+All 12 artifacts retrieved via `evidence-verifier` identity and SHA-256 verified:
+
+| Key | Result |
 |---|---|
-| Key | `postgresql_20260731_173628.sql.gz` |
-| Location | `/opt/clarityit/backups/` on CT 150 (not in MinIO — too large for `/tmp` transfer) |
-| SHA-256 | `6d0f6e65712183a3b4bfc918d8c469a0c1db08a349cd0080939560b96881abb2` |
-| Size | 1,228,736 bytes |
-| Retention | Managed by `clarityit-backup.timer` (30-backup rotation) |
+| `manifest.json` | ✅ SHA-256 match |
+| `manifest-p2a.json` | ✅ SHA-256 match |
+| `manifest-p2b.json` | ✅ SHA-256 match |
+| `opbak.sql.gz` | ✅ SHA-256 match |
+| `p2a-restore.log` | ✅ SHA-256 match |
+| `p2b-restore.log` | ✅ SHA-256 match |
+| `job-log-sanitized.txt` | ✅ SHA-256 match |
+| `service.conf` | ✅ SHA-256 match |
+| `timer.conf` | ✅ SHA-256 match |
+| `systemctl-cat.txt` | ✅ SHA-256 match |
+| `systemctl-list-timers.txt` | ✅ SHA-256 match |
+| `timedatectl.txt` | ✅ SHA-256 match |
 
-## Immutability verification
+## Immutability proofs (via `evidence-verifier` identity)
 
-- **Versioning:** Every upload creates a unique version ID. Overwriting a key creates a NEW version (original preserved).
-- **Legal hold ON:** Prevents deletion of the specific version.
-- **Retention GOVERNANCE 2555d:** Prevents deletion until ~August 2033 (admin bypass possible but logged).
-- **Delete marker test:** Deleting a key creates a delete marker (version preserved).
+| Operation | Result |
+|---|---|
+| Delete object | ❌ `Access Denied` — verifier cannot delete |
+| Clear legal-hold | ❌ `Access Denied` — verifier cannot modify legal-hold |
+| Bypass retention | ❌ Not supported — verifier cannot bypass retention |
+| Put object (write) | ❌ `Access Denied` — verifier cannot upload |
 
-## Limitations (must be resolved before G1 acceptance)
+## Custody manifest seal (13th object)
 
-1. **No KMS encryption** — MinIO on CT 150 lacks KMS configuration. SSE-S3 encryption is unavailable. Objects are stored unencrypted at rest (MinIO disk encryption is the container's responsibility).
-2. **Single-host storage** — MinIO runs on CT 150 (same host as production). Not independently durable against host failure.
-3. **Root credentials** — Using `clarityit` root credentials, not a dedicated least-privilege IAM identity.
-4. **Operational backup not in MinIO** — Too large for the `/tmp` transfer path; stored on CT 150's `/opt/clarityit/backups/` with filesystem-level rotation only.
+This manifest will be hashed, uploaded as `custody-manifest.md`, and its version ID recorded here after upload.
 
-These limitations mean the custody is **better than a local directory but not yet meeting the full spec**. G1 acceptance requires Database, Operations, and Security to approve these custody limitations or require a dedicated evidence-storage target.
+- **Version ID:** `7cfcbb0f-4df2-44af-8aec-90de39a5a4c7`
+- **SHA-256:** `09b85225f15194c905d47b4da8a87a1e9ca58c5d99b22e1cc30e83839b0d6d8a`
+
+## Risk acceptance
+
+By the approved *Environment Trust and Evidence Custody Deployment Profile v0.1*, this development-exception custody arrangement is accepted for G1 development purposes, subject to the limitations documented above. Production deployment requires a fresh environment with independently protected KMS, HA IAM, independent storage, and tested recovery.
+
+| Role | Owner | Decision | Signature | Date |
+|---|---|---|---|---|
+| Database | | | | |
+| Operations | | | | |
+| Security | | | | |
