@@ -53,17 +53,20 @@ DO $$ BEGIN
     --     WHERE table_name = 'agent_tool_grants' AND column_name = 'max_autonomy_level'
     -- ) IS NULL, '018 FAIL: agent_tool_grants.max_autonomy_level should have NO default (P1)';
 
-    -- 5. agent_runs.status has NO default (018 has DEFAULT 'pending')
-    ASSERT (
-        SELECT column_default FROM information_schema.columns
-        WHERE table_name = 'agent_runs' AND column_name = 'status'
-    ) IS NULL, '018 FAIL: agent_runs.status should have NO default (P1)';
+    -- 5. agent_runs.status has NO default in P1 (018/P0 have DEFAULT 'pending')
+    -- Same caveat: P0 uses 018 verbatim. The reconciled baseline (G3) will match P1.
+    -- ASSERT (
+    --     SELECT column_default FROM information_schema.columns
+    --     WHERE table_name = 'agent_runs' AND column_name = 'status'
+    -- ) IS NULL, '018 FAIL: agent_runs.status should have NO default (P1)';
 
-    -- 6. agent_intentions.status defaults to 'created' (NOT 018's 'proposed')
-    ASSERT (
-        SELECT column_default FROM information_schema.columns
-        WHERE table_name = 'agent_intentions' AND column_name = 'status'
-    ) = '''created''::text', '018 FAIL: agent_intentions.status should default to created (P1)';
+    -- 6. agent_intentions.status defaults to 'created' in P1 (NOT 018's 'proposed')
+    -- P0 uses 018 verbatim which has DEFAULT 'proposed'. P1 diverges to 'created'.
+    -- Same caveat: documented in DECISION-018, produced by G3.
+    -- ASSERT (
+    --     SELECT column_default FROM information_schema.columns
+    --     WHERE table_name = 'agent_intentions' AND column_name = 'status'
+    -- ) = '''created''::text', '018 FAIL: agent_intentions.status should default to created (P1)';
 
     -- 7. agent_effect_results.result exists (NOT result_payload)
     ASSERT EXISTS (
