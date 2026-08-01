@@ -1,4 +1,4 @@
-# WP-00 G1 — Evidence Custody Manifest (v2)
+# WP-00 G1 — Evidence Custody Manifest (v4)
 
 **Date:** 1 August 2026
 **Commit:** `22050b8`
@@ -9,8 +9,8 @@
 > **This manifest does not contain its own digest or version ID.**
 > The uploaded object's immutable version ID and SHA-256 are recorded in the
 > separate custody receipt (`CUSTODY-RECEIPT.md`) after upload, so the manifest
-> bytes never change after sealing. This manifest supersedes v1 (version
-> `11e6ab63-bb41-46dc-aff2-4ff50f85b761`) which is preserved as immutable history.
+> bytes never change after sealing. This manifest supersedes v3 (version
+> `1eaa75e6-e857-4cba-8b5c-af8cfe6b3f7b`) which is preserved as immutable history.
 
 ## Storage configuration
 
@@ -65,14 +65,19 @@ All uploaded 2026-08-01T02:09:46Z–02:09:47Z by `evidence-writer`. All SSE-KMS 
 
 All uploaded 2026-08-01T04:21:55Z by `evidence-writer`. All SSE-KMS encrypted, GOVERNANCE retention 2555d, legal-hold ON. All SHA-256 verified via `evidence-verifier`.
 
-| Key | Version ID | Size |
-|---|---|---|
-| `controls/per-object-metadata.txt` | `ba989131-9535-4407-b2b6-f6ccb0b4ae53` | 7,805 |
-| `controls/denial-tests.txt` | `5cbd0ade-1815-474c-8c34-73dd5d1f3cfb` | 2,822 |
-| `controls/bucket-config.txt` | `0b496a67-435d-4a0b-ae3e-3d5f38283b65` | 742 |
-| `controls/recovery-tests.txt` | `35311f6a-fdbc-4725-aca2-ad60d4890dd1` | 1,112 |
-| `controls/audit-evidence.txt` | `26b52737-78d9-4238-a0e0-a75576b123e5` | 805 |
-| `controls/stat-custody-manifest.json` | `2c807abd-cc73-47cd-a9f6-46bc7634985b` | 390 |
+| Key | Version ID | Size | SHA-256 |
+|---|---|---|---|
+| `controls/per-object-metadata.txt` | `ba989131-9535-4407-b2b6-f6ccb0b4ae53` | 7,805 | `5726fe655e2aab4988ec097fbfc42e1d21b6d3e90527d0dc51bb06bb3c0395eb` |
+| `controls/denial-tests.txt` | `5cbd0ade-1815-474c-8c34-73dd5d1f3cfb` | 2,822 | `6ee18846beaab6e3a354f0c4121e750b5eb54689ab276c70fb30149d6c7ea812` |
+| `controls/bucket-config.txt` | `0b496a67-435d-4a0b-ae3e-3d5f38283b65` | 742 | `df759108365853976b6a234694d400c6b6fc861bf52dbc34208faa999785834b` |
+| `controls/recovery-tests.txt` | `35311f6a-fdbc-4725-aca2-ad60d4890dd1` | 1,112 | `af9cd776d722b8427db4424d3182e5783d85662782feed353a7b510ca3782b91` |
+| `controls/audit-evidence.txt` | `26b52737-78d9-4238-a0e0-a75576b123e5` | 805 | `3406c398a67d99cedc564889ad2b53024ced6447583d751337b5a13b6bb6aa15` |
+| `controls/stat-custody-manifest.json` | `2c807abd-cc73-47cd-a9f6-46bc7634985b` | 390 | `027523d4fb882cc41f13decae174eb1b3a53e9d5593e6ffc3e85d310760feee5` |
+
+> **Note:** `controls/stat-custody-manifest.json` was captured before this v4
+> manifest was uploaded. It describes the prior v2 manifest (version
+> `11e6ab63-bb41-46dc-aff2-4ff50f85b761`), not this one. It is retained as
+> historical evidence of the sealing process.
 
 ## Denial test results summary
 
@@ -103,8 +108,9 @@ All uploaded 2026-08-01T04:21:55Z by `evidence-writer`. All SSE-KMS encrypted, G
 
 | Version | Version ID | Superseded by |
 |---|---|---|
-| v1 | `7cfcbb0f-4df2-44af-8aec-90de39a5a4c7` | v2 (`11e6ab63…`) |
-| v2 | `11e6ab63-bb41-46dc-aff2-4ff50f85b761` | v3 (this manifest) |
+| v1 | `7cfcbb0f-4df2-44af-8aec-90de39a5a4c7` | v2 |
+| v2 | `11e6ab63-bb41-46dc-aff2-4ff50f85b761` | v3 |
+| v3 | `1eaa75e6-e857-4cba-8b5c-af8cfe6b3f7b` | v4 (this manifest) |
 
 ## Risk acceptance
 

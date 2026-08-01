@@ -10,21 +10,21 @@
 This receipt is a **repository-side record** of the externally stored custody
 manifest. It does not alter the manifest's bytes.
 
-## Sealed custody manifest v3 (current)
+## Sealed custody manifest v4 (current)
 
 | Property | Value |
 |---|---|
 | Object key | `custody-manifest.md` |
 | Bucket | `clarityit-g1-evidence` |
-| Version ID | `1eaa75e6-e857-4cba-8b5c-af8cfe6b3f7b` |
-| Size | 6,675 bytes |
-| SHA-256 | `2f6aa8f192ebe08268b5d4833d46b5170e4f6464f1c77fdbeb1b13e22cbec1ee` |
-| Uploaded | 2026-08-01T04:23:26Z |
+| Version ID | `c7b86b9b-18fc-4504-942c-fe26ccc83f07` |
+| Size | 7,409 bytes |
+| SHA-256 | `75ce4f08f4afdc7cedff0e1d977026ec5b590f8822caefdc079905ed678130c1` |
+| Uploaded | 2026-08-01T04:50:35Z |
 | Principal | `evidence-writer` |
 | Encryption | SSE-KMS (key: `clarityit-evidence-key`) |
 | Retention | GOVERNANCE, 2555 days (expiry 2033-07-31) |
 | Legal hold | ON |
-| Verifier result | ✅ Full SHA-256 match via `evidence-verifier` (size=6675, sha256=2f6aa8f1…) |
+| Verifier result | ✅ Full SHA-256 match via `evidence-verifier` (size=7409, sha256=75ce4f08…) |
 
 ## Prior manifest versions (immutable history)
 
@@ -32,6 +32,7 @@ manifest. It does not alter the manifest's bytes.
 |---|---|---|---|
 | v1 | `7cfcbb0f-4df2-44af-8aec-90de39a5a4c7` | (pre-seal construction) | v2 |
 | v2 | `11e6ab63-bb41-46dc-aff2-4ff50f85b761` | `36eac69fd1c68204eb2450b0957ace64db51f8f106a754f340e8fb081ea021d0` | v3 |
+| v3 | `1eaa75e6-e857-4cba-8b5c-af8cfe6b3f7b` | `2f6aa8f192ebe08268b5d4833d46b5170e4f6464f1c77fdbeb1b13e22cbec1ee` | v4 |
 
 ## Evidence inventory (19 objects total)
 
@@ -56,23 +57,23 @@ All SSE-KMS encrypted, GOVERNANCE retention 2555d, legal-hold ON, SHA-256 verifi
 ### Control evidence (6)
 All SSE-KMS encrypted, GOVERNANCE retention 2555d, legal-hold ON, SHA-256 verified via `evidence-verifier`.
 
-| Key | Version ID | Size |
-|---|---|---|
-| `controls/per-object-metadata.txt` | `ba989131-9535-4407-b2b6-f6ccb0b4ae53` | 7,805 |
-| `controls/denial-tests.txt` | `5cbd0ade-1815-474c-8c34-73dd5d1f3cfb` | 2,822 |
-| `controls/bucket-config.txt` | `0b496a67-435d-4a0b-ae3e-3d5f38283b65` | 742 |
-| `controls/recovery-tests.txt` | `35311f6a-fdbc-4725-aca2-ad60d4890dd1` | 1,112 |
-| `controls/audit-evidence.txt` | `26b52737-78d9-4238-a0e0-a75576b123e5` | 805 |
-| `controls/stat-custody-manifest.json` | `2c807abd-cc73-47cd-a9f6-46bc7634985b` | 390 |
+| Key | Version ID | Size | SHA-256 |
+|---|---|---|---|
+| `controls/per-object-metadata.txt` | `ba989131-9535-4407-b2b6-f6ccb0b4ae53` | 7,805 | `5726fe655e2aab4988ec097fbfc42e1d21b6d3e90527d0dc51bb06bb3c0395eb` |
+| `controls/denial-tests.txt` | `5cbd0ade-1815-474c-8c34-73dd5d1f3cfb` | 2,822 | `6ee18846beaab6e3a354f0c4121e750b5eb54689ab276c70fb30149d6c7ea812` |
+| `controls/bucket-config.txt` | `0b496a67-435d-4a0b-ae3e-3d5f38283b65` | 742 | `df759108365853976b6a234694d400c6b6fc861bf52dbc34208faa999785834b` |
+| `controls/recovery-tests.txt` | `35311f6a-fdbc-4725-aca2-ad60d4890dd1` | 1,112 | `af9cd776d722b8427db4424d3182e5783d85662782feed353a7b510ca3782b91` |
+| `controls/audit-evidence.txt` | `26b52737-78d9-4238-a0e0-a75576b123e5` | 805 | `3406c398a67d99cedc564889ad2b53024ced6447583d751337b5a13b6bb6aa15` |
+| `controls/stat-custody-manifest.json` | `2c807abd-cc73-47cd-a9f6-46bc7634985b` | 390 | `027523d4fb882cc41f13decae174eb1b3a53e9d5593e6ffc3e85d310760feee5` |
 
 ### Custody manifest (1)
-Version ID `1eaa75e6-e857-4cba-8b5c-af8cfe6b3f7b`, SHA-256 `2f6aa8f1…`, size 6,675 bytes.
+Version ID `c7b86b9b-18fc-4504-942c-fe26ccc83f07`, SHA-256 `75ce4f08…`, size 7,409 bytes.
 
 ## Verification summary
 
 - All 12 original artifacts: SHA-256 verified ✅
 - All 6 control evidence artifacts: SHA-256 verified ✅
-- Manifest v3: full SHA-256 verified via verifier ✅ (size=6675, sha256=2f6aa8f1…)
+- Manifest v4: full SHA-256 verified via verifier ✅ (size=7409, sha256=75ce4f08…)
 - Writer denial tests: 5/5 denied ✅
 - Verifier denial tests: 6/6 denied ✅
 - Recovery tests: 4/4 passed ✅
