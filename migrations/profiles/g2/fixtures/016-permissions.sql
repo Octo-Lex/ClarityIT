@@ -3,6 +3,19 @@
 -- Requires: permissions(id, name, description, resource, action, risk_level, created_at)
 --           role_permissions(role_id, permission_id)
 --           roles(id, name, ...)
+--
+-- NOTE: The P0 CI fixture already renames all .edit permissions to .update via
+-- migrations/ci/p0/016_permissions.sql. This fixture must operate on a CLEAN
+-- permissions table to test the collision logic independently. We save and
+-- restore the existing state.
+
+-- === SAVE existing state ===
+CREATE TEMP TABLE IF NOT EXISTS _g2_saved_permissions AS SELECT * FROM permissions;
+CREATE TEMP TABLE IF NOT EXISTS _g2_saved_role_permissions AS SELECT * FROM role_permissions;
+
+-- === CLEAR permissions for isolated testing ===
+DELETE FROM role_permissions;
+DELETE FROM permissions;
 
 -- === SETUP: seed roles ===
 INSERT INTO roles (id, name, description) VALUES
@@ -130,24 +143,15 @@ DO $$ BEGIN
     ) >= 7, '016 FAIL: not all 7 canonical .update permissions exist';
 END $$;
 
--- === CLEANUP ===
-DELETE FROM role_permissions WHERE role_id IN (
-    '00000000-0000-4000-8000-000000030001',
-    '00000000-0000-4000-8000-000000030002',
-    '00000000-0000-4000-8000-000000030003'
-);
-DELETE FROM permissions WHERE id IN (
-    '00000000-0000-4000-8000-000000040001',
-    '00000000-0000-4000-8000-000000040002',
-    '00000000-0000-4000-8000-000000040003',
-    '00000000-0000-4000-8000-000000040004',
-    '00000000-0000-4000-8000-000000040005',
-    '00000000-0000-4000-8000-000000040006',
-    '00000000-0000-4000-8000-000000040007',
-    '00000000-0000-4000-8000-000000040010'
-);
+-- === CLEANUP: restore original permissions state ===
+DELETE FROM role_permissions;
+DELETE FROM permissions;
+INSERT INTO permissions SELECT * FROM _g2_saved_permissions;
+INSERT INTO role_permissions SELECT * FROM _g2_saved_role_permissions;
 DELETE FROM roles WHERE id IN (
     '00000000-0000-4000-8000-000000030001',
     '00000000-0000-4000-8000-000000030002',
     '00000000-0000-4000-8000-000000030003'
 );
+DROP TABLE IF EXISTS _g2_saved_permissions;
+DROP TABLE IF EXISTS _g2_saved_role_permissions;
