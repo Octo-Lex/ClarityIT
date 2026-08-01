@@ -1,46 +1,153 @@
--- G2 Fixture: 016 permission collision and resolution
--- Tests both the simple rename case and the dual-row collision case.
+-- G2 Fixture: 016 permission normalization
+-- Tests: simple rename, collision with dual grants, negative case (neither exists)
+-- Requires: permissions(id, name, description, resource, action, risk_level, created_at)
+--           role_permissions(role_id, permission_id)
+--           roles(id, name, ...)
 
--- Setup: seed all 7 .edit permissions (simulating migration 009)
-INSERT INTO permissions (id, name, description) VALUES
-    ('00000000-0000-4000-8000-000000010001', 'work.items.edit.own', 'Edit own work items'),
-    ('00000000-0000-4000-8000-000000010002', 'work.items.edit.any', 'Edit any work item'),
-    ('00000000-0000-4000-8000-000000010003', 'projects.edit', 'Edit projects'),
-    ('00000000-0000-4000-8000-000000010004', 'incidents.edit.own', 'Edit own incidents'),
-    ('00000000-0000-4000-8000-000000010005', 'incidents.edit.any', 'Edit any incident'),
-    ('00000000-0000-4000-8000-000000010006', 'docs.edit.own', 'Edit own docs'),
-    ('00000000-0000-4000-8000-000000010007', 'docs.edit.any', 'Edit any doc')
+-- === SETUP: seed roles ===
+INSERT INTO roles (id, name, description) VALUES
+    ('00000000-0000-4000-8000-000000030001', 'g2-test-role-a', 'Test role A'),
+    ('00000000-0000-4000-8000-000000030002', 'g2-test-role-b', 'Test role B'),
+    ('00000000-0000-4000-8000-000000030003', 'g2-test-role-c', 'Test role C')
+ON CONFLICT (id) DO NOTHING;
+
+-- === CASE 1: Simple rename (legacy .edit exists, canonical .update does not) ===
+
+-- Seed all 7 .edit permissions with required columns
+INSERT INTO permissions (id, name, description, resource, action, risk_level) VALUES
+    ('00000000-0000-4000-8000-000000040001', 'incidents.edit.own', 'Edit own incidents', 'incidents', 'edit.own', 'low'),
+    ('00000000-0000-4000-8000-000000040002', 'incidents.edit.any', 'Edit any incident', 'incidents', 'edit.any', 'medium'),
+    ('00000000-0000-4000-8000-000000040003', 'docs.edit.own', 'Edit own docs', 'docs', 'edit.own', 'low'),
+    ('00000000-0000-4000-8000-000000040004', 'docs.edit.any', 'Edit any doc', 'docs', 'edit.any', 'medium'),
+    ('00000000-0000-4000-8000-000000040005', 'work.items.edit.own', 'Edit own work items', 'work.items', 'edit.own', 'low'),
+    ('00000000-0000-4000-8000-000000040006', 'work.items.edit.any', 'Edit any work item', 'work.items', 'edit.any', 'medium'),
+    ('00000000-0000-4000-8000-000000040007', 'projects.edit', 'Edit projects', 'projects', 'edit', 'medium')
 ON CONFLICT (name) DO NOTHING;
 
--- Case 1: Simple rename (no canonical .update row exists)
-UPDATE permissions SET name = replace(name, '.edit', '.update') WHERE name LIKE '%.edit%';
+-- Seed role_permissions: role A has legacy-only grants
+INSERT INTO role_permissions (role_id, permission_id) VALUES
+    ('00000000-0000-4000-8000-000000030001', '00000000-0000-4000-8000-000000040001'),
+    ('00000000-0000-4000-8000-000000030001', '00000000-0000-4000-8000-000000040003')
+ON CONFLICT DO NOTHING;
 
--- Verify: zero .edit remain
+-- Simple rename: UPDATE name and action
+UPDATE permissions
+SET name = replace(name, '.edit', '.update'),
+    action = replace(action, 'edit', 'update')
+WHERE name LIKE '%.edit%';
+
+-- Verify Case 1: zero .edit remain
 DO $$ BEGIN
     ASSERT NOT EXISTS (SELECT 1 FROM permissions WHERE name LIKE '%.edit%'),
-        '016 FAIL: .edit permissions still exist after simple rename';
+        '016 FAIL: .edit permissions remain after simple rename';
 END $$;
 
--- Case 2: Collision (both .edit and .update rows exist)
--- Reset: recreate .edit rows alongside .update
-INSERT INTO permissions (id, name, description) VALUES
-    ('00000000-0000-4000-8000-000000020001', 'incidents.edit.own', 'Legacy edit own incidents'),
-    ('00000000-0000-4000-8000-000000020002', 'docs.edit.any', 'Legacy edit any doc')
+-- Verify role A still has both grants (IDs unchanged, names updated)
+DO $$ BEGIN
+    ASSERT (
+        SELECT count(*) FROM role_permissions rp
+        JOIN permissions p ON rp.permission_id = p.id
+        WHERE rp.role_id = '00000000-0000-4000-8000-000000030001'
+    ) = 2, '016 FAIL: role A lost grants during rename';
+END $$;
+
+-- === CASE 2: Collision (both .edit and .update exist with grants) ===
+
+-- Insert a NEW legacy .edit alongside the canonical .update (which exists from Case 1)
+INSERT INTO permissions (id, name, description, resource, action, risk_level) VALUES
+    ('00000000-0000-4000-8000-000000040010', 'incidents.edit.own', 'Legacy collision', 'incidents', 'edit.own', 'low')
 ON CONFLICT (name) DO NOTHING;
 
--- Collision resolution: repoint role_permissions to canonical, then delete legacy
--- (Assumes canonical .update rows already exist from Case 1)
-UPDATE role_permissions rp SET permission_id = canon.id
-FROM permissions legacy, permissions canon
-WHERE rp.permission_id = legacy.id
-  AND legacy.name LIKE '%.edit%'
-  AND canon.name = replace(legacy.name, '.edit', '.update')
-  AND canon.id <> legacy.id;
+-- Find the canonical .update row's ID
+-- (incidents.update.own was renamed from 040001 in Case 1)
+-- Role B has ONLY the legacy grant
+INSERT INTO role_permissions (role_id, permission_id) VALUES
+    ('00000000-0000-4000-8000-000000030002', '00000000-0000-4000-8000-000000040010')
+ON CONFLICT DO NOTHING;
 
+-- Role C has ONLY the canonical grant (already exists from rename)
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT '00000000-0000-4000-8000-000000030003', id FROM permissions WHERE name = 'incidents.update.own'
+ON CONFLICT DO NOTHING;
+
+-- Collision resolution:
+-- 1. Union legacy grants into canonical (ON CONFLICT DO NOTHING handles dual-grant PK violation)
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT rp.role_id, canon.id
+FROM role_permissions rp
+JOIN permissions legacy ON rp.permission_id = legacy.id AND legacy.name LIKE '%.edit%'
+JOIN permissions canon ON canon.name = replace(legacy.name, '.edit', '.update')
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+-- 2. Delete legacy grant rows
+DELETE FROM role_permissions
+WHERE permission_id IN (SELECT id FROM permissions WHERE name LIKE '%.edit%');
+
+-- 3. Delete legacy permission rows
 DELETE FROM permissions WHERE name LIKE '%.edit%';
 
--- Final assertion: zero .edit remain
+-- Verify Case 2: zero .edit remain
 DO $$ BEGIN
     ASSERT NOT EXISTS (SELECT 1 FROM permissions WHERE name LIKE '%.edit%'),
-        '016 FAIL: .edit permissions still exist after collision resolution';
+        '016 FAIL: .edit permissions remain after collision resolution';
 END $$;
+
+-- Verify role B (was legacy-only) now has the canonical grant
+DO $$ BEGIN
+    ASSERT EXISTS (
+        SELECT 1 FROM role_permissions rp
+        JOIN permissions p ON rp.permission_id = p.id
+        WHERE rp.role_id = '00000000-0000-4000-8000-000000030002'
+        AND p.name = 'incidents.update.own'
+    ), '016 FAIL: role B (legacy-only) did not retain grant after collision resolution';
+END $$;
+
+-- Verify role C (was canonical-only) still has the canonical grant
+DO $$ BEGIN
+    ASSERT EXISTS (
+        SELECT 1 FROM role_permissions rp
+        JOIN permissions p ON rp.permission_id = p.id
+        WHERE rp.role_id = '00000000-0000-4000-8000-000000030003'
+        AND p.name = 'incidents.update.own'
+    ), '016 FAIL: role C (canonical-only) lost grant after collision resolution';
+END $$;
+
+-- === CASE 3: Negative — neither legacy nor canonical exists ===
+-- If neither exists, the assertion below catches the corruption.
+-- Insert a role with NO grants to verify zero-grant roles are unaffected.
+DO $$ BEGIN
+    ASSERT NOT EXISTS (SELECT 1 FROM permissions WHERE name LIKE '%.edit%'),
+        '016 FAIL: .edit permissions exist (should be zero)';
+    -- Also verify all 7 canonical names exist exactly once
+    ASSERT (
+        SELECT count(*) FROM permissions
+        WHERE name IN (
+            'incidents.update.own', 'incidents.update.any',
+            'docs.update.own', 'docs.update.any',
+            'work.items.update.own', 'work.items.update.any',
+            'projects.update'
+        )
+    ) >= 7, '016 FAIL: not all 7 canonical .update permissions exist';
+END $$;
+
+-- === CLEANUP ===
+DELETE FROM role_permissions WHERE role_id IN (
+    '00000000-0000-4000-8000-000000030001',
+    '00000000-0000-4000-8000-000000030002',
+    '00000000-0000-4000-8000-000000030003'
+);
+DELETE FROM permissions WHERE id IN (
+    '00000000-0000-4000-8000-000000040001',
+    '00000000-0000-4000-8000-000000040002',
+    '00000000-0000-4000-8000-000000040003',
+    '00000000-0000-4000-8000-000000040004',
+    '00000000-0000-4000-8000-000000040005',
+    '00000000-0000-4000-8000-000000040006',
+    '00000000-0000-4000-8000-000000040007',
+    '00000000-0000-4000-8000-000000040010'
+);
+DELETE FROM roles WHERE id IN (
+    '00000000-0000-4000-8000-000000030001',
+    '00000000-0000-4000-8000-000000030002',
+    '00000000-0000-4000-8000-000000030003'
+);

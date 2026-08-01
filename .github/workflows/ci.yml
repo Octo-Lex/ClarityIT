@@ -183,6 +183,10 @@ jobs:
           # P3 validation: verify against committed golden-manifest.json
           python scripts/profile/validate_p3.py
 
+      - name: G2 fixture validation (016/018/029 against P0 schema)
+        run: |
+          bash scripts/profile/validate_g2.sh
+
   # ─── Python worker ───
   worker:
     name: Worker (Python)
