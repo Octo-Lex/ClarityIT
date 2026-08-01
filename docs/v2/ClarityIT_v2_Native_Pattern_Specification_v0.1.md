@@ -312,6 +312,24 @@ Topology expansion MUST have explicit depth, relationship allowlist, and target-
 
 Context cache entries MUST be workspace-keyed, access-scope-keyed, versioned, and invalidated by relevant Resource, Observation, permission, or knowledge-version changes. Cache content is non-authoritative.
 
+### Subordinate contract: deterministic context overlays
+
+Every Context Bundle MUST be composed from ordered overlays using a versioned composition algorithm. The overlay order is:
+
+1. organization policy, approved capability definitions, and organization-approved knowledge;
+2. workspace policy, workspace configuration, and workspace-scoped published knowledge;
+3. Case, Resource, binding, topology, Observation, and evidence context;
+4. role- and task-specific read scope; and
+5. personal drafts, preferences, and non-authoritative working memory.
+
+Each overlay entry MUST carry workspace, source identity, authority class, version or observation time, sensitivity, screening state, and immutable content or reference digest. The composition record MUST identify all applied overlays, rejected entries, omissions, conflicts, and the builder version used to produce the final bundle.
+
+Policy composition is monotonic. A later or narrower overlay MAY remove data, reduce scope, add a deny, require stronger approval, shorten freshness, restrict egress, or impose a tighter resource limit. It MUST NOT relax an organization or workspace deny, broaden an allowed capability, weaken a sensitivity rule, replace an approved Resource identity, or turn contextual text into policy or authority.
+
+Authoritative namespaces are reserved. Personal drafts, prior Case prose, retrieved documents, model output, and other non-authoritative content MUST NOT shadow or replace policy, capability definitions, Resource IDs, binding versions, published knowledge versions, or current Observations. A name or key collision is rejected or quarantined and recorded; precedence alone cannot silently resolve it.
+
+External and generated content MUST be source-labelled and assigned `screened`, `quarantined`, or `unscreened` handling state before inclusion. Screening may restrict or exclude content, but a screening result cannot grant authority, change a source's authority class, or satisfy a required Observation. Personal overlays remain writable only as drafts and are excluded from packet canonicalization unless an explicit field is validated through the normal proposal contract.
+
 ### Failure, evidence, and conformance
 
 If a critical source is unavailable or freshness cannot be determined, the bundle records the gap. A reasoning worker may continue only if policy permits degraded investigation; it cannot produce an executable packet that depends on missing preconditions.
@@ -321,6 +339,10 @@ If a critical source is unavailable or freshness cannot be determined, the bundl
 - **PC-BC-03:** Topology expansion obeys depth and target-count limits.
 - **PC-BC-04:** Secret references may appear; secret values do not.
 - **PC-BC-05:** Missing, stale, omitted, and access-restricted context is distinguishable.
+- **PC-BC-06:** Overlay permutation, policy-relaxation, and deny-removal attempts fail; the same ordered versions produce the same composition digest.
+- **PC-BC-07:** Personal, retrieved, prior-Case, and generated content cannot shadow authoritative namespaces or change authority class.
+- **PC-BC-08:** Quarantined content is excluded from packet inputs and unscreened content is visibly constrained by policy.
+- **PC-BC-09:** The evidence record reconstructs applied overlays, rejected collisions, omissions, screening states, and the final bundle digest.
 
 **Roadmap:** context contract in WP-01; Case implementation in WP-03; reviewed knowledge expansion in WP-05.
 
@@ -451,6 +473,22 @@ The Secrets service MUST enforce workload identity, route, workspace, and purpos
 
 Verifiers use independent secret references where practical so that executor compromise does not automatically compromise proof. Secret rotation cannot mutate sealed historical packets; historical records retain key identifiers and redaction metadata, not values.
 
+### Subordinate contract: destination-bound credential broker
+
+Provider credentials used for HTTPS integrations MUST be injected by a credential broker inside the trusted executor or typed adapter. The broker MUST NOT expose a general authenticated HTTP tool to a reasoning worker, browser, client, playbook, or routine.
+
+A broker entitlement MUST bind:
+
+- entitlement ID and digest, workspace, workload identity, route, adapter, target, and capability version;
+- Operation Packet, Authority Grant, attempt, validity interval, use limit, and revocation state when the call is consequential;
+- HTTPS scheme, exact destination host and port, TLS requirements, allowed HTTP methods, normalized path prefixes, and redirect policy;
+- allowed request headers, headers the broker may inject, response metadata that may be returned, and request/response size limits; and
+- secret reference, credential purpose, provider account scope, and sanitization profile.
+
+The broker MUST validate the entitlement after URL parsing and path normalization, reject user-info and ambiguous host forms, prevent redirect or DNS handling from escaping the approved destination policy, and inject credential material only after all checks pass. Headers not on the allowlist are removed or rejected. Secret-bearing headers and raw response bodies MUST NOT enter prompts, routine inputs, generic logs, or evidence exports.
+
+Every brokered call emits a sanitized audit record containing entitlement digest, workload, packet and attempt references where applicable, destination class, method, normalized path class, timing, outcome, provider correlation identifiers, and redaction profile. It MUST contain neither the secret nor a replayable authenticated request.
+
 ### Failure, evidence, and conformance
 
 Secret resolution failure, expired credential, identity mismatch, or excessive permission fails the operation at a precise stage. It cannot fall back to a broader credential. Logs preserve provider error classification without including values.
@@ -460,6 +498,10 @@ Secret resolution failure, expired credential, identity mismatch, or excessive p
 - **PC-CS-03:** Automated scanning finds no secret value in all prohibited surfaces.
 - **PC-CS-04:** Credential permissions cannot perform effects outside the packet's pilot boundary.
 - **PC-CS-05:** Rotation and revocation are testable without changing historical evidence.
+- **PC-CS-06:** Host, port, method, normalized path, header, redirect, workload, route, packet, and validity mismatches each fail before credential injection.
+- **PC-CS-07:** Reasoning, browser, playbook, and routine paths cannot invoke a generic authenticated transport or retrieve broker-injected headers.
+- **PC-CS-08:** Broker audit records reconstruct why a call was permitted without containing credentials or replayable request material.
+- **PC-CS-09:** Central and Site Runtime broker implementations pass the same entitlement and sanitization conformance fixtures.
 
 **Roadmap:** trust foundation in WP-01; connector enforcement in WP-02; local resolution in WP-04.
 
@@ -542,6 +584,23 @@ During disconnection:
 - new consequential mutations, grants, approvals, or expiry extensions are denied by default;
 - pre-authorized containment is allowed only under signed emergency policy.
 
+### Subordinate contract: runtime capability profile and migration safety
+
+Each Site Runtime and central connector substrate MUST publish a signed, versioned Runtime Capability Profile bound to its workload identity and route. The profile MUST declare:
+
+- supported typed-effect, observation, verification, adapter, and protocol versions;
+- durable writable state, encrypted journal, receipt spool, observation spool, backup/restore, and blob-staging support;
+- cryptographic identity, mTLS, local policy enforcement, secret-resolution, attestation, and revocation support;
+- egress-enforcement grade, network reachability class, operating-system and tool profile, clock-health requirements, and resource budgets;
+- process-session support only where an approved typed adapter requires it; and
+- upgrade, rollback, compatibility, retention, and maximum-offline guarantees.
+
+Every route and Operation Packet evaluation MUST compare its minimum runtime requirements with the active profile digest before dispatch. Absence, staleness, incompatibility, or a weaker enforcement grade fails closed. A runtime MAY advertise capabilities it does not currently route, but an unadvertised or disabled capability cannot be inferred from installed software.
+
+A route or runtime migration MUST produce a signed Migration Gap Report comparing source, destination, and required profiles. The report identifies preserved, weakened, unavailable, and behaviorally different capabilities; affected in-flight work; journal and evidence transfer; rollback boundary; and required operator decisions. Migration is refused when any required authority, isolation, durability, secret, egress, verification, evidence, or recovery capability would be weakened. Waivers cannot override kernel invariants or convert an unsupported destination into a conformant route.
+
+In-flight attempts MUST remain bound to the runtime and journal that accepted them unless a separately specified handoff protocol proves single ownership, sequence continuity, and evidence continuity. Migration does not erase uncertainty or authorize resubmission.
+
 ### Failure, evidence, and conformance
 
 Unhealthy clock, invalid identity, incompatible runtime version, queue exhaustion, policy mismatch, or disconnected pre-dispatch state blocks mutation. Local receipts are signed, sequenced, deduplicated at ingress, and committed before progress publication.
@@ -551,6 +610,11 @@ Unhealthy clock, invalid identity, incompatible runtime version, queue exhaustio
 - **PC-SR-03:** Disconnect-before-dispatch denies mutation; disconnect-after-submit preserves polling and central uncertainty.
 - **PC-SR-04:** Encrypted journal survives restart and replays receipts exactly once centrally.
 - **PC-SR-05:** Signed upgrade, rollback, compatibility handshake, and compromised-runtime revocation pass.
+- **PC-SR-06:** Dispatch fails when the profile is absent, stale, unsigned, identity-mismatched, or weaker than the packet and route requirements.
+- **PC-SR-07:** Profile conformance covers persistence, journal, spool, identity, policy, secrets, egress, backup, staging, clock, resources, and supported protocol versions.
+- **PC-SR-08:** Migration produces a signed gap report and refuses every required-capability downgrade without changing historical route evidence.
+- **PC-SR-09:** In-flight migration, restart, and rollback tests prove single ownership, sequence continuity, and no duplicate provider submission.
+- **PC-SR-10:** Capability loss and disabled features remain visible to operators and cannot be hidden by a compatibility fallback.
 
 **Roadmap:** WP-04, only after the central single-target pilot passes.
 
@@ -618,15 +682,33 @@ Instantiation MUST resolve exact Resources, current Observations, capability sup
 
 Automatic generation from Case history may create a candidate only. Publication requires human review, conformance tests, and a recorded owner. Scripts or commands embedded in a future skill must use a separately governed typed capability and content digest.
 
+### Subordinate contract: signed scope-owned skill package
+
+Every skill MUST be distributed as a signed package owned by exactly one workspace or organization scope. Its lifecycle is:
+
+`draft -> review_pending -> reviewed -> published -> superseded | archived`
+
+Only a published version may be instantiated for governed work. Promotion from a workspace to organization scope creates a new scoped version, requires organization review, and produces a new signature and digest; ownership or approval is never inherited implicitly. Archived and superseded packages remain addressable for historical reconstruction but are excluded from new default selection.
+
+The signed manifest MUST additionally declare package scope, signing identity and algorithm, signature, manifest digest, content and dependency digests, required capabilities, approved capability ceiling, materializer version range, file allowlist, execution-content classification, and promotion lineage. Required capabilities MUST be a subset of the approved ceiling. Neither field is an Authority Grant, and publication creates no standing execution authority.
+
+Materialization MUST be deterministic and isolated. The materialization record binds the published package digest, exact dependency digests, selected files, normalized manifest, materializer version, and resulting tree digest. Instantiation separately binds validated inputs, exact Resources, current policy, capability versions, and generated packet references. Network retrieval, floating dependencies, mutable branch references, undeclared files, and scope-precedence shadowing are prohibited during materialization.
+
+Signature, ownership, lifecycle, capability, dependency, and digest checks occur before a skill enters reasoning context or creates a packet draft. A package can provide instructions and templates, but executable content remains subject to a separately governed typed capability and cannot gain a secret or generic command interface through packaging.
+
 ### Failure, evidence, and conformance
 
 Unsupported version, stale applicability, missing capability, failed precondition, or changed resource binding blocks instantiation or the affected step. Partial completion leaves per-step evidence and requires a successor decision.
 
 - **PC-SK-01:** Executing a playbook creates no provider call without a valid packet and grant for each effect.
 - **PC-SK-02:** Input validation rejects undeclared fields and secret values.
-- **PC-SK-03:** Candidate, approved, superseded, and retired versions are distinct.
+- **PC-SK-03:** Draft, review-pending, reviewed, published, superseded, and archived versions are distinct and transition only through authorized lifecycle decisions.
 - **PC-SK-04:** Conformance fixtures cover happy, stale, unsupported, partial, and compensation-required paths.
 - **PC-SK-05:** A reviewer can trace every skill version to source evidence and approval.
+- **PC-SK-06:** Package signature, scope ownership, promotion lineage, capability ceiling, dependency digests, and file allowlist are verified before use.
+- **PC-SK-07:** Repeated materialization from identical signed inputs produces the same tree digest and performs no undeclared network access.
+- **PC-SK-08:** A workspace package cannot shadow an organization package or become organization-scoped without a new reviewed and signed version.
+- **PC-SK-09:** Package publication and instantiation create no Authority Grant, secret access, or provider call.
 
 **Roadmap:** WP-05; general authoring marketplace remains excluded.
 
@@ -650,6 +732,16 @@ Signals and routines MAY create Work Items, observations, notifications, knowled
 
 If a routine proposes a consequential effect, the exact target set is resolved, a Case is created or selected, and the normal packet, policy, approval, grant, execution, verification, and outcome sequence applies.
 
+### Subordinate contract: routine actor, fire key, and destination consent
+
+Every Routine version MUST execute as a dedicated Routine Principal, never as its human owner or a reasoning identity. The principal is bound to workspace, routine ID and version, allowed read capabilities, permitted Case and Work Item operations, notification destinations, and expiry or review date. It holds no provider credential, approval role, or grant-issuing permission.
+
+Every trigger evaluation MUST derive a deterministic Fire Key from routine ID and version, trigger identity and version, scheduled occurrence or source-event identity, resolved destination binding, and exact target-resolution result. The Fire Key is reserved atomically in a durable firing ledger before downstream work begins. Retries resume the same logical fire and cannot create a second Case, notification, packet draft, or playbook instance for that fire.
+
+Notification and person-directed destinations MUST be versioned bindings with verified identity, workspace, purpose, permitted message class, and either recipient consent or an approved organizational policy basis. Applicable suppression, opt-out, quiet-window, and destination-revocation state is checked at delivery time. A Routine owner name, channel label, or address in generated text is not a destination binding.
+
+Delivery attempts, acknowledgements, and failures are persisted separately. Transport acceptance is a delivery claim, not proof that a person received, read, or acted on the notification. Destination changes create a successor Routine version and do not redirect already reserved fires silently.
+
 ### Failure, evidence, and conformance
 
 Duplicate or storming signals collapse into one correlation group without losing source counts. Source outage creates a visible routine-health exception. Missed schedules are handled by an explicit catch-up policy; the system does not silently run an accumulated set of consequential actions.
@@ -659,6 +751,11 @@ Duplicate or storming signals collapse into one correlation group without losing
 - **PC-RT-03:** Routine execution has no direct provider credential or mutation interface.
 - **PC-RT-04:** Signal storms respect concurrency, rate, and Case-correlation budgets.
 - **PC-RT-05:** Routine, Signal, Case, and any later packets remain fully traceable.
+- **PC-RT-06:** Routine work is attributable to a dedicated least-privilege Routine Principal and never inherits the owner's ambient permissions.
+- **PC-RT-07:** Duplicate delivery, worker restart, lease loss, catch-up, and replay produce one logical fire for each Fire Key.
+- **PC-RT-08:** Unverified, revoked, suppressed, non-consenting, cross-workspace, or purpose-mismatched destinations block delivery.
+- **PC-RT-09:** Destination changes create a successor version; reserved fires retain their original destination evidence.
+- **PC-RT-10:** Transport acknowledgement cannot mark a Case outcome, Verification, or human response as complete.
 
 **Roadmap:** WP-06, after reviewed knowledge and playbook foundations.
 
@@ -747,6 +844,24 @@ Customer-controlled deployments MUST preserve the same authority, evidence, and 
 
 Data export and retention MUST preserve workspace policy, redaction, manifest digests, and lifecycle records. Deletion and legal hold are explicit records, not silent disappearance.
 
+### Subordinate contract: executable deployment directory
+
+Every releasable deployment MUST be represented by a version-controlled Deployment Contract Directory that binds the exact product release, deployment tool version, configuration schema, migration range, policy and extension descriptors, runtime profiles, secret-reference routes, and immutable artifact or image digests. Environment-specific values MAY be supplied through validated overlays, but the resolved configuration digest and source of each value MUST be recorded without exposing secrets.
+
+The directory MUST provide deterministic operations with these semantics:
+
+- `check`: offline validation of schema, references, signatures, digests, versions, compatibility, and required clauses;
+- `doctor`: external read-only checks of identity, connectivity, permissions, storage, database, queues, object storage, clocks, and target environment prerequisites;
+- `plan`: a rendered, reviewable change plan identifying creates, updates, migrations, restarts, removals, risks, evidence steps, and rollback boundaries;
+- `up`: controlled application of the approved deployment plan with step identity, idempotency, checkpoints, and persisted results; it grants no managed-system operational authority; and
+- `verify-drift`: comparison of the declared manifest with live deployment identity, versions, digests, configuration classes, runtime profiles, and policy state.
+
+Before a mutating deployment, the system MUST seal an immutable deployment manifest, approved plan digest, database migration position, backup or snapshot reference where required, rollback manifest, forward-recovery instructions, and responsible decision record. Rollback MUST preserve kernel history and evidence; database rollback is permitted only when the migration contract declares it safe. Otherwise the response is a forward correction under an approved successor plan.
+
+Every contract clause MUST be registered as `ENFORCED`, `VALIDATED-ONLY`, or `RESERVED`. `ENFORCED` means the running system prevents or detects violation at the governing boundary. `VALIDATED-ONLY` means a deterministic preflight check exists but runtime enforcement is not yet proven. `RESERVED` means the clause is named but unavailable and cannot be claimed as implemented. Release evidence MUST not treat `VALIDATED-ONLY` or `RESERVED` as `ENFORCED`.
+
+Deployment commands and live systems MUST emit source-attributed evidence sufficient to reconstruct requested plan, approved digest, applied steps, resulting manifest, drift status, database position, and rollback or recovery decision. Deployment success is not Verification of managed operational outcomes.
+
 ### Failure, evidence, and conformance
 
 A missing workspace scope or ambiguous route is a security failure and fails closed. Cache, index, or transport partition mismatch triggers quarantine and incident evidence. Backup and restore tests must prove workspace separation and preserve sealed evidence.
@@ -756,6 +871,11 @@ A missing workspace scope or ambiguous route is a security failure and fails clo
 - **PC-WS-03:** Fresh installation, upgrade, backup, restore, and export reproduce required integrity and isolation controls.
 - **PC-WS-04:** Release artifacts include signatures, SBOM, provenance, and version manifest.
 - **PC-WS-05:** Provider substitution does not change product capability, authority, or evidence semantics.
+- **PC-WS-06:** `check`, `doctor`, `plan`, `up`, and `verify-drift` have deterministic exit classification and preserve their evidence records.
+- **PC-WS-07:** The applied deployment matches immutable artifact, configuration, migration, policy, extension, and Runtime Capability Profile digests or reports explicit drift.
+- **PC-WS-08:** Rollback and forward-recovery exercises preserve authoritative history, evidence, workspace isolation, and database compatibility.
+- **PC-WS-09:** Every deployment clause has one truthful status, and release checks reject unsupported `ENFORCED` claims.
+- **PC-WS-10:** Deployment tooling cannot issue operational Authority Grants, call managed-system capabilities, or manufacture Verification.
 
 **Roadmap:** foundation in WP-01; exercised by every package; production hardening in WP-10.
 
@@ -764,14 +884,14 @@ A missing workspace scope or ambiguous route is a security failure and fails clo
 | Concern | Governing patterns | Required release evidence |
 |---|---|---|
 | Shared work and experience | P-01, P-02, P-03 | Case lifecycle tests, role tests, projection rebuild, accessibility evidence |
-| Operational intelligence | P-04, P-05, P-13, P-14 | Source attribution, context digests, review lifecycle, retrieval isolation, skill fixtures |
-| Governed effects | P-06, P-07, P-08, P-09 | Packet digest, adapter contract, grant scope, broker path, secret scan |
+| Operational intelligence | P-04, P-05, P-13, P-14 | Source attribution, ordered overlay digest, anti-shadowing, review lifecycle, signed skill package and materialization fixtures |
+| Governed effects | P-06, P-07, P-08, P-09 | Packet digest, adapter contract, grant scope, destination-bound credential broker, secret scan |
 | Proven outcomes | P-10, P-11 | Verifier conformance, outcome decisions, successor lineage, evidence manifests |
-| Private and local execution | P-12 | Runtime identity, offline journal, disconnection, upgrade, local-policy tests |
-| Evented and recurring work | P-15 | Signal normalization, dedupe, routine health, exception Case evidence |
+| Private and local execution | P-12 | Runtime identity and capability profile, migration-gap refusal, offline journal, disconnection, upgrade, local-policy tests |
+| Evented and recurring work | P-15 | Signal normalization, Fire Key dedupe, Routine Principal, destination consent, routine health, exception Case evidence |
 | Longer-lived delivery context | P-16 | Project/Case bindings, revision provenance, external-state truth tests |
 | Controlled scale | P-17 | Resolved target snapshots, budgets, per-target attempts and proof |
-| Trust and deployment | P-18 plus all | Isolation matrix, signed artifacts, restore and export proof |
+| Trust and deployment | P-18 plus all | Isolation matrix, executable deployment contract, clause-status truth, signed artifacts, drift, rollback, restore and export proof |
 
 ## 23. Prohibited shortcuts
 
@@ -791,13 +911,17 @@ A missing workspace scope or ambiguous route is a security failure and fails clo
 | Specification | Required before | Minimum content |
 |---|---|---|
 | First-Release Experience Specification | WP-03 build completion | Screen states, roles, command language, evidence inspection, intervention, accessibility |
+| Context Overlay Contract | WP-01 completion | Overlay order, authority classes, monotonic tightening, anti-shadowing, screening states, deterministic digest |
+| Executor Credential Broker Contract | WP-02 live connector | Workload and packet binding, HTTPS destination rules, header injection, redirects, audit sanitization, conformance fixtures |
 | Site Runtime Protocol | WP-04 implementation | Handshake, envelopes, sequence/ack, queue, attestation, upgrade, disconnection |
+| Runtime Capability Profile and Migration Contract | WP-04 route migration | Profile schema, minimum requirements, enforcement grades, gap report, refusal and in-flight ownership |
 | Knowledge Governance Specification | WP-05 implementation | Lifecycle, review, sensitivity, indexing, retention, conflicts, retirement |
-| Operational Skill Manifest Specification | WP-05 implementation | Schema, lifecycle, conformance, inputs, steps, evidence, capability binding |
-| Signal and Routine Specification | WP-06 implementation | Source trust, normalization, dedupe, correlation, scheduling, exception semantics |
+| Operational Skill Package Specification | WP-05 implementation | Signed manifest, scope ownership, lifecycle and promotion, deterministic materialization, inputs, steps, evidence, capability binding |
+| Signal and Routine Specification | WP-06 implementation | Source trust, normalization, Fire Key, Routine Principal, destination consent, dedupe, correlation, scheduling, delivery and exception semantics |
 | Project and Delivery Context Specification | WP-07 implementation | Project schema, external bindings, revision provenance, Case relationships |
 | Multi-Target Coordination Specification | WP-08 implementation | Target snapshot, budgets, concurrency, partial failure, aggregate projection |
 | Extension SDK and Conformance Specification | WP-09 implementation | Signed manifests, APIs, sandboxing, versioning, isolation, compatibility tests |
+| Executable Deployment Contract | WP-10 release candidate | Version binding, configuration schema, check/doctor/plan/up, immutable manifests, clause status, drift, rollback and recovery evidence |
 
 ## 25. Release rule
 

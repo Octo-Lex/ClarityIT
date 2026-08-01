@@ -47,20 +47,20 @@ Calendar dates are intentionally omitted until team capacity, WP-00 exit evidenc
 | P-02 Identifiable Human-Agent Participation | WP-01 | WP-03 UX proof | WP-05 skills, WP-07 Projects |
 | P-03 Typed Work Record and Provenance Timeline | WP-01 | WP-03 | Every later package |
 | P-04 Evidence-Backed Operational Answer | WP-01 schema | WP-03 basic | WP-05 reviewed retrieval |
-| P-05 Resource-Aware Bounded Context | WP-01 | WP-03 | WP-05, WP-07 |
+| P-05 Resource-Aware Bounded Context | WP-01 ordered overlay and anti-shadowing contract | WP-03 | WP-05, WP-07 |
 | P-06 Intent-to-Immutable Operation Packet | WP-01 | WP-02 | Every later capability |
 | P-07 Typed Capability and Adapter Boundary | WP-01 registry skeleton | WP-02 | WP-09 SDK and second provider |
 | P-08 Scoped Authority and Trusted Dispatch | WP-01 | WP-02 | WP-04, WP-08, WP-09 |
-| P-09 Credentialless Reasoning and Executor-Held Secrets | WP-01 | WP-02 | WP-04 local resolution |
+| P-09 Credentialless Reasoning and Executor-Held Secrets | WP-01 entitlement schema | WP-02 destination-bound broker | WP-04 local broker; WP-09 SDK conformance |
 | P-10 Independent Verification and Human Acceptance | WP-01 | WP-02 and WP-03 | Every later capability |
 | P-11 Successor Correction and Compensation | WP-01 | WP-03 | WP-08 partial recovery |
-| P-12 Deterministic Site Runtime and Private Access | Architecture only | WP-04 | WP-09 route SDK |
+| P-12 Deterministic Site Runtime and Private Access | Architecture only | WP-04 runtime profile and migration refusal | WP-09 route SDK |
 | P-13 Reviewed Operational Knowledge | Retained foundation | WP-05 | WP-06, WP-07 |
-| P-14 Versioned Operational Skill and Playbook | Schema concepts only | WP-05 | WP-06 routines |
-| P-15 Signal-Triggered Routine and Exception Case | Signal ingestion retained | WP-06 | Production tuning in WP-10 |
+| P-14 Versioned Operational Skill and Playbook | Schema concepts only | WP-05 signed scope-owned packages | WP-06 routines |
+| P-15 Signal-Triggered Routine and Exception Case | Signal ingestion retained | WP-06 Routine Principal, Fire Key, and destination binding | Production tuning in WP-10 |
 | P-16 Project and Software-Delivery Context Binding | Existing project objects retained | WP-07 | Future typed delivery effects |
 | P-17 Controlled Multi-Target Execution | Prohibited before R1 | WP-08 | WP-09 cross-provider sets |
-| P-18 Workspace Isolation and Sovereign Deployment | WP-00 and WP-01 | Exercised in every gate | WP-10 production proof |
+| P-18 Workspace Isolation and Sovereign Deployment | WP-00 and WP-01 | Exercised in every gate | WP-10 executable deployment contract and production proof |
 
 ## 5. Work-package specifications
 
@@ -111,8 +111,8 @@ WP-00 exits only under its existing G6 acceptance boundary. Its evidence becomes
 4. **Authority service:** deterministic policy evaluation, decision separation, grant lifecycle, replay protection, and separation of duties.
 5. **Effect Broker skeleton:** sole dispatch API, route resolution contract, preflight, reservation, idempotent attempt creation, and no-op/fake adapter for contract tests only.
 6. **Verifier contract:** versioned spec, fresh input rules, pass/fail/inconclusive, and evidence sealing.
-7. **Context contract:** bounded Resource-aware context bundle with provenance, digest, topology limits, and secret removal.
-8. **Trust controls:** workload identity contract, secret references, route binding, signature and canonicalization libraries.
+7. **Context overlay contract:** bounded Resource-aware context bundle with ordered organization, workspace, Case/Resource, role/task, and personal-draft overlays; provenance, authority classes, screening states, monotonic policy tightening, authoritative-namespace anti-shadowing, topology limits, exclusions, and deterministic composition digest.
+8. **Trust controls:** workload identity contract, secret references, route binding, signature and canonicalization libraries, plus the schema and policy evaluator for destination-bound credential-broker entitlements.
 9. **Compatibility foundation:** additive schema, feature flags off, v1 read compatibility, and explicit rejection of unsafe legacy execution after the later cutover.
 
 #### Acceptance gate RG-01
@@ -121,6 +121,7 @@ WP-00 exits only under its existing G6 acceptance boundary. Its evidence becomes
 - authoritative state, audit, and outbox commit atomically;
 - inbox deduplication, replay, lease loss, and restart tests pass;
 - no agent, browser, or compatibility path can issue authority or dispatch directly;
+- overlay permutation, policy-relaxation, deny-removal, cross-workspace, and authoritative-content shadowing tests fail closed and reconstruct the composition digest;
 - workspace isolation and secret scanning pass across database, API, events, storage references, caches, and search fixtures;
 - historical backfill creates zero passed Verifications and zero Accepted outcomes;
 - evidence manifests reconstruct synthetic happy, blocked, failed, unknown, and successor lineages;
@@ -139,6 +140,7 @@ WP-00 exits only under its existing G6 acceptance boundary. Its evidence becomes
 - generic adapter contract and conformance harness;
 - initial Proxmox VE adapter profile: exact binding, read, prepare, start submit, UPID persistence, polling, result read, and reconciliation;
 - least-privilege credential with observe/start/task-read only;
+- adapter-internal credential broker with workload, workspace, route, target, capability, packet, grant, attempt, HTTPS host/port, method, normalized-path, header, redirect, validity, use-limit, and sanitization binding;
 - central connector route only for the first live slice;
 - HTTPS verifier profile with TLS validation, 5-second probe timeout, three consecutive 2xx results, and 120-second window;
 - complete failure taxonomy and sanitized receipts;
@@ -155,6 +157,8 @@ No VM stop, restart, reset, snapshot, resize, migrate, delete, container, produc
 - one logical idempotency key creates at most one provider start operation;
 - UPID is stored only as provider operation identity and claim evidence;
 - provider completion cannot directly create Verification or Accepted;
+- credential-broker conformance rejects every workload, route, target, packet, host, port, method, path, header, redirect, expiry, use-limit, and revocation mismatch before credential injection;
+- broker audit evidence explains each permitted call without retaining a secret or replayable authenticated request;
 - no credential appears in agent context, client payload, packet, message, log, receipt, or evidence export;
 - controlled live adapter tests pass against one enrolled non-production VM;
 - CI and migration compatibility remain green.
@@ -172,6 +176,7 @@ No VM stop, restart, reset, snapshot, resize, migrate, delete, container, produc
 - Case Workspace sections for findings, source references, immutable packet, policy, approval, grant, execution, Verification, outcome, and evidence;
 - Resource detail with stable identity, provider binding, ownership, current Observations, capabilities, and health contract;
 - source-attributed answer artifacts and bounded context inspection;
+- inspection of applied context overlays, authority classes, rejected collisions, omissions, freshness, and screening or quarantine state;
 - generic effect and redacted provider translation preview;
 - live WebSocket progress from committed events only;
 - human acceptance, rejection, correction, and separately authorized compensation proposal;
@@ -183,6 +188,7 @@ No VM stop, restart, reset, snapshot, resize, migrate, delete, container, produc
 - all 59 Product Definition first-release criteria and applicable kernel tests pass;
 - live happy path proves baseline -> packet -> policy -> approval -> grant -> attempt -> provider completion -> result Observation -> HTTPS Verification -> human acceptance;
 - stale baseline, denial, expiry, duplicate command, provider failure, ambiguous result, state mismatch, verifier failure, restart, and correction scenarios pass;
+- personal drafts, retrieved content, prior Case prose, and generated text cannot shadow policy, capabilities, Resources, bindings, approved knowledge, or current Observations in the live Case path;
 - Submitted, provider completed, observed, Verified, and Accepted are distinct in APIs, state, and UI;
 - an independent reviewer reconstructs the complete lineage from the evidence manifest;
 - fresh install, approved upgrade, and controlled pilot run are repeatable;
@@ -200,7 +206,10 @@ No VM stop, restart, reset, snapshot, resize, migrate, delete, container, produc
 - signed Go Site Runtime and Remote-Site Edge Gateway protocol;
 - attested workload identity and outbound-initiated mTLS;
 - signed route/adapter inventory, policy bundle, and compatibility handshake;
+- signed Runtime Capability Profile covering protocol and adapter versions, durable state, encrypted journal and spools, identity, local policy, secret resolution, egress grade, backup/restore, blob staging, clock, resource budgets, upgrade, rollback, and offline guarantees;
+- packet and route minimum-profile evaluation plus a signed Migration Gap Report for route or runtime movement;
 - local packet/grant/target validation and short-lived local credential resolution;
+- local destination-bound credential broker conforming to the central entitlement and sanitization contract;
 - encrypted append-only journal, receipt/Observation spool, sequence/acknowledgment, reconnect, and deduplication;
 - disconnect-before-dispatch deny and disconnect-after-submit polling/reconciliation behavior;
 - signed staged upgrade and rollback to last trusted version;
@@ -212,6 +221,8 @@ No VM stop, restart, reset, snapshot, resize, migrate, delete, container, produc
 - the same approved packet can use an authorized site route with no capability change;
 - route change triggers required policy re-evaluation and new grant;
 - invalid identity, signature, nonce, route, target, expiry, clock, policy, or version blocks locally;
+- missing, stale, unsigned, identity-mismatched, incompatible, or weaker Runtime Capability Profiles block dispatch;
+- migration is refused when the destination weakens required authority, isolation, durability, secret, egress, verification, evidence, or recovery capabilities, and in-flight tests preserve single ownership and sequence continuity;
 - offline journal survives restart and replays centrally exactly once;
 - disconnect scenarios preserve true unknown and submitted states;
 - runtime binary contains no model runtime or autonomous planner;
@@ -230,7 +241,9 @@ No VM stop, restart, reset, snapshot, resize, migrate, delete, container, produc
 - source manifests, applicability, exclusions, sensitivity, ownership, version digest, and access scope;
 - workspace-safe PostgreSQL full-text and vector retrieval with authority and freshness labels;
 - conflict, stale, missing-source, and access-limited behavior;
-- operational skill/playbook manifest, inputs, steps, capability refs, preconditions, stop conditions, authority profile, evidence, verifier, and correction guidance;
+- signed scope-owned operational skill package with manifest, inputs, steps, capability refs and approved ceiling, preconditions, stop conditions, authority profile, evidence, verifier, correction guidance, dependencies, file allowlist, signature, promotion lineage, and materializer compatibility;
+- explicit `draft -> review_pending -> reviewed -> published -> superseded | archived` lifecycle and organization-promotion review;
+- deterministic isolated materialization with exact package, dependency, selected-file, materializer, and resulting tree digests;
 - skill conformance fixtures and review workflow;
 - Case-to-knowledge and Case-to-skill candidate submission;
 - one reviewed VM-recovery knowledge item and one reviewed VM-recovery playbook instantiated through the existing kernel.
@@ -244,6 +257,8 @@ No automatic publication, skill marketplace, arbitrary code execution, standing 
 - unreviewed Case content never appears as approved knowledge;
 - retrieval isolation, sensitivity, exact version, source, conflict, and retirement tests pass;
 - playbook instantiation creates current packets and authority; it reuses no historical approval or grant;
+- only published, correctly scoped, signed packages materialize; promotion creates a new reviewed signature and workspace packages cannot shadow organization packages;
+- identical signed inputs produce the same materialized tree without floating dependencies, mutable references, undeclared files, or undeclared network access;
 - secret and undeclared-input tests pass;
 - one reviewed playbook completes the R1 workflow with the same execution and Verification evidence;
 - knowledge and skill history remains reconstructable after supersession and retirement.
@@ -257,7 +272,9 @@ No automatic publication, skill marketplace, arbitrary code execution, standing 
 #### Scope
 
 - Signal schema, source authentication, normalization, Resource resolution, deduplication, correlation, and payload digest;
-- Routine definition, trigger version, owner, target rule, quiet window, concurrency, catch-up behavior, exception condition, and review date;
+- Routine definition, trigger version, owner, dedicated least-privilege Routine Principal, target rule, quiet window, concurrency, catch-up behavior, exception condition, and review date;
+- versioned person-directed and notification destination bindings with verified identity, purpose, consent or approved policy basis, suppression, opt-out, quiet-window, and revocation controls;
+- deterministic Fire Key and durable atomic firing ledger covering trigger occurrence, destination binding, and resolved target result;
 - routine health, missed schedule, source outage, storm control, and operator intervention;
 - read-only checks and normal-completion confirmation;
 - exception Case creation/advancement and reviewed playbook instantiation;
@@ -267,6 +284,9 @@ No automatic publication, skill marketplace, arbitrary code execution, standing 
 #### Acceptance gate RG-06 / Release R3A
 
 - duplicates and storms obey dedupe, correlation, rate, and concurrency budgets;
+- replay, retry, lease-loss, restart, and catch-up tests produce one logical fire, Case, notification, packet draft, and playbook instance for each Fire Key;
+- Routine Principals never inherit owner permissions, hold provider credentials, approve work, or issue grants;
+- unverified, revoked, suppressed, non-consenting, cross-workspace, or purpose-mismatched destinations fail before delivery, and a destination change creates a successor Routine version;
 - ambiguous targets cannot create a consequential packet;
 - schedules and webhooks have no provider mutation or grant interface;
 - missed-run and source-outage policies are visible and testable;
@@ -344,6 +364,9 @@ No custom source-control hosting, general chat product, unrestricted coding agen
 - cross-provider generic contract and golden conformance suite;
 - signed extension manifest and SDK for adapter, observer, verifier, connector, context-source, and UI-extension roles as approved;
 - version negotiation, compatibility window, route declarations, permission manifest, secret references, evidence hooks, health, and upgrade behavior;
+- Runtime Capability Profile requirements and downgrade refusal for connector and Site Runtime extensions;
+- credential-broker entitlement hooks that prevent an extension from exposing generic authenticated transport or broadening destination scope;
+- deployment clause declarations distinguishing runtime-enforced, validation-only, and reserved extension obligations;
 - sandbox or process isolation, workload identity, resource budgets, and revocation;
 - extension registry and operator approval lifecycle;
 - documentation and test harness that prevent authority, database, and credential bypass.
@@ -353,6 +376,8 @@ No custom source-control hosting, general chat product, unrestricted coding agen
 - the second provider implements the same product capability without core packet or Case changes;
 - all cross-provider failure and reconciliation fixtures pass;
 - extensions cannot write kernel tables, issue grants, access secret values outside their workload scope, or publish unpersisted truth;
+- connector and runtime extensions pass destination-bound credential-broker and Runtime Capability Profile conformance, including downgrade and migration-gap refusal;
+- extension clause-status tests reject unsupported runtime-enforcement claims;
 - signed versioning, revocation, upgrade, rollback, and compatibility tests pass;
 - workspace and route isolation pass for concurrent providers and extensions;
 - operator documentation and conformance evidence are complete.
@@ -367,6 +392,10 @@ No custom source-control hosting, general chat product, unrestricted coding agen
 
 - SLOs, error budgets, capacity and queue limits, disaster recovery, backup/restore, key rotation, retention, legal hold, and evidence export operations;
 - production deployment topology, upgrade rings, rollback posture, compatibility, and support runbooks;
+- version-controlled executable Deployment Contract Directory binding product and deployment-tool versions, configuration schema, migration range, policy and extension descriptors, runtime profiles, secret-reference routes, and immutable artifact/image digests;
+- deterministic `check`, read-only `doctor`, reviewable `plan`, controlled idempotent `up`, and live `verify-drift` operations with persisted evidence and explicit exit classifications;
+- immutable pre-change deployment and rollback manifests, database migration position, backup or snapshot references, forward-recovery instructions, and decision record;
+- deployment-clause register using `ENFORCED`, `VALIDATED-ONLY`, and `RESERVED`, with evidence that prevents status inflation;
 - threat model, penetration testing, supply-chain verification, secret scanning, policy review, and workspace isolation at scale;
 - operational dashboards for Cases, execution unknowns, verifier health, route health, routine health, stale knowledge, failed projections, and evidence sealing;
 - accessibility, performance, internationalization readiness, admin and support controls;
@@ -379,6 +408,8 @@ No custom source-control hosting, general chat product, unrestricted coding agen
 - no unresolved severity-one or severity-two defect or unowned operational risk remains;
 - independent security, privacy, accessibility, migration, and evidence reviews pass;
 - release artifacts include signatures, SBOM, provenance, migration range, and configuration schema;
+- fresh-install, upgrade, rollback, forward-recovery, and drift exercises reproduce the declared manifests, preserve authoritative history and workspace isolation, and truthfully classify every deployment clause;
+- deployment tooling cannot issue operational grants, call managed-system capabilities, or manufacture Verification, and deployment success remains distinct from operational outcome proof;
 - production go/no-go is recorded by product, engineering, operations, security, database, and quality owners;
 - rollout begins with a small named resource scope and explicit rollback/forward-recovery posture.
 
@@ -403,16 +434,16 @@ No custom source-control hosting, general chat product, unrestricted coding agen
 | Gate | Decision | Minimum evidence | Required sign-off |
 |---|---|---|---|
 | WP-00 G6 | Baseline and CI are reliable | Existing WP-00 evidence pack | Existing WP-00 authorities |
-| RG-01 | Kernel foundation is semantically correct | Transition, persistence, isolation, migration, evidence tests | Architecture, backend, database, security, quality |
-| RG-02 | Provider-neutral compute execution is conformant | Adapter, live provider, idempotency, secret, verifier evidence | Architecture, backend, operations, security, quality |
+| RG-01 | Kernel foundation is semantically correct | Transition, persistence, isolation, context-overlay, anti-shadowing, migration, evidence tests | Architecture, backend, database, security, quality |
+| RG-02 | Provider-neutral compute execution is conformant | Adapter, live provider, idempotency, destination-bound credential-broker, secret, verifier evidence | Architecture, backend, operations, security, quality |
 | RG-03 | First product release is accepted | All product/kernel criteria and live Case evidence | Product and engineering; operations/security participate |
-| RG-04 | Site Runtime is trusted | Identity, offline, local-policy, upgrade, private-pilot evidence | Architecture, operations, security, quality |
-| RG-05 | Knowledge and skills are governable | Review lifecycle, retrieval isolation, skill conformance | Product, operations, security, quality |
-| RG-06 | Routines cannot bypass governance | Signal/routine failure and exception Case evidence | Product, operations, security, quality |
+| RG-04 | Site Runtime is trusted | Identity, Runtime Capability Profile, migration-gap refusal, credential broker, offline, local-policy, upgrade, private-pilot evidence | Architecture, operations, security, quality |
+| RG-05 | Knowledge and skills are governable | Review lifecycle, retrieval isolation, package signature/scope/promotion, deterministic materialization, skill conformance | Product, operations, security, quality |
+| RG-06 | Routines cannot bypass governance | Routine Principal, Fire Key/replay, destination consent, delivery, Signal/routine failure and exception Case evidence | Product, operations, security, quality |
 | RG-07 | Project contexts preserve authority boundaries | Revision, binding, context, and non-authority tests | Product, engineering, security, quality |
 | RG-08 | Multi-target work preserves per-target truth | Budget, partial failure, restart, live batch evidence | Product, architecture, operations, security, quality |
-| RG-09 | Extensibility preserves kernel invariants | Second-provider and SDK conformance evidence | Architecture, engineering, security, quality |
-| RG-10 | Production service is operable and safe | SLO, DR, security, accessibility, migration, support evidence | Product, engineering, operations, security, database, quality |
+| RG-09 | Extensibility preserves kernel invariants | Second-provider, SDK, runtime-profile, credential-broker, and clause-status conformance evidence | Architecture, engineering, security, quality |
+| RG-10 | Production service is operable and safe | Executable deployment contract, clause truth, drift, rollback/forward recovery, SLO, DR, security, accessibility, migration, support evidence | Product, engineering, operations, security, database, quality |
 
 ## 8. Roadmap metrics
 
@@ -428,10 +459,16 @@ Progress is measured by proof, not feature count.
 | Identity | Unattributed authoritative transitions | Must remain zero |
 | Secrets | Credential findings in prohibited surfaces | Must remain zero |
 | Isolation | Cross-workspace access findings | Must remain zero |
+| Context | Policy relaxations or authoritative-namespace shadowing accepted through overlays | Must remain zero |
 | Verification | Passed results without exact spec and fresh sealed inputs | Must remain zero |
 | Reliability | Unknown outcomes automatically resubmitted | Must remain zero |
 | Knowledge | Published items without source, owner, reviewer, scope, and digest | Must remain zero |
 | Skills | Consequential steps executed without current packet and grant | Must remain zero |
+| Skills | Published packages without valid signature, scope owner, promotion review, or deterministic materialization digest | Must remain zero |
+| Routines | Duplicate logical fires for one Fire Key or deliveries without a valid destination basis | Must remain zero |
+| Runtime | Dispatches on missing, stale, incompatible, or weaker-than-required Runtime Capability Profiles | Must remain zero |
+| Deployment | Clauses reported as `ENFORCED` without runtime enforcement evidence | Must remain zero |
+| Drift | Released deployments with undeclared artifact, configuration, migration, policy, extension, or runtime-profile drift | Must remain zero |
 | Multi-target | Targets executed outside approved immutable snapshot | Must remain zero |
 
 ## 9. Documentation incorporation plan
@@ -448,7 +485,7 @@ Progress is measured by proof, not feature count.
 | `docs/v2/README.md` | Add both documents to the authority index; state that only WP-00 is currently formal and later package names are proposed until approved. |
 | Product Definition section 10.2 | Retain the eight product-delivery decisions; add a concise mapping to WP-00 through WP-10 and point to the roadmap for package gates. |
 | Product Definition section 15 | Add Native Pattern Specification as the authority for reusable experience/orchestration patterns and Delivery Roadmap as planning authority. |
-| Kernel Appendix B | Add Native Pattern Specification, Knowledge Governance, Operational Skill Manifest, Signal and Routine, Project Context, Multi-Target Coordination, and Extension SDK specifications. |
+| Kernel Appendix B | Add Native Pattern Specification, Context Overlay, Executor Credential Broker, Site Runtime Capability Profile and Migration, Knowledge Governance, Operational Skill Package, Signal and Routine, Project Context, Multi-Target Coordination, Extension SDK, and Executable Deployment Contract specifications. |
 | WP-00 plan | Add a boundary note that no later pattern implementation is part of WP-00 and that its G6 remains the prerequisite. |
 | Future WP plans | Include pattern IDs, kernel invariants, entry gate, exclusions, acceptance evidence, and sign-off owners. |
 
@@ -479,7 +516,10 @@ The following remain outside the roadmap until an approved revision assigns a ty
 4. Create WP-01 only after WP-00 evidence is accepted; use RG-01 as its exit gate.
 5. Create the Generic Compute Adapter and Proxmox profile documents during WP-02 planning.
 6. Create the First-Release Experience Specification before WP-03 implementation completion.
-7. Do not schedule WP-04 through WP-10 against calendar dates until R1 evidence and team capacity are known.
+7. Derive the Context Overlay and Executor Credential Broker contracts during WP-01 planning; complete their live conformance in WP-02 and WP-03.
+8. Create the Runtime Capability Profile and Migration Contract before WP-04 route implementation; create the signed Skill Package and Signal/Routine contracts before WP-05 and WP-06 implementation.
+9. Create and exercise the Executable Deployment Contract before WP-10 release-candidate approval.
+10. Do not schedule WP-04 through WP-10 against calendar dates until R1 evidence and team capacity are known.
 
 ## 12. Roadmap acceptance rule
 
