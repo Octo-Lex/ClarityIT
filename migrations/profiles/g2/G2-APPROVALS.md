@@ -3,25 +3,28 @@
 **Date:** 1 August 2026
 **Branch:** `wp00/g2-schema-decisions` (stacked from `0dd21d8`)
 **PR:** [#9](https://github.com/Octo-Lex/ClarityIT/pull/9) (DRAFT)
-**Commit:** `b1cb33e`
-**CI:** [Run on b1cb33e](https://github.com/Octo-Lex/ClarityIT/actions/runs/30716800094) — success, including G2 isolated fixtures
+**Commit:** `fc0bfd5`
+**CI:** [Run on fc0bfd5](https://github.com/Octo-Lex/ClarityIT/actions/runs/30719645908) — success on all three jobs (Backend (Go), Worker (Python), Frontend), including G2 isolated fixtures
 
 ## Target manifest identity (detached)
 
 | Property | Value |
 |---|---|
 | File | `migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json` |
-| Commit | `b1cb33e` |
-| Raw-byte SHA-256 | `781365c9043ae68c07cc0d9abf0a7d1d9d1c701b954e645bcfa19f5edf4ee92d` |
-| Size | 259,157 bytes |
+| Commit | `fc0bfd5` |
+| Raw-byte SHA-256 | `ab0dfa8f9c7e24104e8f2ed15c36a72c1144c8f6737eb85f46cef00c6c0899e1` |
+| Size | 287,781 bytes |
 
 No in-band digest field.
 
 ## CI evidence (ON_ERROR_STOP=1 — no false passes)
 
 - `018 PASS: P1-canonical validated; raw-018 and 005-only divergences confirmed`
+- `016 NEGATIVE PASS: corruption correctly detected` (transactional ROLLBACK proof)
 - `016 PASS: all 7 canonical names, dual-grant collision, negative case validated`
-- `029 PASS: five-role posture validated with exact flags and memberships`
+- `029 PASS: fail-closed correctly rejected via assert_failure` (real-query probe + assert-vs-conn discrimination)
+- `029 PASS: five-role posture validated with exact flags and membership options`
+- `029 PASS: clarityit is non-superuser in production target`
 - `=== ALL G2 FIXTURES PASSED ===`
 
 ## Executable proof summary
@@ -35,30 +38,41 @@ No in-band digest field.
 - Seeds all 7 `.edit` permissions with valid resource/action columns
 - role-legacy-only (7 grants), role-canonical-only (1 grant), role-dual-grant (holds both legacy AND canonical simultaneously)
 - Collision: `INSERT ON CONFLICT DO NOTHING` unions to canonical; legacy deleted; dual-grant role retains exactly 1
-- Negative: unrelated permission proves canonical-count assertion catches corruption
+- **Negative proof (transactional):** saves a pre-test checksum, deletes a canonical permission + its grants inside a `BEGIN`, asserts the validation ASSERT fails (SQLSTATE P0004 / condition `assert_failure`), then `ROLLBACK`s and proves byte-equality with the pre-test state (permission count, role_permissions count, the deleted row restored). The snapshot-unchanged proof relies on database ROLLBACK atomicity, not a manual restore.
 - Asserts all 7 canonical `.update` names exist exactly once after each case
 
-### 029 (ON_ERROR_STOP=1, proper cleanup)
-- Pre-mutation fail-closed: asserts roles absent before bootstrap
-- Creates 5 roles with exact flags (NOINHERIT on owner/migrator/admin)
-- Validates `admin_option` on memberships (INHERIT for clarityit→app, ADMIN for migrator→owner)
-- Validates absence of unauthorized memberships (admin not in app, owner not in app)
-- GRANT succeeds because clarityit_app exists
-- REVOKE before DROP ROLE (no dependency errors)
-- Superuser rejection documented as production-only assertion
+### 029 (disposable PostgreSQL 16 cluster, dedicated bootstrap admin)
+- **Disposable cluster:** `g2-029-pg` created fresh with `POSTGRES_USER=g2admin`, separate from the shared P0 database, destroyed after each run
+- **Real-query readiness:** replaces `pg_isready` (which falsely succeeds against postgres's interim bootstrap server and during shutdown) with a `SELECT 1` probe that must pass twice with a 1s gap — proving the final server is accepting connections. Independently verified to return `ready=0` against a deliberately stopped server.
+- **Pre-check:** confirms 0 application roles exist in the fresh DB before mutation (so fail-closed is meaningful)
+- **Pre-mutation fail-closed (3a):** distinguishes the expected `assert_failure` from connection errors — the captured output must contain the ASSERT message; any `connection`/`FATAL`/`No such file`/`shutting down`/`refused` substring is a hard failure, not a PASS
+- Creates 5 roles with exact PostgreSQL 16 flags (NOINHERIT on owner/migrator/admin, INHERIT on app/clarityit)
+- Validates exact `admin_option` values on `pg_auth_members` (INHERIT for clarityit→app, ADMIN for migrator→owner)
+- Validates absence of unauthorized memberships (admin not in app/owner, owner not in app)
+- **Superuser rejection (3c):** `clarityit` asserted non-superuser — production target
 
-## Remaining known gap
+### Per-object grants inventory (closed-world)
 
-**Manifest per-object grants inventory** uses aggregate patterns (`ALL TABLES`, `ALL FUNCTIONS`) instead of per-object enumeration. This is acknowledged as incomplete and will be addressed in a follow-up commit. The executable fixtures prove the role posture and decision logic; the per-object grant inventory is documentation precision work.
+Aggregate `ALL TABLES` / `ALL FUNCTIONS` shorthand has been replaced with a closed-world, per-object inventory generated by `scripts/profile/generate_g2_grants.py` (which re-derives the application function set from migrations on each run to catch drift):
+
+| Object class | Count | Grantee | Privileges |
+|---|---|---|---|
+| Tables | 64 | `clarityit_app` | SELECT, INSERT, UPDATE (no DELETE — soft-delete model) |
+| Application functions | 10 | `clarityit_app` | EXECUTE |
+| Extension functions | 81 | — | EXCLUDED from PUBLIC-revoke scope (pgcrypto/citext/pg_trgm; managed by `CREATE EXTENSION`) |
+| Sequences | 1 | `clarityit_app` | USAGE, SELECT |
+| Schemas | 1 | `clarityit_app` | USAGE |
+
+No aggregate grant patterns (`ALL TABLES`, `ALL FUNCTIONS`) remain in the grants block.
 
 ## Conditions
 
-- Migrations 001–040 preserved byte-for-byte.
+- Migrations 001–040 preserved byte-for-byte (verified: `git diff --stat main..HEAD -- 'migrations/0[0-4][0-9]*.sql'` is empty).
 - Reconciled baseline, migration runner, and corrective revisions NOT created in G2.
 
 ## Approvals
 
-Architecture and Database must approve the exact target-manifest digest `781365c9…`; Security reviews the 029 privilege decision.
+Architecture and Database must approve the exact target-manifest digest `ab0dfa8f…`; Security reviews the 029 privilege decision. This record is unsigned — signatures are recorded separately by the named owners.
 
 | Role | Owner | Decision | Signature | Date |
 |---|---|---|---|---|
