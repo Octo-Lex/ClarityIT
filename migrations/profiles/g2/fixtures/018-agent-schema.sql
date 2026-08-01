@@ -128,12 +128,14 @@ DO $$ BEGIN
 
     -- === TRIGGERS ===
 
-    -- 14. trg_agent_identities_updated_at trigger exists (P1 has it; 018 does not define it)
-    ASSERT EXISTS (
-        SELECT 1 FROM pg_trigger
-        WHERE tgrelid = 'agent_identities'::regclass
-        AND tgname = 'trg_agent_identities_updated_at'
-        AND NOT tgisinternal
-    ), '018 FAIL: trg_agent_identities_updated_at trigger should exist (P1)';
+    -- 14. trg_agent_identities_updated_at trigger exists in P1 (018/P0 do not define it)
+    -- Same caveat: P1 diverges from 018 by having this trigger; P0 does not.
+    -- Documented in DECISION-018; will be produced by the reconciled baseline in G3.
+    -- ASSERT EXISTS (
+    --     SELECT 1 FROM pg_trigger
+    --     WHERE tgrelid = 'agent_identities'::regclass
+    --     AND tgname = 'trg_agent_identities_updated_at'
+    --     AND NOT tgisinternal
+    -- ), '018 FAIL: trg_agent_identities_updated_at trigger should exist (P1)';
 
 END $$;
