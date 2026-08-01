@@ -1,42 +1,60 @@
-# G2 Decision — Migration 016 (Normalize Permissions)
+# G2 Decision — Migration 016 (Normalize Permissions) — Corrected
 
 ## Conflict
 
-Migration 016 renames three permissions (`work.items.edit.own`, `work.items.edit.any`, `projects.edit`) to their `.update` canonical forms, then asserts `NOT EXISTS (SELECT 1 FROM permissions WHERE name LIKE '%.edit%')`.
-
-Migration 009 seeds seven `.edit` permissions. 016 renames only three. Four remain: `incidents.edit.own`, `incidents.edit.any`, `docs.edit.own`, `docs.edit.any`. The assertion fails on fresh install.
-
-The P0 CI fixture patches 016 by replacing the renames with a broader UPDATE that catches all `.edit` permissions.
+Migration 009 seeds seven `.edit` permissions. Migration 016 renames only three (`work.items.edit.own/.any`, `projects.edit`) to `.update`, then asserts `NOT EXISTS ... LIKE '%.edit%'`. Four remain: `incidents.edit.own/.any`, `docs.edit.own/.any`. Fresh install fails.
 
 ## P1 evidence
 
-P1's permissions table schema (7 columns: `id`, `name`, `description`, `resource`, `action`, `risk_level`, `created_at`) contains no `.edit` permissions in production data. The application code and all current queries use `.update` permission names. Production was migrated past this conflict (likely by manual intervention or a prior fix not captured in the migration chain).
+P1 permissions table schema has columns `id`, `name`, `description`, `resource`, `action`, `risk_level`, `created_at`. Unique constraint on `name`. The application code uses `.update` permission names exclusively.
 
 ## Decision
 
 **Adopt canonical `update` permissions.** The reconciled baseline will:
 
-1. Rename ALL `.edit` permissions to `.update` (not just the three in 016):
-   - `incidents.edit.own` → `incidents.update.own`
-   - `incidents.edit.any` → `incidents.update.any`
-   - `docs.edit.own` → `docs.update.own`
-   - `docs.edit.any` → `docs.update.any`
-   - (plus the three 016 already handles: `work.items.edit.own/.any`, `projects.edit`)
+### 1. Rename all 7 `.edit` → `.update`
 
-2. Preserve the union of existing role grants. The `role_permissions` table references permission IDs; as long as the renames preserve IDs (UPDATE on the `name` column only), all existing role grants are automatically preserved.
+```
+work.items.edit.own  → work.items.update.own   (016 handles)
+work.items.edit.any  → work.items.update.any   (016 handles)
+projects.edit        → projects.update          (016 handles)
+incidents.edit.own   → incidents.update.own     (NEW)
+incidents.edit.any   → incidents.update.any     (NEW)
+docs.edit.own        → docs.update.own          (NEW)
+docs.edit.any        → docs.update.any          (NEW)
+```
 
-3. Collapse `incidents.edit.own/.any` and `docs.edit.own/.any` collisions deterministically by renaming them to `incidents.update.own/.any` and `docs.update.own/.any` respectively — matching the pattern already established by 016 for `work.items`.
+### 2. Collision handling (corrected)
 
-4. The assertion `NOT EXISTS ... LIKE '%.edit%'` passes because all seven seeded `.edit` permissions have been renamed to `.update`.
+An ID-stable rename works **only** when the canonical row is absent. If both the `.edit` and `.update` rows exist (e.g., from dual-seeding or manual insertion), the resolution is:
+
+1. **Define the canonical `.update` row as the survivor.**
+2. **Repoint all `role_permissions`** from the legacy `.edit` row's ID to the canonical `.update` row's ID:
+   ```sql
+   UPDATE role_permissions rp SET permission_id = canon.id
+   FROM permissions legacy, permissions canon
+   WHERE rp.permission_id = legacy.id
+     AND legacy.name LIKE '%.edit%'
+     AND canon.name = replace(legacy.name, '.edit', '.update')
+     AND canon.id <> legacy.id;
+   ```
+3. **Union the role grants** — any role that had either the `.edit` or `.update` permission retains access via the canonical row.
+4. **Remove the legacy `.edit` row:**
+   ```sql
+   DELETE FROM permissions WHERE name LIKE '%.edit%';
+   ```
+5. **Assert zero `.edit` remain:**
+   ```sql
+   ASSERT NOT EXISTS (SELECT 1 FROM permissions WHERE name LIKE '%.edit%');
+   ```
+
+### 3. No-mutation failure proof
+
+If the canonical `.update` row does not exist and the legacy `.edit` row does, the rename is a simple UPDATE. If both exist, the collision resolution above applies. If neither exists, the assertion fails — the baseline is corrupt.
 
 ## Proof: no legacy `.edit` permission remains
 
-After the reconciled baseline applies:
 ```sql
 SELECT count(*) FROM permissions WHERE name LIKE '%.edit%';
 -- Expected: 0
 ```
-
-## Fixtures
-
-A sanitized fixture (`fixtures/016-permissions.sql`) will reproduce all seven `.edit` permissions from 009, apply the complete rename, and assert the result is zero — proving the resolution works end-to-end.

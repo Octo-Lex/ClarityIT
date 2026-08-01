@@ -1,793 +1,606 @@
 {
-  "default_privileges": [],
+  "decision_016": {
+    "assertion": "NOT EXISTS (SELECT 1 FROM permissions WHERE name LIKE '%.edit%')",
+    "renames": [
+      [
+        "work.items.edit.own",
+        "work.items.update.own"
+      ],
+      [
+        "work.items.edit.any",
+        "work.items.update.any"
+      ],
+      [
+        "projects.edit",
+        "projects.update"
+      ],
+      [
+        "incidents.edit.own",
+        "incidents.update.own"
+      ],
+      [
+        "incidents.edit.any",
+        "incidents.update.any"
+      ],
+      [
+        "docs.edit.own",
+        "docs.update.own"
+      ],
+      [
+        "docs.edit.any",
+        "docs.update.any"
+      ]
+    ],
+    "resolution": "Rename all 7 .edit permissions to .update; collision: canonical .update survives, repoint role_permissions, delete legacy"
+  },
+  "decision_018": {
+    "p1_divergences_from_018": [
+      "max_autonomy has NO default (018 specifies DEFAULT 'A0')",
+      "metadata column absent (018 defines it)",
+      "team_id has no FK to teams(id) (018 defines FK)",
+      "created_by has no FK to users(id) (018 defines FK)",
+      "agent_intentions.status defaults to created (018 specifies proposed)",
+      "trg_agent_identities_updated_at trigger present (018 does not define it)"
+    ],
+    "resolution": "Adopt complete P1 agent shape; skip 005 agent tables; 018 is source but corrected to P1"
+  },
+  "decision_029": {
+    "fail_closed": "Missing required role fails before mutation",
+    "resolution": "Separate privileged bootstrap from application migration; create clarityit_app before 029"
+  },
+  "description": "Post-G2 target schema: P1 shape + 016/018/029 resolutions",
   "functions": [
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.adoc_set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.updated_at = NOW();\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "adoc_set_updated_at",
       "schema": "public"
     },
     {
       "args": "bytea",
+      "body": "CREATE OR REPLACE FUNCTION public.armor(bytea)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_armor$function$\n",
       "name": "armor",
       "schema": "public"
     },
     {
       "args": "bytea, text[], text[]",
+      "body": "CREATE OR REPLACE FUNCTION public.armor(bytea, text[], text[])\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_armor$function$\n",
       "name": "armor",
       "schema": "public"
     },
     {
       "args": "boolean",
+      "body": "CREATE OR REPLACE FUNCTION public.citext(boolean)\n RETURNS citext\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$booltext$function$\n",
       "name": "citext",
       "schema": "public"
     },
     {
       "args": "character",
+      "body": "CREATE OR REPLACE FUNCTION public.citext(character)\n RETURNS citext\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$rtrim1$function$\n",
       "name": "citext",
       "schema": "public"
     },
     {
       "args": "inet",
+      "body": "CREATE OR REPLACE FUNCTION public.citext(inet)\n RETURNS citext\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$network_show$function$\n",
       "name": "citext",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_cmp(citext, citext)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_cmp$function$\n",
       "name": "citext_cmp",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_eq(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_eq$function$\n",
       "name": "citext_eq",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_ge(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_ge$function$\n",
       "name": "citext_ge",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_gt(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_gt$function$\n",
       "name": "citext_gt",
       "schema": "public"
     },
     {
       "args": "citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_hash(citext)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_hash$function$\n",
       "name": "citext_hash",
       "schema": "public"
     },
     {
       "args": "citext, bigint",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_hash_extended(citext, bigint)\n RETURNS bigint\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_hash_extended$function$\n",
       "name": "citext_hash_extended",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_larger(citext, citext)\n RETURNS citext\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_larger$function$\n",
       "name": "citext_larger",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_le(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_le$function$\n",
       "name": "citext_le",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_lt(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_lt$function$\n",
       "name": "citext_lt",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_ne(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_ne$function$\n",
       "name": "citext_ne",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_pattern_cmp(citext, citext)\n RETURNS integer\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_cmp$function$\n",
       "name": "citext_pattern_cmp",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_pattern_ge(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_ge$function$\n",
       "name": "citext_pattern_ge",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_pattern_gt(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_gt$function$\n",
       "name": "citext_pattern_gt",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_pattern_le(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_le$function$\n",
       "name": "citext_pattern_le",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_pattern_lt(citext, citext)\n RETURNS boolean\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_pattern_lt$function$\n",
       "name": "citext_pattern_lt",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citext_smaller(citext, citext)\n RETURNS citext\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/citext', $function$citext_smaller$function$\n",
       "name": "citext_smaller",
       "schema": "public"
     },
     {
       "args": "cstring",
+      "body": "CREATE OR REPLACE FUNCTION public.citextin(cstring)\n RETURNS citext\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$textin$function$\n",
       "name": "citextin",
       "schema": "public"
     },
     {
       "args": "citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citextout(citext)\n RETURNS cstring\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$textout$function$\n",
       "name": "citextout",
       "schema": "public"
     },
     {
       "args": "internal",
+      "body": "CREATE OR REPLACE FUNCTION public.citextrecv(internal)\n RETURNS citext\n LANGUAGE internal\n STABLE PARALLEL SAFE STRICT\nAS $function$textrecv$function$\n",
       "name": "citextrecv",
       "schema": "public"
     },
     {
       "args": "citext",
+      "body": "CREATE OR REPLACE FUNCTION public.citextsend(citext)\n RETURNS bytea\n LANGUAGE internal\n STABLE PARALLEL SAFE STRICT\nAS $function$textsend$function$\n",
       "name": "citextsend",
       "schema": "public"
     },
     {
       "args": "text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.crypt(text, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_crypt$function$\n",
       "name": "crypt",
       "schema": "public"
     },
     {
       "args": "text",
+      "body": "CREATE OR REPLACE FUNCTION public.dearmor(text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_dearmor$function$\n",
       "name": "dearmor",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.decrypt(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_decrypt$function$\n",
       "name": "decrypt",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.decrypt_iv(bytea, bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_decrypt_iv$function$\n",
       "name": "decrypt_iv",
       "schema": "public"
     },
     {
       "args": "bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.digest(bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_digest$function$\n",
       "name": "digest",
       "schema": "public"
     },
     {
       "args": "text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.digest(text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_digest$function$\n",
       "name": "digest",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.encrypt(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_encrypt$function$\n",
       "name": "encrypt",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.encrypt_iv(bytea, bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_encrypt_iv$function$\n",
       "name": "encrypt_iv",
       "schema": "public"
     },
     {
       "args": "integer",
+      "body": "CREATE OR REPLACE FUNCTION public.gen_random_bytes(integer)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_random_bytes$function$\n",
       "name": "gen_random_bytes",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.gen_random_uuid()\n RETURNS uuid\n LANGUAGE c\n PARALLEL SAFE\nAS '$libdir/pgcrypto', $function$pg_random_uuid$function$\n",
       "name": "gen_random_uuid",
       "schema": "public"
     },
     {
       "args": "text",
+      "body": "CREATE OR REPLACE FUNCTION public.gen_salt(text)\n RETURNS text\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_gen_salt$function$\n",
       "name": "gen_salt",
       "schema": "public"
     },
     {
       "args": "text, integer",
+      "body": "CREATE OR REPLACE FUNCTION public.gen_salt(text, integer)\n RETURNS text\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_gen_salt_rounds$function$\n",
       "name": "gen_salt",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.hmac(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_hmac$function$\n",
       "name": "hmac",
       "schema": "public"
     },
     {
       "args": "text, text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.hmac(text, text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pg_hmac$function$\n",
       "name": "hmac",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.kc_search_vector_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.search_vector :=\n        setweight(to_tsvector('english', coalesce(NEW.heading, '')), 'B') ||\n        setweight(to_tsvector('english', coalesce(NEW.content_text, '')), 'C');\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "kc_search_vector_update",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.ki_search_vector_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.search_vector :=\n        setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||\n        setweight(to_tsvector('english', coalesce(NEW.summary, '')), 'B') ||\n        setweight(to_tsvector('english', coalesce(NEW.content_text, '')), 'C');\n    NEW.updated_at := NOW();\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "ki_search_vector_update",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.ki_set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    -- Don't override if search_vector trigger already set it\n    IF NEW.updated_at = OLD.updated_at THEN\n        NEW.updated_at := NOW();\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "ki_set_updated_at",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.normalize_team_slug()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.slug := LOWER(TRIM(REGEXP_REPLACE(NEW.slug, '[^a-z0-9-]', '-', 'g')));\n    NEW.slug := TRIM(BOTH '-' FROM NEW.slug);\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "normalize_team_slug",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.normalize_user_email()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.email := LOWER(TRIM(NEW.email));\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "normalize_user_email",
       "schema": "public"
     },
     {
       "args": "text, OUT key text, OUT value text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_armor_headers(text, OUT key text, OUT value text)\n RETURNS SETOF record\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_armor_headers$function$\n",
       "name": "pgp_armor_headers",
       "schema": "public"
     },
     {
       "args": "bytea",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_key_id(bytea)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_key_id_w$function$\n",
       "name": "pgp_key_id",
       "schema": "public"
     },
     {
       "args": "bytea, bytea",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt(bytea, bytea)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$\n",
       "name": "pgp_pub_decrypt",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt(bytea, bytea, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$\n",
       "name": "pgp_pub_decrypt",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt(bytea, bytea, text, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_text$function$\n",
       "name": "pgp_pub_decrypt",
       "schema": "public"
     },
     {
       "args": "bytea, bytea",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt_bytea(bytea, bytea)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n",
       "name": "pgp_pub_decrypt_bytea",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt_bytea(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n",
       "name": "pgp_pub_decrypt_bytea",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_decrypt_bytea(bytea, bytea, text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_decrypt_bytea$function$\n",
       "name": "pgp_pub_decrypt_bytea",
       "schema": "public"
     },
     {
       "args": "text, bytea",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_encrypt(text, bytea)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_encrypt_text$function$\n",
       "name": "pgp_pub_encrypt",
       "schema": "public"
     },
     {
       "args": "text, bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_encrypt(text, bytea, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_encrypt_text$function$\n",
       "name": "pgp_pub_encrypt",
       "schema": "public"
     },
     {
       "args": "bytea, bytea",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_encrypt_bytea(bytea, bytea)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$\n",
       "name": "pgp_pub_encrypt_bytea",
       "schema": "public"
     },
     {
       "args": "bytea, bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_pub_encrypt_bytea(bytea, bytea, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_pub_encrypt_bytea$function$\n",
       "name": "pgp_pub_encrypt_bytea",
       "schema": "public"
     },
     {
       "args": "bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_sym_decrypt(bytea, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$\n",
       "name": "pgp_sym_decrypt",
       "schema": "public"
     },
     {
       "args": "bytea, text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_sym_decrypt(bytea, text, text)\n RETURNS text\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_decrypt_text$function$\n",
       "name": "pgp_sym_decrypt",
       "schema": "public"
     },
     {
       "args": "bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_sym_decrypt_bytea(bytea, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$\n",
       "name": "pgp_sym_decrypt_bytea",
       "schema": "public"
     },
     {
       "args": "bytea, text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_sym_decrypt_bytea(bytea, text, text)\n RETURNS bytea\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_decrypt_bytea$function$\n",
       "name": "pgp_sym_decrypt_bytea",
       "schema": "public"
     },
     {
       "args": "text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_sym_encrypt(text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$\n",
       "name": "pgp_sym_encrypt",
       "schema": "public"
     },
     {
       "args": "text, text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_sym_encrypt(text, text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_text$function$\n",
       "name": "pgp_sym_encrypt",
       "schema": "public"
     },
     {
       "args": "bytea, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_sym_encrypt_bytea(bytea, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$\n",
       "name": "pgp_sym_encrypt_bytea",
       "schema": "public"
     },
     {
       "args": "bytea, text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.pgp_sym_encrypt_bytea(bytea, text, text)\n RETURNS bytea\n LANGUAGE c\n PARALLEL SAFE STRICT\nAS '$libdir/pgcrypto', $function$pgp_sym_encrypt_bytea$function$\n",
       "name": "pgp_sym_encrypt_bytea",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.prevent_bootstrap_unlock()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    IF OLD.is_locked = TRUE AND NEW.is_locked = FALSE THEN\n        RAISE EXCEPTION 'Bootstrap lock cannot be reversed';\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "prevent_bootstrap_unlock",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.protect_last_team_owner()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nDECLARE\n    owner_role_id UUID;\n    admin_count INT;\nBEGIN\n    SELECT id INTO owner_role_id FROM roles WHERE name = 'owner';\n\n    -- On role change away from owner\n    IF TG_OP = 'UPDATE' AND OLD.role_id = owner_role_id AND NEW.role_id != owner_role_id THEN\n        SELECT COUNT(*) INTO admin_count\n        FROM team_memberships\n        WHERE team_id = NEW.team_id AND role_id = owner_role_id;\n        IF admin_count <= 1 THEN\n            RAISE EXCEPTION 'Cannot remove the last owner from team';\n        END IF;\n    END IF;\n\n    -- On deletion of an owner\n    IF TG_OP = 'DELETE' AND OLD.role_id = owner_role_id THEN\n        SELECT COUNT(*) INTO admin_count\n        FROM team_memberships\n        WHERE team_id = OLD.team_id AND role_id = owner_role_id;\n        IF admin_count <= 1 THEN\n            RAISE EXCEPTION 'Cannot remove the last owner from team';\n        END IF;\n    END IF;\n\n    IF TG_OP = 'DELETE' THEN\n        RETURN OLD;\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "protect_last_team_owner",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_match(citext, citext)\n RETURNS text[]\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.regexp_match( $1::pg_catalog.text, $2::pg_catalog.text, 'i' );\n$function$\n",
       "name": "regexp_match",
       "schema": "public"
     },
     {
       "args": "citext, citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_match(citext, citext, text)\n RETURNS text[]\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.regexp_match( $1::pg_catalog.text, $2::pg_catalog.text, CASE WHEN pg_catalog.strpos($3, 'c') = 0 THEN  $3 || 'i' ELSE $3 END );\n$function$\n",
       "name": "regexp_match",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_matches(citext, citext)\n RETURNS SETOF text[]\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT ROWS 1\nAS $function$\n    SELECT pg_catalog.regexp_matches( $1::pg_catalog.text, $2::pg_catalog.text, 'i' );\n$function$\n",
       "name": "regexp_matches",
       "schema": "public"
     },
     {
       "args": "citext, citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_matches(citext, citext, text)\n RETURNS SETOF text[]\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT ROWS 10\nAS $function$\n    SELECT pg_catalog.regexp_matches( $1::pg_catalog.text, $2::pg_catalog.text, CASE WHEN pg_catalog.strpos($3, 'c') = 0 THEN  $3 || 'i' ELSE $3 END );\n$function$\n",
       "name": "regexp_matches",
       "schema": "public"
     },
     {
       "args": "citext, citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_replace(citext, citext, text)\n RETURNS text\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.regexp_replace( $1::pg_catalog.text, $2::pg_catalog.text, $3, 'i');\n$function$\n",
       "name": "regexp_replace",
       "schema": "public"
     },
     {
       "args": "citext, citext, text, text",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_replace(citext, citext, text, text)\n RETURNS text\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.regexp_replace( $1::pg_catalog.text, $2::pg_catalog.text, $3, CASE WHEN pg_catalog.strpos($4, 'c') = 0 THEN  $4 || 'i' ELSE $4 END);\n$function$\n",
       "name": "regexp_replace",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_split_to_array(citext, citext)\n RETURNS text[]\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.regexp_split_to_array( $1::pg_catalog.text, $2::pg_catalog.text, 'i' );\n$function$\n",
       "name": "regexp_split_to_array",
       "schema": "public"
     },
     {
       "args": "citext, citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_split_to_array(citext, citext, text)\n RETURNS text[]\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.regexp_split_to_array( $1::pg_catalog.text, $2::pg_catalog.text, CASE WHEN pg_catalog.strpos($3, 'c') = 0 THEN  $3 || 'i' ELSE $3 END );\n$function$\n",
       "name": "regexp_split_to_array",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_split_to_table(citext, citext)\n RETURNS SETOF text\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.regexp_split_to_table( $1::pg_catalog.text, $2::pg_catalog.text, 'i' );\n$function$\n",
       "name": "regexp_split_to_table",
       "schema": "public"
     },
     {
       "args": "citext, citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.regexp_split_to_table(citext, citext, text)\n RETURNS SETOF text\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.regexp_split_to_table( $1::pg_catalog.text, $2::pg_catalog.text, CASE WHEN pg_catalog.strpos($3, 'c') = 0 THEN  $3 || 'i' ELSE $3 END );\n$function$\n",
       "name": "regexp_split_to_table",
       "schema": "public"
     },
     {
       "args": "citext, citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.replace(citext, citext, citext)\n RETURNS text\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.regexp_replace( $1::pg_catalog.text, pg_catalog.regexp_replace($2::pg_catalog.text, '([^a-zA-Z_0-9])', E'\\\\\\\\\\\\1', 'g'), $3::pg_catalog.text, 'gi' );\n$function$\n",
       "name": "replace",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.updated_at := NOW();\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "set_updated_at",
       "schema": "public"
     },
     {
       "args": "citext, citext, integer",
+      "body": "CREATE OR REPLACE FUNCTION public.split_part(citext, citext, integer)\n RETURNS text\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT (pg_catalog.regexp_split_to_array( $1::pg_catalog.text, pg_catalog.regexp_replace($2::pg_catalog.text, '([^a-zA-Z_0-9])', E'\\\\\\\\\\\\1', 'g'), 'i'))[$3];\n$function$\n",
       "name": "split_part",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.strpos(citext, citext)\n RETURNS integer\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.strpos( pg_catalog.lower( $1::pg_catalog.text ), pg_catalog.lower( $2::pg_catalog.text ) );\n$function$\n",
       "name": "strpos",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.texticlike(citext, citext)\n RETURNS boolean\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$texticlike$function$\n",
       "name": "texticlike",
       "schema": "public"
     },
     {
       "args": "citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.texticlike(citext, text)\n RETURNS boolean\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$texticlike$function$\n",
       "name": "texticlike",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.texticnlike(citext, citext)\n RETURNS boolean\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$texticnlike$function$\n",
       "name": "texticnlike",
       "schema": "public"
     },
     {
       "args": "citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.texticnlike(citext, text)\n RETURNS boolean\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$texticnlike$function$\n",
       "name": "texticnlike",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.texticregexeq(citext, citext)\n RETURNS boolean\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$texticregexeq$function$\n",
       "name": "texticregexeq",
       "schema": "public"
     },
     {
       "args": "citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.texticregexeq(citext, text)\n RETURNS boolean\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$texticregexeq$function$\n",
       "name": "texticregexeq",
       "schema": "public"
     },
     {
       "args": "citext, citext",
+      "body": "CREATE OR REPLACE FUNCTION public.texticregexne(citext, citext)\n RETURNS boolean\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$texticregexne$function$\n",
       "name": "texticregexne",
       "schema": "public"
     },
     {
       "args": "citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.texticregexne(citext, text)\n RETURNS boolean\n LANGUAGE internal\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$texticregexne$function$\n",
       "name": "texticregexne",
       "schema": "public"
     },
     {
       "args": "citext, citext, text",
+      "body": "CREATE OR REPLACE FUNCTION public.translate(citext, citext, text)\n RETURNS text\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n    SELECT pg_catalog.translate( pg_catalog.translate( $1::pg_catalog.text, pg_catalog.lower($2::pg_catalog.text), $3), pg_catalog.upper($2::pg_catalog.text), $3);\n$function$\n",
       "name": "translate",
       "schema": "public"
     },
     {
       "args": "",
+      "body": "CREATE OR REPLACE FUNCTION public.trg_artifacts_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.updated_at = NOW();\n    RETURN NEW;\nEND;\n$function$\n",
       "name": "trg_artifacts_updated_at",
       "schema": "public"
     }
   ],
-  "grants_sha256": "c822d82ba74c9550ffd8de02063e55f9e92917067cf36375cf552d8cffd53871",
-  "manifest_sha256": "cb79f6742a135c153459c90f2a4c401916c1a29ffa8fee73685b245bc650fbc9",
-  "memberships": [],
-  "ownership": [
-    {
-      "owner": "clarityit",
-      "relation": "action_outcomes",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "agent_effect_results",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "agent_evaluation_runs",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "agent_evaluation_scenario_results",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "agent_identities",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "agent_intentions",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "agent_runs",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "agent_tool_grants",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "alerts",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "approval_decisions",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "approval_policies",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "approval_requests",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "artifact_document_versions",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "artifact_documents",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "artifact_meeting_data",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "artifact_templates",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "artifacts",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "asset_actions",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "assets",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "audit_logs",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "audit_logs_id_seq",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "bootstrap_lock",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "context_bundles",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "context_edge_evidence",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "context_edges",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "context_nodes",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "context_relation_reviews",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "docs",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "idempotency_keys",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "incidents",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "integration_api_keys",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "invitations",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "knowledge_chunks",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "knowledge_collection_items",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "knowledge_collections",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "knowledge_items",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "mfa_challenges",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "mfa_recovery_codes",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "object_comments",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "object_links",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "object_storage_refs",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "objects",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "outbox_events",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "password_reset_tokens",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "permissions",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "platform_roles",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "proxmox_mutation_windows",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "recommendation_evidence",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "refresh_tokens",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "remediation_proposals",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "remediation_steps",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "role_permissions",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "roles",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "saved_knowledge_answers",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "storage_objects",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "team_access_grants",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "team_memberships",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "teams",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "tool_registry",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "user_mfa_factors",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "user_platform_roles",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "user_sessions",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "user_webauthn_credentials",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "users",
-      "schema": "public"
-    },
-    {
-      "owner": "clarityit",
-      "relation": "work_items",
-      "schema": "public"
-    }
-  ],
+  "manifest_sha256": "41e5c14e4d2275bc250ce7c9d4c186bb87a8d3c169421607c852f646b0584724",
   "p1_fingerprint": "89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83",
+  "p1_sha256": "0f81cf9369c5139ce680b049981676adc5ff9811037dba866326886579c4d994",
+  "p1_version_id": "1fd353ec-2258-4cd5-af57-fdbafc2c7f3a",
   "relations": [
     {
       "kind": "S",
@@ -1182,18 +995,6 @@
   ],
   "rls_policies": [],
   "rls_state": [],
-  "roles": [
-    {
-      "bypassrls": true,
-      "canlogin": true,
-      "createdb": true,
-      "createrole": true,
-      "inherit": true,
-      "name": "clarityit",
-      "replication": true,
-      "superuser": true
-    }
-  ],
   "schemas": [
     "public"
   ],
@@ -1210,7 +1011,6 @@
       "type": "bigint"
     }
   ],
-  "source": "P1 production manifest (version 1fd353ec-2258-4cd5-af57-fdbafc2c7f3a)",
   "tables": {
     "public.action_outcomes": {
       "columns": [
@@ -8898,5 +8698,69 @@
       "triggers": []
     }
   },
+  "target_memberships": [
+    {
+      "member": "clarityit",
+      "role_of": "clarityit_app"
+    }
+  ],
+  "target_ownership": {
+    "note": "All objects owned by clarityit_owner in the production target. Development exception: owned by clarityit (superuser).",
+    "owner_role": "clarityit_owner"
+  },
+  "target_roles": [
+    {
+      "flags": {
+        "bypassrls": false,
+        "canlogin": false,
+        "createdb": false,
+        "createrole": false,
+        "inherit": true,
+        "replication": false,
+        "superuser": false
+      },
+      "name": "clarityit_app",
+      "purpose": "Application runtime group role (grantee of table privileges)"
+    },
+    {
+      "flags": {
+        "bypassrls": false,
+        "canlogin": true,
+        "createdb": false,
+        "createrole": false,
+        "inherit": true,
+        "replication": false,
+        "superuser": false
+      },
+      "name": "clarityit",
+      "purpose": "Application login role, member of clarityit_app"
+    },
+    {
+      "flags": {
+        "bypassrls": false,
+        "canlogin": true,
+        "createdb": true,
+        "createrole": false,
+        "inherit": true,
+        "replication": false,
+        "superuser": false
+      },
+      "name": "clarityit_owner",
+      "purpose": "Migration/schema owner; owns all objects; NOT member of clarityit_app"
+    },
+    {
+      "flags": {
+        "bypassrls": false,
+        "canlogin": true,
+        "createdb": false,
+        "createrole": true,
+        "inherit": true,
+        "replication": false,
+        "superuser": false
+      },
+      "name": "clarityit_admin",
+      "purpose": "Break-glass admin for role/policy management only"
+    }
+  ],
   "views": []
 }
