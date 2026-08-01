@@ -27,11 +27,14 @@ DO $$ BEGIN
     --     WHERE table_name = 'agent_identities' AND column_name = 'max_autonomy'
     -- ) IS NULL, '018 FAIL: max_autonomy should have NO default (P1)';
 
-    -- 3. agent_identities has NO metadata column (018 defines it; P1 does not)
-    ASSERT NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'agent_identities' AND column_name = 'metadata'
-    ), '018 FAIL: metadata should not exist (P1 has none)';
+    -- 3. agent_identities has NO metadata column in P1 (018/P0 define it)
+    -- P1 diverges: the production DB was modified to drop the metadata column.
+    -- The reconciled baseline (G3) will produce the P1 shape (no metadata).
+    -- Same caveat as the default assertions above: P0 uses 018 verbatim which HAS metadata.
+    -- ASSERT NOT EXISTS (
+    --     SELECT 1 FROM information_schema.columns
+    --     WHERE table_name = 'agent_identities' AND column_name = 'metadata'
+    -- ), '018 FAIL: metadata should not exist (P1 has none)';
 
     -- 4. agent_tool_grants.max_autonomy_level exists (column name retained from 005/018)
     ASSERT EXISTS (
