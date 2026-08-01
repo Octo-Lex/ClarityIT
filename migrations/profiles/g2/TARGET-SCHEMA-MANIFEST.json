@@ -597,7 +597,6 @@
       "schema": "public"
     }
   ],
-  "manifest_sha256": "41e5c14e4d2275bc250ce7c9d4c186bb87a8d3c169421607c852f646b0584724",
   "p1_fingerprint": "89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83",
   "p1_sha256": "0f81cf9369c5139ce680b049981676adc5ff9811037dba866326886579c4d994",
   "p1_version_id": "1fd353ec-2258-4cd5-af57-fdbafc2c7f3a",

@@ -45,7 +45,7 @@
 ### P1 recommendation_evidence table (029 target)
 
 - Exists in P1 with 16 columns (added by migration 029's CREATE TABLE)
-- The `GRANT ... TO clarityit_app` in migration 029 fails silently because the role doesn't exist
+- The `GRANT ... TO clarityit_app` in migration 029 fails with an error (PostgreSQL raises an error for GRANT to nonexistent role) because the role doesn't exist
 
 ## Verification
 
