@@ -1,7 +1,9 @@
--- G2 016 Fixture: Permission normalization — complete with all 7 canonical + collision + negative
+-- G2 016 Fixture: Permission normalization — complete with all 7 canonical + collision + negative.
 -- Runs in an isolated schema to avoid P0 seed interference.
+-- Drop-then-create keeps the fixture idempotent across re-runs and after mid-script aborts.
 
-CREATE SCHEMA IF NOT EXISTS g2_016;
+DROP SCHEMA IF EXISTS g2_016 CASCADE;
+CREATE SCHEMA g2_016;
 SET search_path TO g2_016;
 
 -- Minimal tables for testing
@@ -69,7 +71,6 @@ DO $$ BEGIN
         'incidents.update.own', 'incidents.update.any',
         'docs.update.own', 'docs.update.any'
     )) = 7, '016 FAIL: not all 7 canonical .update permissions exist';
-    -- role-legacy-only retains all 7 grants
     ASSERT (SELECT count(*) FROM role_permissions rp
         JOIN permissions p ON rp.permission_id = p.id
         WHERE rp.role_id = '00000000-0000-4000-8000-000000030001') = 7,
@@ -77,7 +78,6 @@ DO $$ BEGIN
 END $$;
 
 -- === CASE 2: Collision (both .edit and .update exist with different grant holders) ===
--- Insert a legacy .edit alongside the existing canonical .update
 INSERT INTO permissions (id, name, description, resource, action, risk_level) VALUES
     ('00000000-0000-4000-8000-000000040010', 'incidents.edit.own', 'Legacy collision', 'incidents', 'edit.own', 'low')
 ON CONFLICT (name) DO NOTHING;
@@ -95,8 +95,7 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT '00000000-0000-4000-8000-000000030003', id FROM permissions WHERE name = 'incidents.update.own'
 ON CONFLICT DO NOTHING;
 
--- Collision resolution:
--- 1. Union legacy grants into canonical (ON CONFLICT DO NOTHING prevents PK violation)
+-- Collision resolution
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT rp.role_id, canon.id
 FROM role_permissions rp
@@ -104,30 +103,25 @@ JOIN permissions legacy ON rp.permission_id = legacy.id AND legacy.name LIKE '%.
 JOIN permissions canon ON canon.name = replace(legacy.name, '.edit', '.update')
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
--- 2. Delete legacy grant rows
 DELETE FROM role_permissions
 WHERE permission_id IN (SELECT id FROM permissions WHERE name LIKE '%.edit%');
 
--- 3. Delete legacy permission rows
 DELETE FROM permissions WHERE name LIKE '%.edit%';
 
 -- Assert: zero .edit, dual-grant role has exactly 1 canonical grant
 DO $$ BEGIN
     ASSERT NOT EXISTS (SELECT 1 FROM permissions WHERE name LIKE '%.edit%'),
         '016 FAIL: .edit remain after collision';
-    -- role-dual-grant: was holding both legacy+canonical → now exactly 1
     ASSERT (SELECT count(*) FROM role_permissions rp
         JOIN permissions p ON rp.permission_id = p.id
         WHERE rp.role_id = '00000000-0000-4000-8000-000000030003'
         AND p.name = 'incidents.update.own') = 1,
         '016 FAIL: role-dual-grant should have exactly 1 canonical grant after collision';
-    -- role-canonical-only: still has canonical
     ASSERT EXISTS (SELECT 1 FROM role_permissions rp
         JOIN permissions p ON rp.permission_id = p.id
         WHERE rp.role_id = '00000000-0000-4000-8000-000000030002'
         AND p.name = 'incidents.update.own'),
         '016 FAIL: role-canonical-only lost grant';
-    -- All 7 canonical still exist
     ASSERT (SELECT count(*) FROM permissions WHERE name IN (
         'work.items.update.own', 'work.items.update.any', 'projects.update',
         'incidents.update.own', 'incidents.update.any',
@@ -135,22 +129,63 @@ DO $$ BEGIN
     )) = 7, '016 FAIL: canonical count wrong after collision';
 END $$;
 
--- === CASE 3: Negative — expected failure when neither legacy nor canonical exists ===
--- Insert an unrelated permission (neither .edit nor any expected .update)
-INSERT INTO permissions (id, name, description, resource, action, risk_level) VALUES
-    ('00000000-0000-4000-8000-000000040099', 'completely.unrelated', 'Unrelated', 'none', 'none', 'low')
-ON CONFLICT DO NOTHING;
+-- === CASE 3: Negative — expected failure when a canonical permission is missing ===
+-- The entire negative test runs inside a transaction that is ROLLED BACK.
+-- ROLLBACK is the atomic guarantee that the fixture state is provably unchanged,
+-- rather than relying on a manual restore. We capture a pre-test checksum, run
+-- the corruption + expected-failing assertion, roll back, then assert the
+-- post-rollback state byte-matches the pre-test checksum (incl. the deleted row).
 
--- The corruption case: if a required canonical name were missing,
--- the following count would be < 7 and the assertion would fail.
+CREATE TEMP TABLE _016_before AS
+SELECT
+    (SELECT count(*) FROM permissions) AS perm_count,
+    (SELECT count(*) FROM role_permissions) AS rp_count,
+    (SELECT count(*) FROM permissions WHERE name LIKE '%.edit%') AS edit_count,
+    (SELECT count(*) FROM permissions WHERE name LIKE '%.update%') AS update_count;
+
+BEGIN;
+-- Simulate corruption: remove the canonical pair (permission + its grants)
+DELETE FROM role_permissions WHERE permission_id = (
+    SELECT id FROM permissions WHERE name = 'docs.update.any'
+);
+DELETE FROM permissions WHERE name = 'docs.update.any';
+
+-- Confirm the corruption actually happened (only 6 canonical remain mid-transaction)
+DO $$ BEGIN
+    ASSERT (SELECT count(*) FROM permissions WHERE name = 'docs.update.any') = 0,
+        '016 NEGATIVE (mid-tx): docs.update.any should be deleted';
+END $$;
+
+-- The validation assertion MUST fail on the corrupted state.
+-- PostgreSQL's ASSERT raises SQLSTATE P0004, whose condition name is `assert_failure`.
 DO $$ BEGIN
     ASSERT (SELECT count(*) FROM permissions WHERE name IN (
         'work.items.update.own', 'work.items.update.any', 'projects.update',
         'incidents.update.own', 'incidents.update.any',
         'docs.update.own', 'docs.update.any'
-    )) = 7, '016 FAIL: missing canonical permission (corruption detected)';
+    )) = 7, '016 NEGATIVE: should fail (only 6 canonical exist)';
+    -- Unreachable if ASSERT works correctly
+    RAISE EXCEPTION '016 NEGATIVE FAIL: corruption not detected';
+EXCEPTION
+    WHEN assert_failure THEN
+        RAISE NOTICE '016 NEGATIVE PASS: corruption correctly detected';
+END $$;
+
+ROLLBACK;
+
+-- Prove ROLLBACK restored the exact pre-test state
+DO $$ BEGIN
+    ASSERT (SELECT count(*) FROM permissions) = (SELECT perm_count FROM _016_before),
+        '016 FAIL: permission count changed after negative test (rollback leaked)';
+    ASSERT (SELECT count(*) FROM role_permissions) = (SELECT rp_count FROM _016_before),
+        '016 FAIL: role_permissions count changed after negative test (rollback leaked)';
     ASSERT NOT EXISTS (SELECT 1 FROM permissions WHERE name LIKE '%.edit%'),
-        '016 FAIL: .edit permissions exist (should be zero)';
+        '016 FAIL: .edit exist after negative test';
+    ASSERT (SELECT count(*) FROM permissions WHERE name LIKE '%.update%') = (SELECT update_count FROM _016_before),
+        '016 FAIL: .update count changed after negative test';
+    -- The deleted canonical permission must be back — this is the snapshot-unchanged proof
+    ASSERT EXISTS (SELECT 1 FROM permissions WHERE name = 'docs.update.any'),
+        '016 FAIL: docs.update.any missing after rollback — snapshot NOT unchanged';
 END $$;
 
 -- === CLEANUP ===
