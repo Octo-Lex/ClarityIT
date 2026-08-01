@@ -5,7 +5,11 @@
 **Backup:** `opbak-20260731-173628`
 **P1/P2 fingerprint:** `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83`
 **P3 golden:** `cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b`
-**Custody manifest digest:** `09b85225f15194c905d47b4da8a87a1e9ca58c5d99b22e1cc30e83839b0d6d8a`
+
+> **This manifest does not contain its own digest or version ID.**
+> The uploaded object's immutable version ID and SHA-256 are recorded in the
+> separate custody receipt (`CUSTODY-RECEIPT.md`) after upload, so the manifest
+> bytes never change after sealing.
 
 ## Storage configuration
 
@@ -78,22 +82,16 @@ All 12 artifacts retrieved via `evidence-verifier` identity and SHA-256 verified
 |---|---|
 | Delete object | ❌ `Access Denied` — verifier cannot delete |
 | Clear legal-hold | ❌ `Access Denied` — verifier cannot modify legal-hold |
-| Bypass retention | ❌ Not supported — verifier cannot bypass retention |
+| Bypass retention | ❌ Not permitted for verifier identity |
 | Put object (write) | ❌ `Access Denied` — verifier cannot upload |
-
-## Custody manifest seal (13th object)
-
-This manifest will be hashed, uploaded as `custody-manifest.md`, and its version ID recorded here after upload.
-
-- **Version ID:** `7cfcbb0f-4df2-44af-8aec-90de39a5a4c7`
-- **SHA-256:** `09b85225f15194c905d47b4da8a87a1e9ca58c5d99b22e1cc30e83839b0d6d8a`
 
 ## Risk acceptance
 
-By the approved *Environment Trust and Evidence Custody Deployment Profile v0.1*, this development-exception custody arrangement is accepted for G1 development purposes, subject to the limitations documented above. Production deployment requires a fresh environment with independently protected KMS, HA IAM, independent storage, and tested recovery.
+By the approved *Environment Trust and Evidence Custody Deployment Profile v0.1*, this development-exception custody arrangement requires Architecture, Security, Operations, and Database approval.
 
 | Role | Owner | Decision | Signature | Date |
 |---|---|---|---|---|
-| Database | | | | |
-| Operations | | | | |
+| Architecture | | | | |
 | Security | | | | |
+| Operations | | | | |
+| Database | | | | |
