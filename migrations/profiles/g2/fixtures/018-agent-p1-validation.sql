@@ -230,6 +230,10 @@ RESET search_path;
 CREATE SCHEMA IF NOT EXISTS g2_018;
 SET search_path TO g2_018;
 
+-- Create dummy teams/users tables for FK targets (018 references them)
+CREATE TABLE teams (id UUID PRIMARY KEY DEFAULT gen_random_uuid());
+CREATE TABLE users (id UUID PRIMARY KEY DEFAULT gen_random_uuid());
+
 -- Apply 018's agent table definitions (raw, unmodified)
 -- Note: 018 uses CREATE TABLE without IF NOT EXISTS
 CREATE TABLE agent_identities (
