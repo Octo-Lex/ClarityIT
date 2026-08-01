@@ -375,8 +375,118 @@ BEGIN
 
 END $$;
 
+-- === STEP 4: Create 005-only schema and assert it FAILS P1 checks ===
+RESET search_path;
+CREATE SCHEMA IF NOT EXISTS g2_005;
+SET search_path TO g2_005;
+
+-- 005 agent table definitions (raw, with IF NOT EXISTS and 005-shape columns)
+CREATE TABLE agent_identities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_id UUID,
+    name TEXT NOT NULL,
+    agent_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled', 'suspended')),
+    max_autonomy_level TEXT NOT NULL DEFAULT 'A0' CHECK (max_autonomy_level IN ('A0', 'A1', 'A2', 'A3', 'A4', 'A5')),
+    created_by UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (team_id, name)
+);
+
+CREATE TABLE agent_tool_grants (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    agent_id UUID NOT NULL REFERENCES agent_identities(id) ON DELETE CASCADE,
+    team_id UUID,
+    tool_name TEXT NOT NULL,
+    max_autonomy_level TEXT NOT NULL DEFAULT 'A0' CHECK (max_autonomy_level IN ('A0', 'A1', 'A2', 'A3', 'A4', 'A5')),
+    requires_approval BOOLEAN NOT NULL DEFAULT TRUE,
+    requires_mfa BOOLEAN NOT NULL DEFAULT FALSE,
+    expires_at TIMESTAMPTZ,
+    created_by UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE agent_runs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_id UUID NOT NULL,
+    agent_id UUID NOT NULL REFERENCES agent_identities(id),
+    triggered_by_actor_id UUID,
+    triggered_by_actor_type TEXT NOT NULL CHECK (triggered_by_actor_type IN ('user', 'agent', 'system')),
+    context_bundle_id UUID,
+    status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    correlation_id UUID NOT NULL
+);
+
+CREATE TABLE agent_intentions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_id UUID NOT NULL,
+    agent_run_id UUID NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
+    intention_type TEXT NOT NULL,
+    target_object_id UUID,
+    tool_name TEXT,
+    confidence NUMERIC CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
+    risk_level TEXT NOT NULL CHECK (risk_level IN ('low', 'medium', 'high', 'critical')),
+    autonomy_level TEXT NOT NULL CHECK (autonomy_level IN ('A0', 'A1', 'A2', 'A3', 'A4', 'A5')),
+    payload JSONB NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(payload) = 'object'),
+    status TEXT NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'validated', 'denied', 'approval_requested', 'approved', 'executed', 'failed')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE agent_effect_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_id UUID NOT NULL,
+    intention_id UUID NOT NULL REFERENCES agent_intentions(id) ON DELETE CASCADE,
+    tool_name TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('succeeded', 'failed', 'denied', 'cancelled')),
+    approval_id UUID,
+    audit_event_id UUID,
+    result_payload JSONB NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(result_payload) = 'object'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Assert 005 FAILS P1 checks
+DO $$
+BEGIN
+    -- 005 has max_autonomy_level (P1 has max_autonomy)
+    ASSERT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_schema='g2_005' AND table_name='agent_identities' AND column_name='max_autonomy_level'),
+        '005 has max_autonomy_level (P1 has max_autonomy) — confirms 005 ≠ P1';
+
+    ASSERT NOT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_schema='g2_005' AND table_name='agent_identities' AND column_name='max_autonomy'),
+        '005 lacks max_autonomy (P1 has it) — confirms 005 ≠ P1';
+
+    -- 005 has result_payload (P1 has result)
+    ASSERT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_schema='g2_005' AND table_name='agent_effect_results' AND column_name='result_payload'),
+        '005 has result_payload (P1 has result) — confirms 005 ≠ P1';
+
+    ASSERT NOT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_schema='g2_005' AND table_name='agent_effect_results' AND column_name='result'),
+        '005 lacks result (P1 has it) — confirms 005 ≠ P1';
+
+    -- 005 has no tool_registry
+    ASSERT NOT EXISTS (SELECT 1 FROM information_schema.tables
+        WHERE table_schema='g2_005' AND table_name='tool_registry'),
+        '005 lacks tool_registry (P1 has it) — confirms 005 ≠ P1';
+
+    -- 005 has no description/deleted_at columns
+    ASSERT NOT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_schema='g2_005' AND table_name='agent_identities' AND column_name='description'),
+        '005 lacks description (P1 has it) — confirms 005 ≠ P1';
+
+    ASSERT NOT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_schema='g2_005' AND table_name='agent_identities' AND column_name='deleted_at'),
+        '005 lacks deleted_at (P1 has it) — confirms 005 ≠ P1';
+
+END $$;
+
 RESET search_path;
 
 -- === CLEANUP ===
 DROP SCHEMA g2_p1 CASCADE;
 DROP SCHEMA g2_018 CASCADE;
+DROP SCHEMA g2_005 CASCADE;
