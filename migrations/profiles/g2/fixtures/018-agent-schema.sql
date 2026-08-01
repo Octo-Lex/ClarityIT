@@ -105,25 +105,25 @@ DO $$ BEGIN
     ASSERT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conrelid = 'agent_tool_grants'::regclass AND contype = 'f'
-        AND conconfrelid = 'agent_identities'::regclass
+        AND confrelid = 'agent_identities'::regclass
     ), '018 FAIL: agent_tool_grants.agent_id FK to agent_identities missing';
 
     ASSERT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conrelid = 'agent_runs'::regclass AND contype = 'f'
-        AND conconfrelid = 'agent_identities'::regclass
+        AND confrelid = 'agent_identities'::regclass
     ), '018 FAIL: agent_runs.agent_id FK to agent_identities missing';
 
     ASSERT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conrelid = 'agent_intentions'::regclass AND contype = 'f'
-        AND conconfrelid = 'agent_runs'::regclass
+        AND confrelid = 'agent_runs'::regclass
     ), '018 FAIL: agent_intentions.agent_run_id FK to agent_runs missing';
 
     ASSERT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conrelid = 'agent_effect_results'::regclass AND contype = 'f'
-        AND conconfrelid = 'agent_intentions'::regclass
+        AND confrelid = 'agent_intentions'::regclass
     ), '018 FAIL: agent_effect_results.intention_id FK to agent_intentions missing';
 
     -- === TRIGGERS ===
