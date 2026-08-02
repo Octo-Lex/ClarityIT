@@ -1,18 +1,23 @@
 -- G2 029 Fixture: Disposable PostgreSQL 16 cluster validation
 -- Runs in a SEPARATE database (g2_029_test) with a dedicated bootstrap admin.
--- Tests: exact 5-role posture, exact membership options, non-superuser clarityit.
+-- Tests: exact 5-role posture, exact membership options (ADMIN/INHERIT/SET),
+-- non-superuser clarityit.
 -- This fixture is designed to be applied to a freshly created empty database.
 --
 -- The pre-mutation fail-closed check (no roles in fresh DB) is performed by the
 -- harness BEFORE this file is applied. This file therefore assumes the fresh-DB
 -- state and proceeds directly to bootstrap.
+--
+-- PostgreSQL 16 membership options: each pg_auth_members row stores three
+-- independent booleans — admin_option, inherit_option, set_option. Any option
+-- omitted on GRANT defaults to TRUE. We therefore specify all three explicitly
+-- on every grant and validate all three below.
 
 -- === STEP 1: Bootstrap the five-role posture ===
+-- clarityit_app: NOLOGIN runtime grant group; INHERIT (matches manifest + decision)
+CREATE ROLE clarityit_app NOLOGIN INHERIT NOCREATEDB NOCREATEROLE NOSUPERUSER NOREPLICATION NOBYPASSRLS;
 
--- clarityit_app: NOLOGIN runtime grant group
-CREATE ROLE clarityit_app NOLOGIN NOINHERIT NOCREATEDB NOCREATEROLE NOSUPERUSER NOREPLICATION NOBYPASSRLS;
-
--- clarityit_owner: NOLOGIN object owner
+-- clarityit_owner: NOLOGIN object owner; NOINHERIT
 CREATE ROLE clarityit_owner NOLOGIN NOINHERIT NOCREATEDB NOCREATEROLE NOSUPERUSER NOREPLICATION NOBYPASSRLS;
 
 -- clarityit_migrator: LOGIN, NOINHERIT
@@ -21,27 +26,26 @@ CREATE ROLE clarityit_migrator LOGIN NOINHERIT NOCREATEDB NOCREATEROLE NOSUPERUS
 -- clarityit_admin: LOGIN, CREATEROLE, NOINHERIT
 CREATE ROLE clarityit_admin LOGIN NOINHERIT NOCREATEDB CREATEROLE NOSUPERUSER NOREPLICATION NOBYPASSRLS;
 
--- clarityit: LOGIN, NON-superuser (production target)
+-- clarityit: LOGIN, INHERIT, NON-superuser (production target)
 CREATE ROLE clarityit LOGIN INHERIT NOCREATEDB NOCREATEROLE NOSUPERUSER NOREPLICATION NOBYPASSRLS;
 
 -- === STEP 2: Memberships with explicit PostgreSQL 16 options ===
--- PostgreSQL 16: ADMIN, INHERIT, and SET are independent options on GRANT.
--- See https://www.postgresql.org/docs/16/sql-grant.html
+-- All three options stated explicitly because the omitted default is TRUE.
 
--- clarityit → clarityit_app: INHERIT (inherits app privileges), not ADMIN, not SET
-GRANT clarityit_app TO clarityit WITH INHERIT OPTION;
+-- clarityit → clarityit_app: INHERIT TRUE (inherit app privileges), ADMIN FALSE (no delegation), SET FALSE
+GRANT clarityit_app TO clarityit WITH INHERIT TRUE, ADMIN FALSE, SET FALSE;
 
--- clarityit_migrator → clarityit_owner: ADMIN (can SET ROLE), not INHERIT
-GRANT clarityit_owner TO clarityit_migrator WITH ADMIN OPTION;
+-- clarityit_migrator → clarityit_owner: SET TRUE (authorize SET ROLE), ADMIN FALSE (no delegation), INHERIT FALSE (no ambient owner)
+GRANT clarityit_owner TO clarityit_migrator WITH INHERIT FALSE, ADMIN FALSE, SET TRUE;
 
 -- === STEP 3: Validate exact role flags ===
 DO $$ BEGIN
-    -- clarityit_app
+    -- clarityit_app: INHERIT (per manifest + decision)
     ASSERT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='clarityit_app'
         AND rolcanlogin=false AND rolsuper=false AND rolcreatedb=false
         AND rolcreaterole=false AND rolreplication=false AND rolbypassrls=false
-        AND rolinherit=false),
-        '029 FAIL: clarityit_app flags wrong';
+        AND rolinherit=true),
+        '029 FAIL: clarityit_app flags wrong (expected INHERIT)';
 
     -- clarityit_owner
     ASSERT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='clarityit_owner'
@@ -73,28 +77,29 @@ DO $$ BEGIN
 
 END $$;
 
--- === STEP 4: Validate exact membership options ===
--- pg_auth_members columns: admin_option (bool), inherit_option (PG16: bool)
--- SET option is implicit via ADMIN in PG16 (ADMIN grants SET capability).
-
+-- === STEP 4: Validate ALL THREE membership options exactly ===
 DO $$ BEGIN
-    -- clarityit → clarityit_app: inherit_option=true, admin_option=false
+    -- clarityit → clarityit_app: admin_option=false, inherit_option=true, set_option=false
     ASSERT EXISTS (
         SELECT 1 FROM pg_auth_members am
         JOIN pg_roles member ON member.oid=am.member
         JOIN pg_roles role ON role.oid=am.roleid
         WHERE member.rolname='clarityit' AND role.rolname='clarityit_app'
         AND am.admin_option = false
-    ), '029 FAIL: clarityit→clarityit_app must have admin_option=false';
+        AND am.inherit_option = true
+        AND am.set_option = false
+    ), '029 FAIL: clarityit→clarityit_app must be (ADMIN=false, INHERIT=true, SET=false)';
 
-    -- clarityit_migrator → clarityit_owner: admin_option=true
+    -- clarityit_migrator → clarityit_owner: admin_option=false, inherit_option=false, set_option=true
     ASSERT EXISTS (
         SELECT 1 FROM pg_auth_members am
         JOIN pg_roles member ON member.oid=am.member
         JOIN pg_roles role ON role.oid=am.roleid
         WHERE member.rolname='clarityit_migrator' AND role.rolname='clarityit_owner'
-        AND am.admin_option = true
-    ), '029 FAIL: clarityit_migrator→clarityit_owner must have admin_option=true';
+        AND am.admin_option = false
+        AND am.inherit_option = false
+        AND am.set_option = true
+    ), '029 FAIL: clarityit_migrator→clarityit_owner must be (ADMIN=false, INHERIT=false, SET=true)';
 
     -- No other memberships should exist
     ASSERT (

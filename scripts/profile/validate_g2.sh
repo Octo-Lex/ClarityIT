@@ -112,9 +112,67 @@ docker exec -i g2-029-pg psql -U g2admin -d g2_029_test -v ON_ERROR_STOP=1 \
     -c "DO \$\$ BEGIN ASSERT NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'clarityit' AND rolsuper = true), 'superuser rejected'; END \$\$;"
 echo "029 PASS: clarityit is non-superuser in production target"
 
-# Clean up disposable container
+# Clean up the bootstrap cluster
 docker rm -f g2-029-pg
-echo "029 cleanup complete"
+echo "029 bootstrap cluster cleanup complete"
+
+# Step 3d: Incorrect-role REJECTION profile on a SECOND disposable cluster.
+# Each case seeds a bad posture inside BEGIN...ROLLBACK, so the cluster must
+# start empty (no application roles) — hence a fresh container, not the
+# already-bootstrapped one.
+echo "--- 3d: Incorrect-role rejection profile (5 cases) ---"
+docker rm -f g2-029-rej-pg 2>/dev/null || true
+docker run -d --name g2-029-rej-pg --network clarityit-net \
+    -e POSTGRES_USER=g2admin \
+    -e POSTGRES_PASSWORD=g2admin_pass \
+    -e POSTGRES_DB=g2_029_test \
+    postgres:16-alpine >/dev/null
+
+# Same real-query readiness probe as the bootstrap cluster.
+ready=0
+for i in $(seq 1 60); do
+    if docker exec g2-029-rej-pg psql -U g2admin -d g2_029_test -tAc "SELECT 1" >/dev/null 2>&1; then
+        sleep 1
+        if docker exec g2-029-rej-pg psql -U g2admin -d g2_029_test -tAc "SELECT 1" >/dev/null 2>&1; then
+            ready=1; break
+        fi
+    fi
+    sleep 1
+done
+if [ "$ready" -ne 1 ]; then
+    echo "029 FAIL: g2-029-rej-pg did not become query-ready within 60s"
+    docker logs g2-029-rej-pg 2>&1 | tail -20
+    docker rm -f g2-029-rej-pg
+    exit 1
+fi
+
+# Pre-check: rejection cluster must start clean
+pre_count=$(docker exec g2-029-rej-pg psql -U g2admin -d g2_029_test -tAc \
+    "SELECT count(*) FROM pg_roles WHERE rolname IN ('clarityit','clarityit_app','clarityit_owner','clarityit_migrator','clarityit_admin')")
+if [ "$pre_count" != "0" ]; then
+    echo "029 FAIL: rejection cluster not clean ($pre_count app roles present)"
+    docker rm -f g2-029-rej-pg
+    exit 1
+fi
+
+# Run the rejection profile ONCE and capture output (each case uses ROLLBACK,
+# so the cluster returns to clean after every case — no double-application).
+rej_log=$(docker exec -i g2-029-rej-pg psql -U g2admin -d g2_029_test -v ON_ERROR_STOP=1 \
+    < migrations/profiles/g2/fixtures/029-rejection-profile.sql 2>&1)
+echo "$rej_log"
+
+# Confirm every rejection case produced its PASS notice (all 5 must appear).
+for label in R1 R2 R3 R4 R5; do
+    if ! echo "$rej_log" | grep -q "$label PASS"; then
+        echo "029 FAIL: rejection case $label did not PASS"
+        docker rm -f g2-029-rej-pg
+        exit 1
+    fi
+done
+echo "029 PASS: all 5 incorrect-role cases rejected (R1 superuser, R2 wrong flags, R3 ADMIN-TRUE delegation, R4 partial posture, R5 extraneous membership)"
+
+docker rm -f g2-029-rej-pg
+echo "029 rejection cluster cleanup complete"
 echo ""
 
 echo "=== ALL G2 FIXTURES PASSED ==="

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, wp00/g2-schema-decisions]
   pull_request:
     branches: [main]
 

@@ -119,9 +119,8 @@ def main():
         app_fn_grants.append({
             "schema": "public",
             "name": fn,
-            "grantee": "clarityit_app",
-            "privileges": ["EXECUTE"],
-            "grant_option": False,
+            "public_revoke": ["EXECUTE"],
+            "grant_to": [{"grantee": "clarityit_app", "privileges": ["EXECUTE"], "grant_option": False}],
         })
 
     seq_grants = []
@@ -150,21 +149,36 @@ def main():
             "count": len(ext_in_manifest),
             "names": sorted(set(ext_in_manifest)),
             "acl_policy": (
-                "Extension-provided functions (pgcrypto, citext, pg_trgm) retain their "
-                "default ACL as installed by CREATE EXTENSION. The REVOKE EXECUTE FROM PUBLIC "
-                "policy applies ONLY to application functions. Revoking PUBLIC EXECUTE from "
-                "extension functions would break the extension operator classes and is out of scope."
+                "Extension-provided functions (pgcrypto, citext, pg_trgm) retain their default ACL "
+                "as installed by CREATE EXTENSION. They are EXCLUDED from any PUBLIC revocation: "
+                "REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC would strip PUBLIC "
+                "EXECUTE from these functions and break their operator classes and casts. PUBLIC "
+                "revocation is applied per application-function signature only (see application_functions[].public_revoke)."
             ),
         },
         "sequences": seq_grants,
         "schemas": schema_grants,
+        "default_privileges_public_revoke": [
+            {
+                "creator": "clarityit_owner",
+                "object_type": "FUNCTIONS",
+                "schema": "public",
+                "action": "REVOKE EXECUTE FROM PUBLIC",
+                "note": (
+                    "Ensures future functions created by clarityit_owner do NOT inherit the default "
+                    "PUBLIC EXECUTE. Owner-scoped: does not affect extension functions (owned by the "
+                    "extension installer). Companion to the per-signature revokes on existing functions."
+                ),
+            }
+        ],
         "public_revoke_scope": {
             "tables": "No PUBLIC revocation needed — PostgreSQL grants no default table privileges to PUBLIC.",
             "application_functions": (
-                "REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC applies to all 10 "
-                "application functions. Per-object EXECUTE then granted to clarityit_app."
+                "Per-signature REVOKE EXECUTE ON FUNCTION <each of the 10 application functions> FROM "
+                "PUBLIC — NOT 'ON ALL FUNCTIONS', which would include the 81 extension functions. "
+                "See application_functions[].public_revoke for the enumerated signatures."
             ),
-            "extension_functions": "EXCLUDED from PUBLIC revoke — managed by CREATE EXTENSION.",
+            "extension_functions": "EXCLUDED from PUBLIC revoke — managed by CREATE EXTENSION; revoking would break operator classes/casts.",
         },
         "grant_options": {"no_role_has_with_grant_option": True},
     }

@@ -18,7 +18,7 @@
   "decision_029": {
     "resolution": "5-role posture: clarityit_app (NOLOGIN group), clarityit (LOGIN, member), clarityit_owner (NOLOGIN owner), clarityit_migrator (LOGIN NOINHERIT, ADMIN on owner), clarityit_admin (LOGIN CREATEROLE). Fail-closed before mutation. No superuser in production target."
   },
-  "description": "G2 target schema manifest. Closed-world per-object grants: 64 tables, 10 application functions (extension functions excluded from PUBLIC-revoke scope), 1 sequence, 1 schema. Source authority: P1 (fingerprint + SHA-256 verified).",
+  "description": "G2 target schema manifest. Closed-world per-object grants: 64 tables, 10 application functions (per-signature PUBLIC revocation; 81 extension functions excluded), 1 sequence, 1 schema. Explicit PostgreSQL 16 membership options (ADMIN/INHERIT/SET). Source authority: P1 (fingerprint + SHA-256 verified).",
   "functions": [
     {
       "args": "",
@@ -9410,92 +9410,162 @@
       {
         "schema": "public",
         "name": "adoc_set_updated_at",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       },
       {
         "schema": "public",
         "name": "kc_search_vector_update",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       },
       {
         "schema": "public",
         "name": "ki_search_vector_update",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       },
       {
         "schema": "public",
         "name": "ki_set_updated_at",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       },
       {
         "schema": "public",
         "name": "normalize_team_slug",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       },
       {
         "schema": "public",
         "name": "normalize_user_email",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       },
       {
         "schema": "public",
         "name": "prevent_bootstrap_unlock",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       },
       {
         "schema": "public",
         "name": "protect_last_team_owner",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       },
       {
         "schema": "public",
         "name": "set_updated_at",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       },
       {
         "schema": "public",
         "name": "trg_artifacts_updated_at",
-        "grantee": "clarityit_app",
-        "privileges": [
+        "public_revoke": [
           "EXECUTE"
         ],
-        "grant_option": false
+        "grant_to": [
+          {
+            "grantee": "clarityit_app",
+            "privileges": [
+              "EXECUTE"
+            ],
+            "grant_option": false
+          }
+        ]
       }
     ],
     "extension_functions": {
@@ -9558,7 +9628,7 @@
         "texticregexne",
         "translate"
       ],
-      "acl_policy": "Extension-provided functions (pgcrypto, citext, pg_trgm) retain their default ACL as installed by CREATE EXTENSION. The REVOKE EXECUTE FROM PUBLIC policy applies ONLY to application functions. Revoking PUBLIC EXECUTE from extension functions would break the extension operator classes and is out of scope."
+      "acl_policy": "Extension-provided functions (pgcrypto, citext, pg_trgm) retain their default ACL as installed by CREATE EXTENSION. They are EXCLUDED from any PUBLIC revocation: REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC would strip PUBLIC EXECUTE from these functions and break their operator classes and casts. PUBLIC revocation is applied per application-function signature only (see application_functions[].public_revoke)."
     },
     "sequences": [
       {
@@ -9580,10 +9650,19 @@
         "grant_option": false
       }
     ],
+    "default_privileges_public_revoke": [
+      {
+        "creator": "clarityit_owner",
+        "object_type": "FUNCTIONS",
+        "schema": "public",
+        "action": "REVOKE EXECUTE FROM PUBLIC",
+        "note": "Ensures future functions created by clarityit_owner do NOT inherit the default PUBLIC EXECUTE. Owner-scoped: does not affect extension functions (owned by the extension installer). Companion to the per-signature revokes on existing functions."
+      }
+    ],
     "public_revoke_scope": {
       "tables": "No PUBLIC revocation needed — PostgreSQL grants no default table privileges to PUBLIC.",
-      "application_functions": "REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC applies to all 10 application functions. Per-object EXECUTE then granted to clarityit_app.",
-      "extension_functions": "EXCLUDED from PUBLIC revoke — managed by CREATE EXTENSION."
+      "application_functions": "Per-signature REVOKE EXECUTE ON FUNCTION <each of the 10 application functions> FROM PUBLIC — NOT 'ON ALL FUNCTIONS', which would include the 81 extension functions. See application_functions[].public_revoke for the enumerated signatures.",
+      "extension_functions": "EXCLUDED from PUBLIC revoke — managed by CREATE EXTENSION; revoking would break operator classes/casts."
     },
     "grant_options": {
       "no_role_has_with_grant_option": true
@@ -9592,13 +9671,21 @@
   "target_memberships": [
     {
       "member": "clarityit",
-      "options": "INHERIT",
-      "role_of": "clarityit_app"
+      "role_of": "clarityit_app",
+      "admin_option": false,
+      "inherit_option": true,
+      "set_option": false,
+      "sql": "GRANT clarityit_app TO clarityit WITH INHERIT TRUE, ADMIN FALSE, SET FALSE",
+      "rationale": "Application login inherits app privileges (INHERIT TRUE); no delegation (ADMIN FALSE); no need to SET ROLE the grant group (SET FALSE)."
     },
     {
       "member": "clarityit_migrator",
-      "options": "ADMIN",
-      "role_of": "clarityit_owner"
+      "role_of": "clarityit_owner",
+      "admin_option": false,
+      "inherit_option": false,
+      "set_option": true,
+      "sql": "GRANT clarityit_owner TO clarityit_migrator WITH INHERIT FALSE, ADMIN FALSE, SET TRUE",
+      "rationale": "Migrator SET ROLEs to owner to run migrations (SET TRUE authorizes this in PG16, not ADMIN); no delegation of owner membership (ADMIN FALSE); no ambient owner privileges (INHERIT FALSE)."
     }
   ],
   "target_ownership": {

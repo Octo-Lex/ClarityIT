@@ -31,11 +31,19 @@ PostgreSQL raises an error (not silent) when GRANT targets a nonexistent role. N
 
 ### Memberships
 
-| Member | Role | Options |
-|---|---|---|
-| `clarityit` | `clarityit_app` | `INHERIT` (inherits app table privileges) |
-| `clarityit_migrator` | `clarityit_owner` | `ADMIN` (can SET ROLE; NOINHERIT prevents ambient owner access) |
-| `clarityit_admin` | — | No memberships on app/owner roles (no ambient ACL) |
+PostgreSQL 16 stores three independent membership options per `pg_auth_members` row: `admin_option` (delegate the membership), `inherit_option` (use the role's privileges without `SET ROLE`), and `set_option` (execute `SET ROLE` to the role). Any option left unspecified on `GRANT` defaults to `TRUE`. See [`pg_auth_members`](https://www.postgresql.org/docs/16/catalog-pg-auth-members.html) and [`GRANT`](https://www.postgresql.org/docs/16/sql-grant.html). Because the unspecified default is `TRUE`, every target membership below states all three options explicitly.
+
+| Member | Role | ADMIN | INHERIT | SET | SQL |
+|---|---|---|---|---|---|
+| `clarityit` | `clarityit_app` | FALSE | TRUE | FALSE | `GRANT clarityit_app TO clarityit WITH INHERIT TRUE, ADMIN FALSE, SET FALSE` |
+| `clarityit_migrator` | `clarityit_owner` | FALSE | FALSE | TRUE | `GRANT clarityit_owner TO clarityit_migrator WITH INHERIT FALSE, ADMIN FALSE, SET TRUE` |
+| `clarityit_admin` | — | — | — | — | No memberships on app/owner roles (no ambient ACL) |
+
+Rationale per row:
+
+- **`clarityit` → `clarityit_app`: INHERIT TRUE, ADMIN FALSE, SET FALSE.** The application login inherits the app grant group's table/function/sequence privileges directly (no `SET ROLE` needed at runtime). It must not delegate `clarityit_app` membership (ADMIN FALSE) and has no operational reason to `SET ROLE clarityit_app` (SET FALSE).
+- **`clarityit_migrator` → `clarityit_owner`: SET TRUE, ADMIN FALSE, INHERIT FALSE.** The migrator runs migrations by `SET ROLE clarityit_owner` (SET TRUE is the PG16 option that authorizes this — not ADMIN). It must not delegate owner membership (ADMIN FALSE): granting `ADMIN TRUE` would let the migrator hand out owner authority. `INHERIT FALSE` prevents ambient owner privileges so the migrator only holds owner powers during an explicit `SET ROLE`.
+- **`clarityit_admin`: no app/owner membership.** Role administration is scoped by `CREATEROLE`; it must not acquire ambient application ACL.
 
 ### Ownership
 
@@ -49,7 +57,9 @@ The migration runner MUST verify all required roles exist **before any table, in
 
 ### PostgreSQL default PUBLIC EXECUTE on functions
 
-All functions have implicit `PUBLIC EXECUTE` by default. The target posture must explicitly `REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC` and grant `EXECUTE` only to `clarityit_app` (or leave public for read-only utility functions if explicitly justified).
+All functions have implicit `PUBLIC EXECUTE` by default. The target posture revokes PUBLIC EXECUTE **per application-function signature** — never `REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC`, which would also strip PUBLIC EXECUTE from the 81 extension functions (pgcrypto, citext, pg_trgm) and break their operator classes and casts. The closed-world revocation set is the 10 application functions enumerated in the manifest.
+
+For functions created **after** bootstrap, `ALTER DEFAULT PRIVILEGES FOR ROLE clarityit_owner REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` ensures future application functions do not inherit the PUBLIC default. The default-privileges rule is owner-scoped (`clarityit_owner`), so it does not affect extension functions (owned by the extension installer). EXECUTE is then granted to `clarityit_app` per signature, and via default privileges for future functions created by `clarityit_owner`.
 
 ### Sequence privileges
 
