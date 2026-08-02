@@ -74,11 +74,15 @@ def main():
         print(f"  discovered: {sorted(discovered)}", file=sys.stderr)
         sys.exit(1)
 
-    # Partition manifest functions into app vs extension.
-    app_in_manifest = []
+    # Partition manifest functions into app vs extension. Preserve arg-type
+    # signatures so the grant inventory can emit identity-scoped revoke SQL
+    # (REVOKE EXECUTE ON FUNCTION public.<name>(<argtypes>) FROM PUBLIC), which
+    # distinguishes overloads — a name-only record cannot.
+    app_in_manifest = []   # list of (name, args) tuples
     ext_in_manifest = []
     for f in d["functions"]:
         name = f["name"]
+        args = f.get("args", "")
         body = f.get("body", "")
         is_extension = (
             name not in APPLICATION_FUNCTIONS
@@ -88,12 +92,25 @@ def main():
         if is_extension:
             ext_in_manifest.append(name)
         else:
-            app_in_manifest.append(name)
+            app_in_manifest.append((name, args))
 
     # Sanity: every declared app function must be in the manifest.
-    missing_in_manifest = APPLICATION_FUNCTIONS - set(app_in_manifest)
+    app_names_in_manifest = {name for name, _ in app_in_manifest}
+    missing_in_manifest = APPLICATION_FUNCTIONS - app_names_in_manifest
     if missing_in_manifest:
         print(f"ERROR: app functions missing from manifest: {missing_in_manifest}", file=sys.stderr)
+        sys.exit(1)
+
+    # Detect overloads: if any application function name has >1 distinct arg
+    # signature, the inventory must enumerate each signature separately. None
+    # are expected today, but this is a hard error if one appears unsignatured.
+    from collections import defaultdict
+    sigs_by_name = defaultdict(set)
+    for name, args in app_in_manifest:
+        sigs_by_name[name].add(args)
+    overloaded = {n: s for n, s in sigs_by_name.items() if len(s) > 1}
+    if overloaded:
+        print(f"ERROR: application functions are overloaded — signature enumeration required: {overloaded}", file=sys.stderr)
         sys.exit(1)
 
     tables = sorted(d["tables"].keys())  # 64 entries like "public.action_outcomes"
@@ -115,12 +132,23 @@ def main():
         })
 
     app_fn_grants = []
-    for fn in sorted(set(app_in_manifest)):
+    for fn, args in sorted(app_in_manifest):
+        # PostgreSQL function identity = schema.name(argtypes). The parens are
+        # always present even for zero-argument functions: public.foo().
+        identity = f"public.{fn}({args})"
         app_fn_grants.append({
             "schema": "public",
             "name": fn,
+            "args": args,
+            "identity_signature": identity,
+            "public_revoke_sql": f"REVOKE EXECUTE ON FUNCTION {identity} FROM PUBLIC",
             "public_revoke": ["EXECUTE"],
-            "grant_to": [{"grantee": "clarityit_app", "privileges": ["EXECUTE"], "grant_option": False}],
+            "grant_to": [{
+                "grantee": "clarityit_app",
+                "privileges": ["EXECUTE"],
+                "grant_option": False,
+                "grant_sql": f"GRANT EXECUTE ON FUNCTION {identity} TO clarityit_app",
+            }],
         })
 
     seq_grants = []

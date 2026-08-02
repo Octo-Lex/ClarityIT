@@ -18,7 +18,7 @@
   "decision_029": {
     "resolution": "5-role posture: clarityit_app (NOLOGIN group), clarityit (LOGIN, member), clarityit_owner (NOLOGIN owner), clarityit_migrator (LOGIN NOINHERIT, ADMIN on owner), clarityit_admin (LOGIN CREATEROLE). Fail-closed before mutation. No superuser in production target."
   },
-  "description": "G2 target schema manifest. Closed-world per-object grants: 64 tables, 10 application functions (per-signature PUBLIC revocation; 81 extension functions excluded), 1 sequence, 1 schema. Explicit PostgreSQL 16 membership options (ADMIN/INHERIT/SET). Source authority: P1 (fingerprint + SHA-256 verified).",
+  "description": "G2 target schema manifest. Closed-world per-object grants with PostgreSQL function-identity signatures: 64 tables, 10 application functions (each with identity_signature + exact REVOKE/GRANT SQL; 81 extension functions excluded from PUBLIC revocation), 1 sequence, 1 schema. Explicit PostgreSQL 16 membership options (ADMIN/INHERIT/SET). Source authority: P1 (fingerprint + SHA-256 verified).",
   "functions": [
     {
       "args": "",
@@ -9410,6 +9410,9 @@
       {
         "schema": "public",
         "name": "adoc_set_updated_at",
+        "args": "",
+        "identity_signature": "public.adoc_set_updated_at()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.adoc_set_updated_at() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9419,13 +9422,17 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.adoc_set_updated_at() TO clarityit_app"
           }
         ]
       },
       {
         "schema": "public",
         "name": "kc_search_vector_update",
+        "args": "",
+        "identity_signature": "public.kc_search_vector_update()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.kc_search_vector_update() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9435,13 +9442,17 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.kc_search_vector_update() TO clarityit_app"
           }
         ]
       },
       {
         "schema": "public",
         "name": "ki_search_vector_update",
+        "args": "",
+        "identity_signature": "public.ki_search_vector_update()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.ki_search_vector_update() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9451,13 +9462,17 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.ki_search_vector_update() TO clarityit_app"
           }
         ]
       },
       {
         "schema": "public",
         "name": "ki_set_updated_at",
+        "args": "",
+        "identity_signature": "public.ki_set_updated_at()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.ki_set_updated_at() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9467,13 +9482,17 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.ki_set_updated_at() TO clarityit_app"
           }
         ]
       },
       {
         "schema": "public",
         "name": "normalize_team_slug",
+        "args": "",
+        "identity_signature": "public.normalize_team_slug()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.normalize_team_slug() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9483,13 +9502,17 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.normalize_team_slug() TO clarityit_app"
           }
         ]
       },
       {
         "schema": "public",
         "name": "normalize_user_email",
+        "args": "",
+        "identity_signature": "public.normalize_user_email()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.normalize_user_email() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9499,13 +9522,17 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.normalize_user_email() TO clarityit_app"
           }
         ]
       },
       {
         "schema": "public",
         "name": "prevent_bootstrap_unlock",
+        "args": "",
+        "identity_signature": "public.prevent_bootstrap_unlock()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.prevent_bootstrap_unlock() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9515,13 +9542,17 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.prevent_bootstrap_unlock() TO clarityit_app"
           }
         ]
       },
       {
         "schema": "public",
         "name": "protect_last_team_owner",
+        "args": "",
+        "identity_signature": "public.protect_last_team_owner()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.protect_last_team_owner() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9531,13 +9562,17 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.protect_last_team_owner() TO clarityit_app"
           }
         ]
       },
       {
         "schema": "public",
         "name": "set_updated_at",
+        "args": "",
+        "identity_signature": "public.set_updated_at()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.set_updated_at() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9547,13 +9582,17 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.set_updated_at() TO clarityit_app"
           }
         ]
       },
       {
         "schema": "public",
         "name": "trg_artifacts_updated_at",
+        "args": "",
+        "identity_signature": "public.trg_artifacts_updated_at()",
+        "public_revoke_sql": "REVOKE EXECUTE ON FUNCTION public.trg_artifacts_updated_at() FROM PUBLIC",
         "public_revoke": [
           "EXECUTE"
         ],
@@ -9563,7 +9602,8 @@
             "privileges": [
               "EXECUTE"
             ],
-            "grant_option": false
+            "grant_option": false,
+            "grant_sql": "GRANT EXECUTE ON FUNCTION public.trg_artifacts_updated_at() TO clarityit_app"
           }
         ]
       }

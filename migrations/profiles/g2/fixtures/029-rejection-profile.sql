@@ -40,21 +40,41 @@ BEGIN
 END $$;
 
 -- ============================================================
--- CASE R1: pre-existing SUPERUSER clarityit (must be rejected)
+-- CASE R1: clarityit is a SUPERUSER (sole deviation from correct posture)
+-- Seeds the COMPLETE correct 5-role posture with clarityit as the ONLY
+-- deviation (SUPERUSER). This isolates the superuser assertion: if the
+-- validator rejects for any OTHER reason (e.g. a missing role), R1 FAILS.
+-- The handler binds to the specific superuser message via SQLERRM.
 -- ============================================================
 BEGIN;
-CREATE ROLE clarityit LOGIN SUPERUSER;
+-- Full correct posture...
+CREATE ROLE clarityit_app NOLOGIN INHERIT;
+CREATE ROLE clarityit LOGIN INHERIT;
+GRANT clarityit_app TO clarityit WITH INHERIT TRUE, ADMIN FALSE, SET FALSE;
+CREATE ROLE clarityit_owner NOLOGIN NOINHERIT;
+CREATE ROLE clarityit_migrator LOGIN NOINHERIT;
+GRANT clarityit_owner TO clarityit_migrator WITH INHERIT FALSE, ADMIN FALSE, SET TRUE;
+CREATE ROLE clarityit_admin LOGIN NOINHERIT CREATEROLE;
+-- ...then introduce the SOLE deviation: make clarityit a superuser.
+ALTER ROLE clarityit SUPERUSER;
 DO $$ BEGIN
     PERFORM _reject_if_bad();
     RAISE EXCEPTION 'R1 FAIL: superuser clarityit was NOT rejected';
 EXCEPTION
     WHEN assert_failure THEN
-        RAISE NOTICE 'R1 PASS: superuser clarityit correctly rejected';
+        -- Must be the superuser-specific assertion, not a different one.
+        IF SQLERRM LIKE '%superuser%' THEN
+            RAISE NOTICE 'R1 PASS: superuser clarityit correctly rejected';
+        ELSE
+            RAISE EXCEPTION 'R1 FAIL: rejected for wrong reason: %', SQLERRM;
+        END IF;
 END $$;
 ROLLBACK;
 
 -- ============================================================
 -- CASE R2: clarityit_app created with WRONG flags (NOINHERIT)
+-- Full correct posture except clarityit_app is NOINHERIT (sole deviation).
+-- Handler binds to the specific clarityit_app-INHERIT assertion.
 -- ============================================================
 BEGIN;
 CREATE ROLE clarityit_app NOLOGIN NOINHERIT;
@@ -69,12 +89,18 @@ DO $$ BEGIN
     RAISE EXCEPTION 'R2 FAIL: NOINHERIT clarityit_app was NOT rejected';
 EXCEPTION
     WHEN assert_failure THEN
-        RAISE NOTICE 'R2 PASS: wrong clarityit_app flags correctly rejected';
+        IF SQLERRM LIKE '%clarityit_app must be INHERIT%' THEN
+            RAISE NOTICE 'R2 PASS: wrong clarityit_app flags correctly rejected';
+        ELSE
+            RAISE EXCEPTION 'R2 FAIL: rejected for wrong reason: %', SQLERRM;
+        END IF;
 END $$;
 ROLLBACK;
 
 -- ============================================================
 -- CASE R3: migrator→owner granted with ADMIN TRUE (delegation risk)
+-- Full correct posture except migrator→owner has ADMIN TRUE (sole deviation).
+-- Handler binds to the specific migrator→owner-options assertion.
 -- ============================================================
 BEGIN;
 CREATE ROLE clarityit_app NOLOGIN INHERIT;
@@ -89,12 +115,17 @@ DO $$ BEGIN
     RAISE EXCEPTION 'R3 FAIL: ADMIN TRUE on migrator→owner was NOT rejected';
 EXCEPTION
     WHEN assert_failure THEN
-        RAISE NOTICE 'R3 PASS: ADMIN TRUE delegation risk correctly rejected';
+        IF SQLERRM LIKE '%migrator→owner options wrong%' THEN
+            RAISE NOTICE 'R3 PASS: ADMIN TRUE delegation risk correctly rejected';
+        ELSE
+            RAISE EXCEPTION 'R3 FAIL: rejected for wrong reason: %', SQLERRM;
+        END IF;
 END $$;
 ROLLBACK;
 
 -- ============================================================
 -- CASE R4: partial posture (only 3 of 5 roles — missing admin + migrator)
+-- Handler binds to the specific role-count assertion.
 -- ============================================================
 BEGIN;
 CREATE ROLE clarityit_app NOLOGIN INHERIT;
@@ -107,12 +138,18 @@ DO $$ BEGIN
     RAISE EXCEPTION 'R4 FAIL: partial posture (3 roles) was NOT rejected';
 EXCEPTION
     WHEN assert_failure THEN
-        RAISE NOTICE 'R4 PASS: partial posture correctly rejected';
+        IF SQLERRM LIKE '%expected exactly 5 application roles%' THEN
+            RAISE NOTICE 'R4 PASS: partial posture correctly rejected';
+        ELSE
+            RAISE EXCEPTION 'R4 FAIL: rejected for wrong reason: %', SQLERRM;
+        END IF;
 END $$;
 ROLLBACK;
 
 -- ============================================================
 -- CASE R5: extraneous membership (clarityit_admin wrongly in clarityit_app)
+-- Full correct posture plus one extra membership (sole deviation).
+-- Handler binds to the specific membership-count assertion.
 -- ============================================================
 BEGIN;
 CREATE ROLE clarityit_app NOLOGIN INHERIT;
@@ -128,7 +165,11 @@ DO $$ BEGIN
     RAISE EXCEPTION 'R5 FAIL: extraneous admin membership was NOT rejected';
 EXCEPTION
     WHEN assert_failure THEN
-        RAISE NOTICE 'R5 PASS: extraneous membership correctly rejected';
+        IF SQLERRM LIKE '%expected 2 memberships%' THEN
+            RAISE NOTICE 'R5 PASS: extraneous membership correctly rejected';
+        ELSE
+            RAISE EXCEPTION 'R5 FAIL: rejected for wrong reason: %', SQLERRM;
+        END IF;
 END $$;
 ROLLBACK;
 
