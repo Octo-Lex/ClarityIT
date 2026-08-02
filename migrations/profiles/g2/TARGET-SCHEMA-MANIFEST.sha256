@@ -5,5 +5,5 @@
 #
 # This is the authoritative identity. The receipt (G2-APPROVALS.md) must cite
 # exactly this value; a mismatch fails CI.
-TARGET-SCHEMA-MANIFEST.json:ace036c2e934d219c7cbc529fb5dc04df0281008998aa813f4cc53360d638449
-TARGET-SCHEMA-MANIFEST.json:size:283888
+TARGET-SCHEMA-MANIFEST.json:1f6e31422461173cd4b4671417809f8b819bad493efec2fb0a5cdd2783d37a63
+TARGET-SCHEMA-MANIFEST.json:size:284064
