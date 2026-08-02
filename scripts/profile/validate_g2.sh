@@ -89,11 +89,68 @@ if actual_size != expected_size:
     print(f"  checksum file:  {expected_size} bytes")
     sys.exit(1)
 
+# --- (c) RECEIPT-BIND: parse G2-APPROVALS.md machine-readable block and assert
+#     three-way agreement: receipt == checksum file == committed blob. This is
+#     the binding that makes "a receipt mismatch fails CI" actually true: the
+#     prior BLOB-DIGEST check only compared the blob to the checksum file and
+#     never read the receipt, so a receipt-only digest edit would still pass.
+RECEIPT = "migrations/profiles/g2/G2-APPROVALS.md"
+receipt_text = open(RECEIPT, encoding="utf-8").read()
+# Extract the fenced ```g2-receipt-identity block.
+m_block = re.search(r"```g2-receipt-identity\n(.*?)\n```", receipt_text, re.S)
+if not m_block:
+    print(f"RECEIPT-BIND FAIL: no ```g2-receipt-identity block found in {RECEIPT}")
+    sys.exit(1)
+block = m_block.group(1)
+fields = {}
+for line in block.splitlines():
+    line = line.strip()
+    if not line or line.startswith("#"):
+        continue
+    if ":" in line:
+        k, _, v = line.partition(":")
+        fields[k.strip()] = v.strip()
+
+required = {"manifest_blob_sha256", "manifest_blob_size"}
+missing = required - set(fields)
+if missing:
+    print(f"RECEIPT-BIND FAIL: receipt block missing fields: {missing}")
+    print(block)
+    sys.exit(1)
+
+receipt_sha = fields["manifest_blob_sha256"].lower()
+try:
+    receipt_size = int(fields["manifest_blob_size"])
+except ValueError:
+    print(f"RECEIPT-BIND FAIL: manifest_blob_size not an integer: {fields['manifest_blob_size']!r}")
+    sys.exit(1)
+
+# Three-way agreement.
+mismatches = []
+if receipt_sha != actual_sha:
+    mismatches.append(("sha256", receipt_sha, actual_sha))
+if receipt_sha != expected_sha:
+    mismatches.append(("sha256 (receipt vs checksum)", receipt_sha, expected_sha))
+if receipt_size != actual_size:
+    mismatches.append(("size", str(receipt_size), str(actual_size)))
+if receipt_size != expected_size:
+    mismatches.append(("size (receipt vs checksum)", str(receipt_size), str(expected_size)))
+
+if mismatches:
+    print("RECEIPT-BIND FAIL: receipt identity != blob/checksum (three-way mismatch)")
+    print(f"  committed blob:    sha256 {actual_sha}, {actual_size} bytes")
+    print(f"  checksum file:     sha256 {expected_sha}, {expected_size} bytes")
+    print(f"  G2-APPROVALS.md:   sha256 {receipt_sha}, {receipt_size} bytes")
+    print("Update the ```g2-receipt-identity block to match the committed blob,")
+    print("or regenerate the manifest + checksum if the blob is what changed.")
+    sys.exit(1)
+
 print(f"GRANT-INV PASS: generated == committed ({len(committed['tables'])} tables, "
       f"{len(committed['application_functions'])} app functions, "
       f"{committed['extension_functions']['count']} extension excluded, "
       f"{len(committed['sequences'])} sequences, {len(committed['schemas'])} schemas)")
 print(f"BLOB-DIGEST PASS: committed blob sha256 {actual_sha} ({actual_size} bytes) == checksum file")
+print(f"RECEIPT-BIND PASS: receipt == checksum == committed blob (sha256 {receipt_sha}, {receipt_size} bytes)")
 PYEOF
 echo ""
 

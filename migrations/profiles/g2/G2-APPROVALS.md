@@ -3,10 +3,10 @@
 **Date:** 2 August 2026
 **Branch:** `wp00/g2-schema-decisions` (stacked from `0dd21d8`)
 **PR:** [#9](https://github.com/Octo-Lex/ClarityIT/pull/9) (DRAFT)
-**Commit:** `8884d99`
-**CI:** [Push-triggered run on 8884d99](https://github.com/Octo-Lex/ClarityIT/actions/runs/30747448533) — `event: push`, `headSha: 8884d99cbe71b195c6c3b12cc18ccd32cafb9117` (checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit). All three jobs success.
+**Commit:** (this commit — carries both the receipt-binding harness change and the receipt itself, so the exact receipt commit is what CI tests)
+**CI:** push-triggered run on the exact head SHA (run URL filled in the doc-only follow-up once green) — `event: push`, checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit.
 
-> This record supersedes `ec2f38d`. Prior receipts (`ec2f38d`, `759b790`, `e3397a1`, `c24e997`) all cited the digest `fdaf5d90…` / 293,691 bytes — that is the **Windows CRLF working-tree representation**, not the repository artifact. The committed Git blob is LF and is `ace036c2…` / 283,888 bytes. This is corrected here, and a detached checksum file (`TARGET-SCHEMA-MANIFEST.sha256`) is now CI-enforced so a receipt can never again cite the wrong bytes.
+> This record supersedes `ec2f38d`. Prior receipts (`ec2f38d`, `759b790`, `e3397a1`, `c24e997`) all cited the digest `fdaf5d90…` / 293,691 bytes — that is the **Windows CRLF working-tree representation**, not the repository artifact. The committed Git blob is LF and is `ace036c2…` / 283,888 bytes. B9 (`8884d99`) corrected the cited digest and bound the *checksum file* to the committed blob; B10 (this commit) additionally binds the *receipt* itself to the checksum and blob via a machine-readable block that CI asserts (three-way agreement).
 
 ## Target manifest identity (detached)
 
@@ -21,10 +21,21 @@
 
 No in-band digest field. The blob digest is authoritative; the CRLF working-tree digest (`fdaf5d90…` / 293,691) is platform-specific and not the artifact CI tests. `.gitattributes` now pins `migrations/profiles/g2/**` to `eol=lf`.
 
+### Machine-readable receipt identity (CI-bound)
+
+The fenced block below is the single source of truth for the target-manifest identity cited by this receipt. `validate_g2.sh` Step 0 parses it and asserts the digest and size match BOTH the detached checksum file AND the committed Git blob. A receipt-only edit to these values fails CI; a blob/checksum change without a matching receipt edit also fails CI.
+
+```g2-receipt-identity
+manifest_path: migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json
+manifest_blob_sha256: ace036c2e934d219c7cbc529fb5dc04df0281008998aa813f4cc53360d638449
+manifest_blob_size: 283888
+```
+
 ## CI evidence (push event on exact SHA — no merge commit, ON_ERROR_STOP=1)
 
 - `GRANT-INV PASS: generated == committed (64 tables, 10 app functions, 81 extension excluded, 1 sequences, 1 schemas)`
-- `BLOB-DIGEST PASS: committed blob sha256 ace036c2… (283888 bytes) == checksum file` ← **new fail-closed identity assertion**
+- `BLOB-DIGEST PASS: committed blob sha256 ace036c2… (283888 bytes) == checksum file`
+- `RECEIPT-BIND PASS: receipt == checksum == committed blob (sha256 ace036c2…, 283888 bytes)` ← **B10: binds the receipt itself to the artifact**
 - `018 PASS: P1-canonical validated; raw-018 and 005-only divergences confirmed`
 - `016 NEGATIVE PASS: corruption correctly detected` (transactional ROLLBACK proof)
 - `016 PASS: all 7 canonical names, dual-grant collision, negative case validated`
@@ -78,6 +89,15 @@ Prior receipts cited SHA-256 `fdaf5d90…` / 293,691 bytes — that is the **Win
 **Proven fail-closed in both failure modes:**
 - checksum citing the CRLF digest (`fdaf5d90…`) → `BLOB-DIGEST FAIL`, exit 1
 - manifest committed but checksum not regenerated → `BLOB-DIGEST FAIL`, exit 1
+
+> Note: B9 bound the *checksum file* to the *committed blob*, but did not yet bind the *receipt* to either. A receipt-only digest edit would still pass B9's checks. That binding is closed in B10 below.
+
+### B10 — receipt not CI-bound
+B9's `BLOB-DIGEST` check compared the committed blob only to the detached checksum file; `validate_g2.sh` never read `G2-APPROVALS.md`. Therefore changing only the receipt's digest or size still produced `BLOB-DIGEST PASS` — the claim that "a receipt mismatch fails CI" was false. (The `8884d99` green run also predates the final receipt commit `14ef412`, so the receipt itself had not been CI-tested against the binding.)
+
+**Fix:** `G2-APPROVALS.md` now carries a machine-readable ```g2-receipt-identity fenced block (the single source of truth for the cited identity). Step 0 parses it and asserts three-way agreement: **receipt == checksum file == committed blob**. The committed blob is read via `git cat-file blob HEAD:<path>` (the repository artifact, not the working-tree file).
+
+**Proven fail-closed:** editing only the receipt's `manifest_blob_sha256` field → `RECEIPT-BIND FAIL: receipt identity != blob/checksum (three-way mismatch)`, exit 1, with all three values printed for diagnosis.
 
 ## Blockers closed in 98dd17a (prior commit, still in force)
 
