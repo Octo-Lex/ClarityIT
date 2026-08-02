@@ -3,8 +3,8 @@
 **Date:** 2 August 2026
 **Branch:** `wp00/g2-schema-decisions` (stacked from `0dd21d8`)
 **PR:** [#9](https://github.com/Octo-Lex/ClarityIT/pull/9) (DRAFT)
-**Commit:** (this commit — carries both the receipt-binding harness change and the receipt itself, so the exact receipt commit is what CI tests)
-**CI:** push-triggered run on the exact head SHA (run URL filled in the doc-only follow-up once green) — `event: push`, checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit.
+**Commit:** `df7ba06` (carries both the receipt-binding harness change and the receipt itself, so the exact receipt commit is what CI tests)
+**CI:** [Push-triggered run on df7ba06](https://github.com/Octo-Lex/ClarityIT/actions/runs/30751635615) — `event: push`, `headSha: df7ba06e0d742f9891dd76ea3357848b3dccc1d9` (checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit). All three jobs success.
 
 > This record supersedes `ec2f38d`. Prior receipts (`ec2f38d`, `759b790`, `e3397a1`, `c24e997`) all cited the digest `fdaf5d90…` / 293,691 bytes — that is the **Windows CRLF working-tree representation**, not the repository artifact. The committed Git blob is LF and is `ace036c2…` / 283,888 bytes. B9 (`8884d99`) corrected the cited digest and bound the *checksum file* to the committed blob; B10 (this commit) additionally binds the *receipt* itself to the checksum and blob via a machine-readable block that CI asserts (three-way agreement).
 
