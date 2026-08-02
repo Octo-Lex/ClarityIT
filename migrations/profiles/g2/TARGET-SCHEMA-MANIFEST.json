@@ -16,7 +16,7 @@
     "resolution": "Adopt complete P1 shape; skip 005; 018 corrected to P1"
   },
   "decision_029": {
-    "resolution": "5-role posture: clarityit_app (NOLOGIN group), clarityit (LOGIN, member), clarityit_owner (NOLOGIN owner), clarityit_migrator (LOGIN NOINHERIT, ADMIN on owner), clarityit_admin (LOGIN CREATEROLE). Fail-closed before mutation. No superuser in production target."
+    "resolution": "5-role posture: clarityit_app (NOLOGIN group), clarityit (LOGIN, member), clarityit_owner (NOLOGIN owner), clarityit_migrator (LOGIN NOINHERIT, SET on owner / ADMIN FALSE — SET authorizes SET ROLE clarityit_owner; ADMIN FALSE forbids delegating owner membership), clarityit_admin (LOGIN CREATEROLE). Fail-closed before mutation. No superuser in production target. See target_memberships for the authoritative ADMIN/INHERIT/SET values."
   },
   "description": "G2 target schema manifest. Closed-world per-object grants with PostgreSQL function-identity signatures: 64 tables, 10 application functions (each with identity_signature + exact REVOKE/GRANT SQL; 81 extension functions excluded from PUBLIC revocation), 1 sequence, 1 schema. Explicit PostgreSQL 16 membership options (ADMIN/INHERIT/SET). Source authority: P1 (fingerprint + SHA-256 verified).",
   "functions": [

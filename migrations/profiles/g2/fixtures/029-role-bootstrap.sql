@@ -9,9 +9,10 @@
 -- state and proceeds directly to bootstrap.
 --
 -- PostgreSQL 16 membership options: each pg_auth_members row stores three
--- independent booleans — admin_option, inherit_option, set_option. Any option
--- omitted on GRANT defaults to TRUE. We therefore specify all three explicitly
--- on every grant and validate all three below.
+-- independent booleans — admin_option, inherit_option, set_option. Their
+-- defaults when omitted differ: ADMIN defaults FALSE, SET defaults TRUE, and
+-- INHERIT defaults from the member role's rolinherit attribute. We therefore
+-- specify all three explicitly on every grant and validate all three below.
 
 -- === STEP 1: Bootstrap the five-role posture ===
 -- clarityit_app: NOLOGIN runtime grant group; INHERIT (matches manifest + decision)

@@ -31,7 +31,7 @@ PostgreSQL raises an error (not silent) when GRANT targets a nonexistent role. N
 
 ### Memberships
 
-PostgreSQL 16 stores three independent membership options per `pg_auth_members` row: `admin_option` (delegate the membership), `inherit_option` (use the role's privileges without `SET ROLE`), and `set_option` (execute `SET ROLE` to the role). Any option left unspecified on `GRANT` defaults to `TRUE`. See [`pg_auth_members`](https://www.postgresql.org/docs/16/catalog-pg-auth-members.html) and [`GRANT`](https://www.postgresql.org/docs/16/sql-grant.html). Because the unspecified default is `TRUE`, every target membership below states all three options explicitly.
+PostgreSQL 16 stores three independent membership options per `pg_auth_members` row: `admin_option` (delegate the membership), `inherit_option` (use the role's privileges without `SET ROLE`), and `set_option` (execute `SET ROLE` to the role). Their defaults when omitted on `GRANT` are **not** all the same: `ADMIN` defaults to `FALSE`, `SET` defaults to `TRUE`, and `INHERIT` defaults from the member role's `rolinherit` attribute (so a `NOINHERIT` member gets `inherit_option = FALSE`). See [`pg_auth_members`](https://www.postgresql.org/docs/16/catalog-pg-auth-members.html) and [`GRANT`](https://www.postgresql.org/docs/16/sql-grant.html). Because the defaults are role-dependent and not obvious, every target membership below states all three options explicitly. (Empirically verified: a `GRANT` with no options on an `INHERIT` member yields ADMIN=f/INHERIT=t/SET=t; on a `NOINHERIT` member it yields ADMIN=f/INHERIT=f/SET=t.)
 
 | Member | Role | ADMIN | INHERIT | SET | SQL |
 |---|---|---|---|---|---|
