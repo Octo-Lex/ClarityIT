@@ -9,3 +9,9 @@ docs/v2/**/*.docx binary
 # CI tests. Without this, Windows checkouts read a different digest than the
 # repository blob, and receipts can silently cite the wrong bytes.
 migrations/profiles/g2/** text eol=lf
+
+# G3 checksums and composite identities are computed from repository bytes.
+migrations/legacy/v1/** text eol=lf
+migrations/v2/** text eol=lf
+scripts/migration/** text eol=lf
+docs/migration/wp00/g3/** text eol=lf

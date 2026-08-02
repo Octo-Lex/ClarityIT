@@ -1,0 +1,59 @@
+{
+  "artifact": "ClarityIT WP-00 G3 reconciled baseline (A4)",
+  "components": {
+    "migrations/legacy/v1/SHA256SUMS": {
+      "sha256": "f20660566fef4be7974b72e6159f40c9b7af9fe1f9325837a89bd43d6c845e7c",
+      "size": 4181
+    },
+    "migrations/v2/baseline/0001_reconciled.sql": {
+      "sha256": "1021adefe8b5edaae13010a713cdde594f084a66b9d4012940603ee4a94e0508",
+      "size": 84868
+    },
+    "migrations/v2/baseline/0001_seed.sql": {
+      "sha256": "afc923bd77172810dfbea9ab21c5e4244050e51b52686a25203356764a78d990",
+      "size": 2290
+    },
+    "migrations/v2/bootstrap/0000_platform.sql": {
+      "sha256": "3e3ace0d2bbb9378c31f012bf85e56a8657ffec37622d6216bbdff882768fbec",
+      "size": 4989
+    },
+    "migrations/v2/bootstrap/0000_roles.sql": {
+      "sha256": "a6fb24da88c1d265d9b511745198d333dfe357027343310e07206f415af53163",
+      "size": 4784
+    },
+    "migrations/v2/manifests/CONTROL-SCHEMA-MANIFEST.json": {
+      "sha256": "3fd65e917ded8b7d59a1f42051b69f41e4b5c24f583f9524deaccdfdfb1add66",
+      "size": 7058
+    }
+  },
+  "composite": {
+    "algorithm": "SHA-256(domain + repeated uint32be(label_len), label, uint64be(data_len), data)",
+    "component_order": [
+      "product_manifest_blob_sha256",
+      "control_manifest",
+      "baseline_sql",
+      "seed_sql",
+      "role_bootstrap_sql",
+      "legacy_checksum_inventory"
+    ],
+    "domain": "clarityit-g3-composite-v1\\0",
+    "sha256": "8af2c9f55e9f8661f111d90abf4f6037dafc9db7c9a3971665b9748d37b34084"
+  },
+  "counts": {
+    "application_functions": 10,
+    "canonical_permissions": 7,
+    "legacy_migrations": 40,
+    "platform_tables": 4,
+    "product_tables": 64
+  },
+  "database_name": "clarityit",
+  "format_version": 1,
+  "frozen_g2": {
+    "commit": "f04f94faad0105d1c3274e9c7974d44f936a0d28",
+    "manifest_blob_sha256": "1f6e31422461173cd4b4671417809f8b819bad493efec2fb0a5cdd2783d37a63",
+    "manifest_blob_size": 284064,
+    "manifest_path": "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json"
+  },
+  "generator": "g3-baseline-generator-v1",
+  "postgres_major": 16
+}
