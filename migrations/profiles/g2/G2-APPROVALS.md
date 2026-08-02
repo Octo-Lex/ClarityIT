@@ -3,8 +3,8 @@
 **Date:** 2 August 2026
 **Branch:** `wp00/g2-schema-decisions` (stacked from `0dd21d8`)
 **PR:** [#9](https://github.com/Octo-Lex/ClarityIT/pull/9) (DRAFT)
-**Commit:** (this commit)
-**CI:** push-triggered run on the exact head SHA (cited below once green) — `event: push`, checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit.
+**Commit:** `8884d99`
+**CI:** [Push-triggered run on 8884d99](https://github.com/Octo-Lex/ClarityIT/actions/runs/30747448533) — `event: push`, `headSha: 8884d99cbe71b195c6c3b12cc18ccd32cafb9117` (checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit). All three jobs success.
 
 > This record supersedes `ec2f38d`. Prior receipts (`ec2f38d`, `759b790`, `e3397a1`, `c24e997`) all cited the digest `fdaf5d90…` / 293,691 bytes — that is the **Windows CRLF working-tree representation**, not the repository artifact. The committed Git blob is LF and is `ace036c2…` / 283,888 bytes. This is corrected here, and a detached checksum file (`TARGET-SCHEMA-MANIFEST.sha256`) is now CI-enforced so a receipt can never again cite the wrong bytes.
 
