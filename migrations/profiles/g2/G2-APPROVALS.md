@@ -3,25 +3,28 @@
 **Date:** 2 August 2026
 **Branch:** `wp00/g2-schema-decisions` (stacked from `0dd21d8`)
 **PR:** [#9](https://github.com/Octo-Lex/ClarityIT/pull/9) (DRAFT)
-**Commit:** `374f7be`
-**CI:** [Push-triggered run on 374f7be](https://github.com/Octo-Lex/ClarityIT/actions/runs/30742211882) — `event: push`, `headSha: 374f7becb89d2a40a2715e1155df93474b61a240` (checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit). All three jobs success.
+**Commit:** (this commit)
+**CI:** push-triggered run on the exact head SHA (cited below once green) — `event: push`, checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit.
 
-> This record supersedes `759b790` (which pointed at `75766f1` / digest `fdaf5d90…`). One remaining acceptance condition — that the closed-world grant inventory is CI-enforced, not merely structurally correct — is closed in `374f7be`. The manifest digest is **unchanged** (`fdaf5d90…`), because the new comparison confirms the committed content exactly.
+> This record supersedes `ec2f38d`. Prior receipts (`ec2f38d`, `759b790`, `e3397a1`, `c24e997`) all cited the digest `fdaf5d90…` / 293,691 bytes — that is the **Windows CRLF working-tree representation**, not the repository artifact. The committed Git blob is LF and is `ace036c2…` / 283,888 bytes. This is corrected here, and a detached checksum file (`TARGET-SCHEMA-MANIFEST.sha256`) is now CI-enforced so a receipt can never again cite the wrong bytes.
 
 ## Target manifest identity (detached)
 
 | Property | Value |
 |---|---|
 | File | `migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json` |
-| Commit | `75766f1` (last content change) / `374f7be` (CI-enforcement harness) |
-| Raw-byte SHA-256 | `fdaf5d90ae9d94811a3d01921a72d1b166e5432b07f5af0cfc939dd13429ac61` |
-| Size | 293,691 bytes |
+| Commit | `75766f1` (last content change) |
+| **Committed Git blob SHA-256** | `ace036c2e934d219c7cbc529fb5dc04df0281008998aa813f4cc53360d638449` |
+| **Committed Git blob size** | 283,888 bytes |
+| Line endings (blob) | LF |
+| Detached checksum file | `migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.sha256` (CI-asserted by Step 0) |
 
-No in-band digest field. Digest and size unchanged from `75766f1`; `374f7be` modifies only the validation harness.
+No in-band digest field. The blob digest is authoritative; the CRLF working-tree digest (`fdaf5d90…` / 293,691) is platform-specific and not the artifact CI tests. `.gitattributes` now pins `migrations/profiles/g2/**` to `eol=lf`.
 
 ## CI evidence (push event on exact SHA — no merge commit, ON_ERROR_STOP=1)
 
-- `GRANT-INV PASS: generated == committed (64 tables, 10 app functions, 81 extension excluded, 1 sequences, 1 schemas)` ← **new CI-enforcement step**
+- `GRANT-INV PASS: generated == committed (64 tables, 10 app functions, 81 extension excluded, 1 sequences, 1 schemas)`
+- `BLOB-DIGEST PASS: committed blob sha256 ace036c2… (283888 bytes) == checksum file` ← **new fail-closed identity assertion**
 - `018 PASS: P1-canonical validated; raw-018 and 005-only divergences confirmed`
 - `016 NEGATIVE PASS: corruption correctly detected` (transactional ROLLBACK proof)
 - `016 PASS: all 7 canonical names, dual-grant collision, negative case validated`
@@ -58,13 +61,23 @@ The generator partitions by `(name, args)` and hard-errors if any application fu
 ### B8 — closed-world grant inventory not CI-enforced
 The per-object grant inventory (B4/B7) was structurally correct but not CI-enforced: neither `validate_g2.sh` nor `ci.yml` ran `generate_g2_grants.py` or compared its output to the committed manifest. A drift — a hand-edited manifest, a new migration adding an application function, or a stale generator — would pass silently.
 
-**Fix:** Step 0 in `validate_g2.sh` regenerates the `target_grants` block from the manifest's own object inventory via `generate_g2_grants.py` and asserts it matches the committed manifest (canonical JSON comparison, `sort_keys=True` so dict ordering is not a false fail). It also prints the manifest SHA-256 + size so the receipt and artifact cannot silently diverge. Fail-closed (non-zero exit on any difference).
+**Fix:** Step 0 in `validate_g2.sh` regenerates the `target_grants` block from the manifest's own object inventory via `generate_g2_grants.py` and asserts it matches the committed manifest (canonical JSON comparison, `sort_keys=True` so dict ordering is not a false fail). Fail-closed (non-zero exit on any difference).
 
 **Proven bidirectionally fail-closed:**
 - privilege mutation (added `DELETE` to a table grant) → `GRANT-INV FAIL`, exit 1
 - phantom object (extra application function in manifest) → `GRANT-INV FAIL`, exit 1
 
-Both drifts restored; manifest digest unchanged at `fdaf5d90…` (293,691 bytes) — the comparison confirms the committed content exactly.
+### B9 — receipt cited the wrong bytes (CRLF working-tree, not the committed blob)
+Prior receipts cited SHA-256 `fdaf5d90…` / 293,691 bytes — that is the **Windows CRLF working-tree representation**, not the repository artifact. The committed Git blob is LF: SHA-256 `ace036c2…` / 283,888 bytes. The 9,803-byte difference is exactly the CRLF expansion. CI (Linux, LF working tree) computed the correct blob digest, but Step 0 only *printed* it without asserting it, so the divergence went unnoticed across four receipts (`c24e997`, `e3397a1`, `759b790`, `ec2f38d`).
+
+**Fix (three parts):**
+1. `.gitattributes` pins `migrations/profiles/g2/**` to `eol=lf`, so the working-tree bytes equal the committed blob bytes on every platform.
+2. A detached checksum file (`TARGET-SCHEMA-MANIFEST.sha256`) records the authoritative blob digest + size. `regenerate_g2_checksum.py` recomputes it from `git cat-file blob HEAD:<path>` (the repository artifact, not the working-tree file) and warns if the working tree has uncommitted edits.
+3. Step 0 now ASSERTS the committed blob's SHA-256 and size against the checksum file (fail-closed), not merely prints them.
+
+**Proven fail-closed in both failure modes:**
+- checksum citing the CRLF digest (`fdaf5d90…`) → `BLOB-DIGEST FAIL`, exit 1
+- manifest committed but checksum not regenerated → `BLOB-DIGEST FAIL`, exit 1
 
 ## Blockers closed in 98dd17a (prior commit, still in force)
 
@@ -108,7 +121,7 @@ Generated by `scripts/profile/generate_g2_grants.py` (re-derives the application
 
 ## Approvals
 
-Architecture and Database must approve the exact target-manifest digest `fdaf5d90…`; Security reviews the 029 privilege decision. This record is **unsigned** — signatures are recorded separately by the named owners.
+Architecture and Database must approve the exact target-manifest blob digest `ace036c2…` (283,888 bytes, LF — the committed Git artifact, CI-asserted against `TARGET-SCHEMA-MANIFEST.sha256`); Security reviews the 029 privilege decision. This record is **unsigned** — signatures are recorded separately by the named owners.
 
 | Role | Owner | Decision | Signature | Date |
 |---|---|---|---|---|

@@ -8,19 +8,26 @@ echo "=== G2 Fixture Validation Harness ==="
 echo "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo ""
 
-# === Step 0: Closed-world grant inventory — generated vs committed (fail-closed) ===
-# Regenerates the target_grants block from the manifest's own object inventory via
-# generate_g2_grants.py and asserts it matches the committed manifest byte-for-byte
-# (after canonical JSON normalization). Catches any drift between the generator and
-# the committed inventory — e.g. a hand-edit to the manifest, a new migration adding
-# an application function, or a stale generator. No database required.
-echo "=== Step 0: Closed-world grant inventory — generated vs committed ==="
+# === Step 0: Closed-world grant inventory + blob-digest assertion (fail-closed) ===
+# Two independent fail-closed checks:
+#   (a) GRANT-INV: regenerate the target_grants block from the manifest's own
+#       object inventory and assert it matches the committed manifest (canonical
+#       JSON). Catches drift between the generator and the committed inventory.
+#   (b) BLOB-DIGEST: assert the committed Git BLOB's SHA-256 and byte size
+#       against the detached checksum file. The blob is read via
+#       `git cat-file blob` — the repository artifact CI tests — NOT the
+#       working-tree file, whose line endings vary by platform (CRLF on
+#       Windows, LF on Linux). This makes the cited digest match the artifact
+#       CI tests and fail-closes any divergence between the receipt and the
+#       committed bytes.
+echo "=== Step 0: Closed-world grant inventory + blob-digest assertion ==="
 python3 - <<'PYEOF'
-import json, subprocess, sys, hashlib
+import json, subprocess, sys, hashlib, re
 
 MANIFEST = "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json"
+CHECKSUM = "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.sha256"
 
-# Regenerate the grants block from the manifest's object inventory.
+# --- (a) GRANT-INV: generated vs committed target_grants ---
 proc = subprocess.run(
     ["python3", "scripts/profile/generate_g2_grants.py"],
     capture_output=True, text=True,
@@ -34,17 +41,13 @@ generated = json.loads(proc.stdout)["target_grants"]
 with open(MANIFEST, encoding="utf-8") as fh:
     committed = json.load(fh)["target_grants"]
 
-# Canonical comparison: same key order is NOT required, same structure/values ARE.
-# sort_keys=True normalizes dict ordering so only real differences fail.
 gen_canon = json.dumps(generated, sort_keys=True, ensure_ascii=False)
 com_canon = json.dumps(committed, sort_keys=True, ensure_ascii=False)
-
 if gen_canon != com_canon:
     print("GRANT-INV FAIL: generated target_grants != committed target_grants")
-    print("This means the manifest was hand-edited, OR a migration added/changed")
-    print("an object and the manifest was not regenerated. Re-run")
-    print("generate_g2_grants.py and commit the updated manifest.")
-    # Surface the first differing segment for diagnosis.
+    print("The manifest was hand-edited, OR a migration added/changed an object")
+    print("and the manifest was not regenerated. Re-run generate_g2_grants.py")
+    print("and commit the updated manifest + checksum.")
     import difflib
     diff = list(difflib.unified_diff(
         com_canon.splitlines(), gen_canon.splitlines(),
@@ -52,15 +55,45 @@ if gen_canon != com_canon:
     print("\n".join(diff[:40]) or "(diff too dense to summarize — inspect manually)")
     sys.exit(1)
 
-# Confirm the manifest's raw bytes hash to the value the approval record cites,
-# so the receipt and the artifact cannot silently diverge.
-raw = open(MANIFEST, "rb").read()
+# --- (b) BLOB-DIGEST: committed Git blob vs detached checksum file ---
+# Read the repository artifact via git cat-file, NOT the working-tree file.
+blob = subprocess.run(
+    ["git", "cat-file", "blob", f"HEAD:{MANIFEST}"],
+    capture_output=True, check=True,
+).stdout
+actual_sha = hashlib.sha256(blob).hexdigest()
+actual_size = len(blob)
+
+# Parse the detached checksum file for the expected values.
+checksum_text = open(CHECKSUM, encoding="utf-8").read()
+m_sha = re.search(r"^[^:\s]+:([0-9a-f]{64})\s*$", checksum_text, re.M)
+m_size = re.search(r"^[^:\s]+:size:(\d+)\s*$", checksum_text, re.M)
+if not m_sha or not m_size:
+    print(f"BLOB-DIGEST FAIL: checksum file {CHECKSUM} malformed")
+    print(checksum_text)
+    sys.exit(1)
+expected_sha = m_sha.group(1)
+expected_size = int(m_size.group(1))
+
+if actual_sha != expected_sha:
+    print("BLOB-DIGEST FAIL: committed blob SHA-256 != checksum file")
+    print(f"  committed blob (git cat-file HEAD): {actual_sha}")
+    print(f"  checksum file expects:              {expected_sha}")
+    print("The manifest changed but the checksum was not regenerated, OR the")
+    print("checksum cites a working-tree (CRLF) digest instead of the blob.")
+    print("Recompute via: git cat-file blob HEAD:<path> | sha256sum")
+    sys.exit(1)
+if actual_size != expected_size:
+    print("BLOB-DIGEST FAIL: committed blob size != checksum file")
+    print(f"  committed blob: {actual_size} bytes")
+    print(f"  checksum file:  {expected_size} bytes")
+    sys.exit(1)
+
 print(f"GRANT-INV PASS: generated == committed ({len(committed['tables'])} tables, "
       f"{len(committed['application_functions'])} app functions, "
       f"{committed['extension_functions']['count']} extension excluded, "
       f"{len(committed['sequences'])} sequences, {len(committed['schemas'])} schemas)")
-print(f"manifest sha256: {hashlib.sha256(raw).hexdigest()}")
-print(f"manifest size:   {len(raw)} bytes")
+print(f"BLOB-DIGEST PASS: committed blob sha256 {actual_sha} ({actual_size} bytes) == checksum file")
 PYEOF
 echo ""
 
