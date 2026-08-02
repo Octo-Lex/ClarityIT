@@ -3,8 +3,8 @@
 **Date:** 2 August 2026
 **Branch:** `wp00/g2-schema-decisions` (stacked from `0dd21d8`)
 **PR:** [#9](https://github.com/Octo-Lex/ClarityIT/pull/9) (DRAFT)
-**Commit:** (this commit — carries the regenerated checksum + receipt identity for the B11-corrected manifest)
-**CI:** push-triggered run on the exact head SHA (run URL filled in the doc-only follow-up once green) — `event: push`, checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit.
+**Commit:** `4eea00b` (carries the regenerated checksum + receipt identity for the B11-corrected manifest)
+**CI:** [Push-triggered run on 4eea00b](https://github.com/Octo-Lex/ClarityIT/actions/runs/30753928693) — `event: push`, `headSha: 4eea00bbcb53e953a76f991df033cdd31d14d11f` (checked out directly via `refs/remotes/origin/wp00/g2-schema-decisions`, **not** a PR merge commit). All three jobs success.
 
 > This record supersedes `f974e57`. B11 (`5d67e3e`) corrected a security-significant internal contradiction: the manifest's `decision_029.resolution` prose said `clarityit_migrator` has "ADMIN on owner," conflicting with its own `target_memberships` (`admin_option: false, set_option: true`), DECISION-029, and the R3 fixture (which rejects `ADMIN TRUE`). ADMIN delegates membership; SET permits `SET ROLE`. The manifest bytes changed, so the identity is now `1f6e3142…` / 284,064 bytes (superseding `ace036c2…` / 283,888). B11 also corrected the PG16 omitted-option rationale (ADMIN→FALSE, SET→TRUE, INHERIT→from member's `rolinherit`).
 
