@@ -8,6 +8,62 @@ echo "=== G2 Fixture Validation Harness ==="
 echo "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo ""
 
+# === Step 0: Closed-world grant inventory — generated vs committed (fail-closed) ===
+# Regenerates the target_grants block from the manifest's own object inventory via
+# generate_g2_grants.py and asserts it matches the committed manifest byte-for-byte
+# (after canonical JSON normalization). Catches any drift between the generator and
+# the committed inventory — e.g. a hand-edit to the manifest, a new migration adding
+# an application function, or a stale generator. No database required.
+echo "=== Step 0: Closed-world grant inventory — generated vs committed ==="
+python3 - <<'PYEOF'
+import json, subprocess, sys, hashlib
+
+MANIFEST = "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json"
+
+# Regenerate the grants block from the manifest's object inventory.
+proc = subprocess.run(
+    ["python3", "scripts/profile/generate_g2_grants.py"],
+    capture_output=True, text=True,
+)
+if proc.returncode != 0:
+    print("GRANT-INV FAIL: generate_g2_grants.py exited non-zero")
+    print(proc.stderr)
+    sys.exit(1)
+
+generated = json.loads(proc.stdout)["target_grants"]
+with open(MANIFEST, encoding="utf-8") as fh:
+    committed = json.load(fh)["target_grants"]
+
+# Canonical comparison: same key order is NOT required, same structure/values ARE.
+# sort_keys=True normalizes dict ordering so only real differences fail.
+gen_canon = json.dumps(generated, sort_keys=True, ensure_ascii=False)
+com_canon = json.dumps(committed, sort_keys=True, ensure_ascii=False)
+
+if gen_canon != com_canon:
+    print("GRANT-INV FAIL: generated target_grants != committed target_grants")
+    print("This means the manifest was hand-edited, OR a migration added/changed")
+    print("an object and the manifest was not regenerated. Re-run")
+    print("generate_g2_grants.py and commit the updated manifest.")
+    # Surface the first differing segment for diagnosis.
+    import difflib
+    diff = list(difflib.unified_diff(
+        com_canon.splitlines(), gen_canon.splitlines(),
+        fromfile="committed", tofile="generated", lineterm="", n=2))
+    print("\n".join(diff[:40]) or "(diff too dense to summarize — inspect manually)")
+    sys.exit(1)
+
+# Confirm the manifest's raw bytes hash to the value the approval record cites,
+# so the receipt and the artifact cannot silently diverge.
+raw = open(MANIFEST, "rb").read()
+print(f"GRANT-INV PASS: generated == committed ({len(committed['tables'])} tables, "
+      f"{len(committed['application_functions'])} app functions, "
+      f"{committed['extension_functions']['count']} extension excluded, "
+      f"{len(committed['sequences'])} sequences, {len(committed['schemas'])} schemas)")
+print(f"manifest sha256: {hashlib.sha256(raw).hexdigest()}")
+print(f"manifest size:   {len(raw)} bytes")
+PYEOF
+echo ""
+
 echo "=== Step 1: 018 Agent P1-Canonical Validation (isolated schemas on shared DB) ==="
 docker exec -i postgres psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 \
     < migrations/profiles/g2/fixtures/018-agent-p1-validation.sql
