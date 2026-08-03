@@ -6,17 +6,12 @@
 \set ON_ERROR_STOP on
 BEGIN;
 
--- Bind the adoption producing commit and the verified source fingerprint
--- at execution time.  The proof harness computes the live profiler
--- fingerprint (via pre_adopt_verify) and passes it as g3_source_fingerprint;
--- the SQL asserts it matches the G1-approved P3 golden so adoption is
--- fail-closed against a drifted source even when invoked directly.
+-- Bind the adoption producing commit at execution time (runtime-bound,
+-- not a fingerprint).  The proof harness passes the exact implementation
+-- commit SHA via the g3_source_commit psql variable.
 SELECT set_config('g3.source_commit', :'g3_source_commit', true);
-SELECT set_config('g3.source_fingerprint', :'g3_source_fingerprint', true);
 DO $$ BEGIN ASSERT current_setting('g3.source_commit', true) ~ '^[0-9a-f]{40}$',
     'g3.source_commit must be set to a 40-char lowercase hex SHA'; END $$;
-DO $$ BEGIN ASSERT current_setting('g3.source_fingerprint', true) = 'cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b',
-    'g3.source_fingerprint must equal the G1-approved P3 golden'; END $$;
 
 -- ============================================================
 -- Preflight (read-only): the source must be the approved P3 shape.
@@ -45,6 +40,61 @@ BEGIN
     IF (SELECT count(DISTINCT e.extname) FROM pg_extension e JOIN pg_roles r ON r.oid = e.extowner
         WHERE e.extname IN ('pgcrypto','citext','pg_trgm') AND r.rolname = 'clarityit') <> 3 THEN
         RAISE EXCEPTION 'G3 adoption requires clarityit to own pgcrypto, citext, and pg_trgm';
+    END IF;
+    -- SQL-derived structural digest: fail-closed against drift, computed
+    -- from the live catalog (NOT caller-supplied).  Catches column/type
+    -- changes and function-signature drift without trusting a string.
+    IF (SELECT encode(public.digest(convert_to(string_agg(
+        format('%s.%s.%s.%s', table_name, column_name, data_type,
+        COALESCE(character_maximum_length::text, '')), E'\n'
+        ORDER BY table_name, ordinal_position), 'UTF8'), 'sha256'), 'hex')
+        FROM information_schema.columns WHERE table_schema='public' AND table_name IN (
+            SELECT table_name FROM information_schema.tables
+            WHERE table_schema='public' AND table_type='BASE TABLE'))
+        <> '7a3ffdf27f6949d174db6829c5f1914eb477923da021cf888b6893065d310722' THEN
+        RAISE EXCEPTION 'G3 adoption source column inventory drifted (digest mismatch)';
+    END IF;
+    IF (SELECT encode(public.digest(convert_to(string_agg(
+        format('%s.%s(%s)', n.nspname, p.proname,
+        pg_get_function_identity_arguments(p.oid)), E'\n' ORDER BY 1,2,3), 'UTF8'), 'sha256'), 'hex')
+        FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+        WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY['adoc_set_updated_at','kc_search_vector_update','ki_search_vector_update','ki_set_updated_at','normalize_team_slug','normalize_user_email','prevent_bootstrap_unlock','protect_last_team_owner','set_updated_at','trg_artifacts_updated_at']::text[]))
+        <> '53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0' THEN
+        RAISE EXCEPTION 'G3 adoption source application-function signatures drifted (digest mismatch)';
+    END IF;
+    IF (SELECT encode(public.digest(convert_to(string_agg(
+        pg_get_indexdef(ix.indexrelid, 0, true), E'\n'
+        ORDER BY n.nspname, c.relname, i.relname), 'UTF8'), 'sha256'), 'hex')
+        FROM pg_index ix JOIN pg_class c ON c.oid=ix.indrelid
+        JOIN pg_class i ON i.oid=ix.indexrelid
+        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')
+        <> '6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3' THEN
+        RAISE EXCEPTION 'G3 adoption source index inventory drifted (digest mismatch)';
+    END IF;
+    IF (SELECT encode(public.digest(convert_to(string_agg(
+        pg_get_triggerdef(t.oid, true), E'\n'
+        ORDER BY n.nspname, c.relname, t.tgname), 'UTF8'), 'sha256'), 'hex')
+        FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        JOIN pg_namespace n ON n.oid=c.relnamespace
+        WHERE n.nspname='public' AND NOT t.tgisinternal)
+        <> 'b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333' THEN
+        RAISE EXCEPTION 'G3 adoption source trigger inventory drifted (digest mismatch)';
+    END IF;
+    IF (SELECT encode(public.digest(convert_to(string_agg(
+        format('%s.%s.%s.%s.%s', n.nspname, c.relname, s.seqstart, s.seqincrement, s.seqcycle), E'\n'
+        ORDER BY 1, 2), 'UTF8'), 'sha256'), 'hex')
+        FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid
+        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')
+        <> '789e5e123525230ab682cef6e85af14fe770218cc8e8b28c11d442242449611c' THEN
+        RAISE EXCEPTION 'G3 adoption source sequence drifted (sequence digest mismatch)';
+    END IF;
+    IF (SELECT encode(public.digest(convert_to(string_agg(
+        format('%s.%s.%s', n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), E'\n'
+        ORDER BY n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), 'UTF8'), 'sha256'), 'hex')
+        FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid
+        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r')
+        <> 'ee24c4d4e80489de479102aa1fb899582091faeab7fd0882e9ec7e8a07b8c69b' THEN
+        RAISE EXCEPTION 'G3 adoption source drifted (constraint digest mismatch)';
     END IF;
     -- Target identities must be absent (single-shot adoption).
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN (

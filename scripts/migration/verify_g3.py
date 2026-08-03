@@ -551,6 +551,24 @@ def governed_fingerprint_of(dsn: str) -> str:
         connection.close()
 
 
+def governed_verify(dsn: str) -> None:
+    """Compute the governed fingerprint and assert it equals the A4 frozen target.
+
+    This is the live-bind check: the matrix does not merely compare fresh-A
+    == fresh-B == adopted, it asserts the computed value equals the A4
+    manifest's frozen ``governed_fingerprint.target_sha256``.
+    """
+    a4 = json.loads((ROOT / g3.A4_MANIFEST).read_bytes())
+    expected = a4["governed_fingerprint"]["target_sha256"]
+    algorithm = a4["governed_fingerprint"]["algorithm"]
+    actual = governed_fingerprint_of(dsn)
+    if actual != expected:
+        fail(
+            f"GOVERNED-BIND FAIL: live governed {actual} != A4 frozen {expected} "
+            f"(algorithm {algorithm})"
+        )
+
+
 def pre_adopt_verify(dsn: str) -> None:
     """Read-only pre-adoption checks against a P3 source database.
 
@@ -645,6 +663,67 @@ def post_adopt_verify(dsn_fresh: str, dsn_adopted: str) -> None:
         )
         if cursor.fetchone()[0] != "clarityit_owner":
             fail("post-adoption database is not owned by clarityit_owner")
+
+        # Validate the adoption source_profiles row (ALL deterministic fields).
+        cursor.execute(
+            "SELECT profile_id, schema_fingerprint, postgres_version, postgres_major, "
+            "extensions, roles_digest, source_commit, approved_by, approved_at "
+            "FROM platform.source_profiles WHERE profile_id = %s",
+            (g3.P3_PROFILE_ID,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            fail("post-adoption platform.source_profiles is missing the P3 adoption row")
+        sp_id, sp_fp, sp_pgver, sp_major, sp_ext, sp_roles, sp_commit, sp_approved, sp_at = row
+        if sp_fp != g3.P3_GOLDEN_FINGERPRINT:
+            fail(f"post-adoption source_profiles fingerprint mismatch: {sp_fp}")
+        if sp_major != 16:
+            fail(f"post-adoption source_profiles postgres_major mismatch: {sp_major}")
+        if sp_commit != g3.P3_SOURCE_COMMIT:
+            fail(f"post-adoption source_profiles source_commit mismatch: {sp_commit}")
+        if sp_approved != g3.G1_APPROVAL_REF:
+            fail(f"post-adoption source_profiles approved_by mismatch: {sp_approved}")
+        if str(sp_at).replace(" ", "T").replace("+00:00", "Z") != g3.G3_ARTIFACT_DATE:
+            fail(f"post-adoption source_profiles approved_at mismatch: {sp_at}")
+        expected_roles_digest = g3.roles_digest_for_manifest(signed)
+        if sp_roles != expected_roles_digest:
+            fail(f"post-adoption source_profiles roles_digest mismatch: {sp_roles} != {expected_roles_digest}")
+        expected_ext = sorted(["pgcrypto", "citext", "pg_trgm"])
+        if sorted(sp_ext) != expected_ext:
+            fail(f"post-adoption source_profiles extensions mismatch: {sorted(sp_ext)}")
+
+        # Validate the adoption schema_revisions row (ALL deterministic fields).
+        baseline_sha = hashlib.sha256(
+            (ROOT / g3.BASELINE_SQL).read_bytes()
+        ).hexdigest()
+        cursor.execute(
+            "SELECT version, name, checksum, source_commit, applied_by, execution_ms, success "
+            "FROM platform.schema_revisions WHERE version = %s AND name = 'adopt-p3'",
+            (g3.BASELINE_VERSION,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            fail("post-adoption platform.schema_revisions is missing the adopt-p3 row")
+        rev_version, rev_name, rev_checksum, rev_scommit, rev_applied_by, rev_ms, rev_success = row
+        if rev_checksum != baseline_sha:
+            fail(f"post-adoption schema_revisions checksum mismatch: {rev_checksum} != {baseline_sha}")
+        if not rev_success:
+            fail("post-adoption schema_revisions adopt-p3 row is not successful")
+        if rev_applied_by != "g3-adoption-artifact":
+            fail(f"post-adoption schema_revisions applied_by mismatch: {rev_applied_by}")
+        if rev_ms != 0:
+            fail(f"post-adoption schema_revisions execution_ms mismatch: {rev_ms}")
+
+        # Validate the canonical permission rows (full content, not just names).
+        cursor.execute(
+            "SELECT name, description, resource, action, risk_level FROM public.permissions ORDER BY name"
+        )
+        live_perms = {(r[0], r[1], r[2], r[3], r[4]) for r in cursor.fetchall()}
+        expected_perms = {(name, desc, res, act, risk) for name, desc, res, act, risk in g3.CANONICAL_PERMISSIONS}
+        if live_perms != expected_perms:
+            fail(f"post-adoption permission rows differ from canonical seven (full content): {live_perms}")
+        if any(name.endswith(".edit") for name, *_ in live_perms):
+            fail("post-adoption permissions contain a legacy .edit row")
     finally:
         connection.rollback()
         connection.close()
@@ -721,6 +800,8 @@ def main() -> int:
     live.add_argument("--dsn-b", required=True)
     gov = sub.add_parser("governed", help="compute the governed target fingerprint of a live DSN")
     gov.add_argument("--dsn", required=True)
+    govb = sub.add_parser("governed-bind", help="assert live governed fingerprint == A4 frozen target")
+    govb.add_argument("--dsn", required=True)
     pre = sub.add_parser("pre-adopt", help="read-only P3 pre-adoption precondition checks")
     pre.add_argument("--dsn", required=True)
     post = sub.add_parser("post-adopt", help="post-adoption conformance + governed convergence")
@@ -736,6 +817,8 @@ def main() -> int:
             live_verify(args.dsn_a, args.dsn_b)
         elif args.command == "governed":
             print(governed_fingerprint_of(args.dsn))
+        elif args.command == "governed-bind":
+            governed_verify(args.dsn)
         elif args.command == "pre-adopt":
             pre_adopt_verify(args.dsn)
         elif args.command == "post-adopt":

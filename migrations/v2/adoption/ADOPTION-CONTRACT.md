@@ -22,9 +22,11 @@ An approved existing source may be marked as having adopted baseline
 G3 supplies `0001_adopt_p3.sql`, a single-transaction artifact that
 reconciles an existing P3 source to the signed G2 governed posture.  It
 performs no legacy-replay, no product-table creation, and no backfill.
-It is fail-closed: the runtime `g3.source_fingerprint` setting must
-match the G1-approved P3 golden, or the entire transaction aborts and
-rolls back with zero writes.
+It is fail-closed: the preflight derives SHA-256 structural digests
+(columns/types, constraints, function signatures, indexes, triggers,
+sequences) from the live catalog **inside the transaction** and compares
+them against frozen constants, so adoption rejects a drifted source even
+when invoked directly without the Python pre-check.
 
 The G3 adoption proof runs this artifact against a live P3 source on
 the pinned PostgreSQL 16 image and requires the resulting governed
