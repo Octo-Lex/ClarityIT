@@ -19,44 +19,27 @@ The product digest remains the signed G2 identity. The control and composite dig
 
 | Identity | Value |
 |---|---|
-| Governed target fingerprint (algorithm `clarityit-g3-governed-v1`) | `8985a82cce3124ffd40a1ba5b2eff7aba821fbb7d40a7a66533a33859d5d408d` |
-| Adoption artifact (`0001_adopt_p3.sql`) SHA-256 | recorded in `G3-A4-MANIFEST.json` under `adoption.adoption_sql_sha256` |
+| Governed target fingerprint (algorithm `clarityit-g3-governed-v1`, domain `clarityit-g3-governed-v1\0`) | `9881c93e79b825963d3c3434de23a3900b3797b181ad0413bafaa5dc4dbc7de6` |
+| Adoption artifact (`0001_adopt_p3.sql`) SHA-256 | `3926fe62876ca8e8a2c17790a0e04533d3fc7e5f4183f2dd894d870bcae8f1c1` |
 | P3 golden source fingerprint (G1-approved) | `cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b` |
 | P3 source commit | `29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33` |
 | G1 approval reference | `3b4a6fdeb35473e5f73ca74bafa479bd2648fb10` |
 
 The governed target fingerprint is the convergence target: two fresh installs
-and the P3-adopted database all reach exact equality on this projection.
-
-## Evidence state
-
-| Evidence | State |
-|---|---|
-| Signed G2 input binding | PASS |
-| Legacy `001–040` byte identity and ordered checksums | PASS |
-| Two independent generations produce identical artifact bytes | PASS |
-| All four generated SQL files parse with the native PostgreSQL grammar | PASS |
-| Five-role/bootstrap and signed grants encoded | PASS |
-| Four-table control manifest bound to platform SQL | PASS |
-| Composite tamper tests | PASS |
-| Two independent PostgreSQL 16.14 installations | PASS |
-| `FRESH-EQUIV PASS` raw profiler fingerprints (informational) | PASS — `93720375fc27d80de7ddf5cd6b3f01d0df982b2db320a451d5d0964df64bbe94` |
-| `GOVERNED-FRESH-EQUIV PASS` (fresh A == fresh B) | PASS — `8985a82cce3124ffd40a1ba5b2eff7aba821fbb7d40a7a66533a33859d5d408d` |
-| Each fresh install conforms to signed G2 product manifest | PASS |
-| Each fresh install conforms to control manifest | PASS |
-| Deterministic seed and revision rows | PASS |
-| `ADOPT-P3 PRECONDITIONS PASS` (approved P3 source) | PASS |
-| `ADOPT-P3 CONVERGE PASS` (adopted == fresh governed) | PASS — `8985a82cce3124ffd40a1ba5b2eff7aba821fbb7d40a7a66533a33859d5d408d` |
-| `ADOPT-P3 DRIFT-NEGATIVE PASS` (drifted source rejected, zero writes) | PASS |
+and the P3-adopted database all reach exact equality on this projection. The
+matrix asserts the computed value equals this frozen target (live-bound).
+The SQL-derived structural digests (columns, constraints, functions, indexes,
+triggers, sequences) are computed inside the adoption transaction from the
+live catalog (not caller-supplied).
 
 ## Exact-commit live proof
 
-- Producing commit: `9cdf65e1377c1f8d08b7e3e9b86df3885d04fe34`
+- Producing commit: `f552d3ff8e8b996bc6b7c50e960f6cd657f2bf22`
 - Executed: 2026-08-03
 - Runtime: native PostgreSQL 16.14-alpine (pinned digest `7a396fd2…`), database `clarityit`
 - Fresh installs: two independent installs of the four declared G3 SQL artifacts in contract order
 - P3 adoption: applied `0001_adopt_p3.sql` to a live P3 source on the pinned image
-- Result markers: `G3-COMMITTED-BLOBS PASS`, `G3-INPUT-BIND PASS`, `LEGACY-ARCHIVE PASS`, `BASELINE-GEN PASS`, `PRIVILEGE PASS`, `CONTROL PASS`, `SEED-EQUIV PASS`, `NEGATIVE PASS`, `A4-BIND PASS`, `G3-RECEIPT-BIND PASS`, `FRESH-EQUIV PASS`, `PRODUCT-CONFORM PASS`, `CONTROL-LIVE PASS`, `SEED-LIVE PASS`, `GOVERNED-FRESH-EQUIV PASS`, `ADOPT-P3 PRECONDITIONS PASS`, `ADOPT-P3 CONVERGE PASS`, `ADOPT-P3 DRIFT-NEGATIVE PASS`
+- Result markers: `G3-COMMITTED-BLOBS PASS`, `G3-INPUT-BIND PASS`, `LEGACY-ARCHIVE PASS`, `BASELINE-GEN PASS`, `PRIVILEGE PASS`, `CONTROL PASS`, `SEED-EQUIV PASS`, `NEGATIVE PASS`, `A4-BIND PASS`, `G3-RECEIPT-BIND PASS`, `FRESH-EQUIV PASS`, `PRODUCT-CONFORM PASS`, `CONTROL-LIVE PASS`, `SEED-LIVE PASS`, `GOVERNED-FRESH-EQUIV PASS`, `ADOPT-P3 PRECONDITIONS PASS`, `ADOPT-P3 CONVERGE PASS`, `ADOPT-P3 DRIFT-NEGATIVE PASS`, `ADOPT-P3 ATOMICITY PASS`
 - Generator tests: 8 passed
 
 This receipt update records the evidence only. It does not change the product, control, or composite identities, generated SQL, legacy archive, or executable verifier. The only producing-tip-to-receipt-tip file change is this file (`G3-APPROVALS.md`).
