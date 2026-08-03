@@ -20,13 +20,18 @@ The product digest remains the signed G2 identity. The control and composite dig
 | Identity | Value |
 |---|---|
 | Governed target fingerprint (algorithm `clarityit-g3-governed-v1`) | `8985a82cce3124ffd40a1ba5b2eff7aba821fbb7d40a7a66533a33859d5d408d` |
-| Adoption artifact (`0001_adopt_p3.sql`) SHA-256 | recorded in `G3-A4-MANIFEST.json` under `adoption.adoption_sql_sha256` |
+| Adoption artifact (`0001_adopt_p3.sql`) SHA-256 | `3a23fbb74ac560f8510a2ed72bc043c0c66696d4560cf618a879db36c67c93ec` |
+| P3 source column digest (SQL-derived, fail-closed gate) | `7a3ffdf27f6949d174db6829c5f1914eb477923da021cf888b6893065d310722` |
+| P3 source app-function digest (SQL-derived, fail-closed gate) | `53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0` |
 | P3 golden source fingerprint (G1-approved) | `cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b` |
 | P3 source commit | `29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33` |
 | G1 approval reference | `3b4a6fdeb35473e5f73ca74bafa479bd2648fb10` |
 
 The governed target fingerprint is the convergence target: two fresh installs
-and the P3-adopted database all reach exact equality on this projection.
+and the P3-adopted database all reach exact equality on this projection. The
+SQL-derived column and function digests are computed inside the adoption
+transaction from the live catalog (not caller-supplied) and compared against
+the frozen constants above, so adoption is fail-closed against drift.
 
 ## Evidence state
 
@@ -47,16 +52,17 @@ and the P3-adopted database all reach exact equality on this projection.
 | Deterministic seed and revision rows | PASS |
 | `ADOPT-P3 PRECONDITIONS PASS` (approved P3 source) | PASS |
 | `ADOPT-P3 CONVERGE PASS` (adopted == fresh governed) | PASS — `8985a82cce3124ffd40a1ba5b2eff7aba821fbb7d40a7a66533a33859d5d408d` |
-| `ADOPT-P3 DRIFT-NEGATIVE PASS` (drifted source rejected, zero writes) | PASS |
+| `ADOPT-P3 DRIFT-NEGATIVE PASS` (actual SQL rejected drifted source, zero writes) | PASS |
+| `ADOPT-P3 ATOMICITY PASS` (injected failure rolled back every change) | PASS |
 
 ## Exact-commit live proof
 
-- Producing commit: `5429bae52778db2eebc3dec5e3a140d90cb01bff`
+- Producing commit: `52fa2fbeaccae351b91d23c4d6cb0ea981643a7f`
 - Executed: 2026-08-03
 - Runtime: native PostgreSQL 16.14-alpine (pinned digest `7a396fd2…`), database `clarityit`
 - Fresh installs: two independent installs of the four declared G3 SQL artifacts in contract order
 - P3 adoption: applied `0001_adopt_p3.sql` to a live P3 source on the pinned image
-- Result markers: `G3-COMMITTED-BLOBS PASS`, `G3-INPUT-BIND PASS`, `LEGACY-ARCHIVE PASS`, `BASELINE-GEN PASS`, `PRIVILEGE PASS`, `CONTROL PASS`, `SEED-EQUIV PASS`, `NEGATIVE PASS`, `A4-BIND PASS`, `G3-RECEIPT-BIND PASS`, `FRESH-EQUIV PASS`, `PRODUCT-CONFORM PASS`, `CONTROL-LIVE PASS`, `SEED-LIVE PASS`, `GOVERNED-FRESH-EQUIV PASS`, `ADOPT-P3 PRECONDITIONS PASS`, `ADOPT-P3 CONVERGE PASS`, `ADOPT-P3 DRIFT-NEGATIVE PASS`
+- Result markers: `G3-COMMITTED-BLOBS PASS`, `G3-INPUT-BIND PASS`, `LEGACY-ARCHIVE PASS`, `BASELINE-GEN PASS`, `PRIVILEGE PASS`, `CONTROL PASS`, `SEED-EQUIV PASS`, `NEGATIVE PASS`, `A4-BIND PASS`, `G3-RECEIPT-BIND PASS`, `FRESH-EQUIV PASS`, `PRODUCT-CONFORM PASS`, `CONTROL-LIVE PASS`, `SEED-LIVE PASS`, `GOVERNED-FRESH-EQUIV PASS`, `ADOPT-P3 PRECONDITIONS PASS`, `ADOPT-P3 CONVERGE PASS`, `ADOPT-P3 DRIFT-NEGATIVE PASS`, `ADOPT-P3 ATOMICITY PASS`
 - Generator tests: 8 passed
 
 This receipt update records the evidence only. It does not change the product, control, or composite identities, generated SQL, legacy archive, or executable verifier. The only producing-tip-to-receipt-tip file change is this file (`G3-APPROVALS.md`).
