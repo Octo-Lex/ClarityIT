@@ -51,7 +51,7 @@ and the P3-adopted database all reach exact equality on this projection.
 
 ## Exact-commit live proof
 
-- Producing commit: `5429bae52778db2eebc3dec5e3a140d90cb01bff`
+- Producing commit: `9cdf65e1377c1f8d08b7e3e9b86df3885d04fe34`
 - Executed: 2026-08-03
 - Runtime: native PostgreSQL 16.14-alpine (pinned digest `7a396fd2…`), database `clarityit`
 - Fresh installs: two independent installs of the four declared G3 SQL artifacts in contract order
