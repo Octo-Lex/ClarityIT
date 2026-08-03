@@ -63,6 +63,11 @@ P3_APPFN_DIGEST = "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357
 P3_INDEX_DIGEST = "6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3"
 P3_TRIGGER_DIGEST = "b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333"
 P3_SEQUENCE_DIGEST = "789e5e123525230ab682cef6e85af14fe770218cc8e8b28c11d442242449611c"
+# Constraint digest over (schema, table, definition) — name-independent and
+# stable across P3 and the G3 baseline.  The earlier exclusion of constraints
+# was a serialization defect (positional ORDER BY mixing name+definition),
+# not a real divergence.  Both fresh and P3 produce this same digest.
+P3_CONSTRAINT_DIGEST = "ee24c4d4e80489de479102aa1fb899582091faeab7fd0882e9ec7e8a07b8c69b"
 P3_APPFN_NAMES = (
     "adoc_set_updated_at", "kc_search_vector_update", "ki_search_vector_update",
     "ki_set_updated_at", "normalize_team_slug", "normalize_user_email",
@@ -816,7 +821,15 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         f"        FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid",
         f"        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')",
         f"        <> '{P3_SEQUENCE_DIGEST}' THEN",
-        f"        RAISE EXCEPTION 'G3 adoption source sequence inventory drifted (digest mismatch)';",
+        f"        RAISE EXCEPTION 'G3 adoption source sequence drifted (sequence digest mismatch)';",
+        f"    END IF;",
+        f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
+        f"        format('%s.%s.%s', n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), E'\\n'",
+        f"        ORDER BY n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), 'UTF8'), 'sha256'), 'hex')",
+        f"        FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid",
+        f"        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r')",
+        f"        <> '{P3_CONSTRAINT_DIGEST}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption source drifted (constraint digest mismatch)';",
         f"    END IF;",
         "    -- Target identities must be absent (single-shot adoption).",
         "    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN (",
@@ -1141,6 +1154,10 @@ def expected_files() -> tuple[dict[Path, bytes], dict]:
             "adoption_sql_size": len(files[ADOPTION_SQL]),
             "p3_column_digest": P3_COLUMN_DIGEST,
             "p3_appfn_digest": P3_APPFN_DIGEST,
+            "p3_constraint_digest": P3_CONSTRAINT_DIGEST,
+            "p3_index_digest": P3_INDEX_DIGEST,
+            "p3_trigger_digest": P3_TRIGGER_DIGEST,
+            "p3_sequence_digest": P3_SEQUENCE_DIGEST,
         },
         "governed_fingerprint": {
             "algorithm": "clarityit-g3-governed-v1",

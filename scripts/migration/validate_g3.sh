@@ -155,6 +155,10 @@ python3 scripts/migration/verify_g3.py post-adopt \
 # grant values, column definitions, and per-table row counts.
 catalog_snapshot() {
     local name="$1"
+    # ANALYZE first so pg_class.reltuples holds exact row counts for small
+    # tables (P3 has ~11 rows total; ANALYZE produces exact counts below the
+    # inheritance threshold).  This runs outside the adoption transaction.
+    docker exec "$name" psql -U clarityit -d clarityit -q -c "ANALYZE;" >/dev/null 2>&1
     docker exec "$name" psql -U clarityit -d clarityit -tAc "
         WITH parts(label, content) AS (
             VALUES
@@ -165,7 +169,8 @@ catalog_snapshot() {
             ('cols', COALESCE((SELECT string_agg(format('col:%s.%s.%s|%s|notnull:%s', table_schema, table_name, column_name, data_type, is_nullable), E'\n' ORDER BY 1,2,3) FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema')), '')),
             ('grants', COALESCE((SELECT string_agg(format('grant:%s.%s|%s|grantee:%s|priv:%s|grantable:%s', n.nspname, c.relname, c.relkind, pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable), E'\n' ORDER BY 1,2,3,4,5) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace, aclexplode(c.relacl) a WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind IN ('r','S','i','v')), '')),
             ('funcs', COALESCE((SELECT string_agg(format('func:%s.%s(%s)|owner:%s', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), pg_get_userbyid(p.proowner)), E'\n' ORDER BY 1,2,3) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%'), '')),
-            ('perms', COALESCE((SELECT string_agg(format('perm:%s', name), E'\n' ORDER BY name) FROM public.permissions), ''))
+            ('perms', COALESCE((SELECT string_agg(format('perm:%s', name), E'\n' ORDER BY name) FROM public.permissions), '')),
+            ('rowcounts', COALESCE((SELECT string_agg(format('%s.%s=%s', n.nspname, c.relname, c.reltuples::bigint), E'\n' ORDER BY n.nspname, c.relname) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind='r'), ''))
         )
         SELECT encode(public.digest(convert_to(string_agg(label||':'||content, E'\n===\n' ORDER BY label), 'UTF8'), 'sha256'), 'hex') FROM parts"
 }

@@ -1,15 +1,19 @@
 {
   "adoption": {
-    "adoption_sql_sha256": "5d6a8e8c0f7cab9728db3b0d2aaacf990be9dbcdf59f819d3db9bcdd05487f90",
-    "adoption_sql_size": 47173,
+    "adoption_sql_sha256": "3926fe62876ca8e8a2c17790a0e04533d3fc7e5f4183f2dd894d870bcae8f1c1",
+    "adoption_sql_size": 47771,
     "baseline_checksum": "1021adefe8b5edaae13010a713cdde594f084a66b9d4012940603ee4a94e0508",
     "description": "P3 approved-source adoption artifact; distinct from fresh-install composite.",
     "g1_approval_ref": "3b4a6fdeb35473e5f73ca74bafa479bd2648fb10",
     "p3_appfn_digest": "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0",
     "p3_column_digest": "7a3ffdf27f6949d174db6829c5f1914eb477923da021cf888b6893065d310722",
+    "p3_constraint_digest": "ee24c4d4e80489de479102aa1fb899582091faeab7fd0882e9ec7e8a07b8c69b",
     "p3_golden_fingerprint": "cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b",
+    "p3_index_digest": "6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3",
     "p3_profile_id": "7c5cb0b9-1fb4-540d-9433-f0196ff6f7bb",
-    "p3_source_commit": "29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33"
+    "p3_sequence_digest": "789e5e123525230ab682cef6e85af14fe770218cc8e8b28c11d442242449611c",
+    "p3_source_commit": "29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33",
+    "p3_trigger_digest": "b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333"
   },
   "artifact": "ClarityIT WP-00 G3 reconciled baseline (A4)",
   "components": {

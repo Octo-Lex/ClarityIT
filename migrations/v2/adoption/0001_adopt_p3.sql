@@ -86,7 +86,15 @@ BEGIN
         FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')
         <> '789e5e123525230ab682cef6e85af14fe770218cc8e8b28c11d442242449611c' THEN
-        RAISE EXCEPTION 'G3 adoption source sequence inventory drifted (digest mismatch)';
+        RAISE EXCEPTION 'G3 adoption source sequence drifted (sequence digest mismatch)';
+    END IF;
+    IF (SELECT encode(public.digest(convert_to(string_agg(
+        format('%s.%s.%s', n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), E'\n'
+        ORDER BY n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), 'UTF8'), 'sha256'), 'hex')
+        FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid
+        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r')
+        <> 'ee24c4d4e80489de479102aa1fb899582091faeab7fd0882e9ec7e8a07b8c69b' THEN
+        RAISE EXCEPTION 'G3 adoption source drifted (constraint digest mismatch)';
     END IF;
     -- Target identities must be absent (single-shot adoption).
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN (
