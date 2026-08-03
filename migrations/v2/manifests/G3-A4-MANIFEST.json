@@ -1,4 +1,16 @@
 {
+  "adoption": {
+    "adoption_sql_sha256": "3a23fbb74ac560f8510a2ed72bc043c0c66696d4560cf618a879db36c67c93ec",
+    "adoption_sql_size": 45535,
+    "baseline_checksum": "1021adefe8b5edaae13010a713cdde594f084a66b9d4012940603ee4a94e0508",
+    "description": "P3 approved-source adoption artifact; distinct from fresh-install composite.",
+    "g1_approval_ref": "3b4a6fdeb35473e5f73ca74bafa479bd2648fb10",
+    "p3_appfn_digest": "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0",
+    "p3_column_digest": "7a3ffdf27f6949d174db6829c5f1914eb477923da021cf888b6893065d310722",
+    "p3_golden_fingerprint": "cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b",
+    "p3_profile_id": "7c5cb0b9-1fb4-540d-9433-f0196ff6f7bb",
+    "p3_source_commit": "29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33"
+  },
   "artifact": "ClarityIT WP-00 G3 reconciled baseline (A4)",
   "components": {
     "migrations/legacy/v1/SHA256SUMS": {
@@ -55,5 +67,10 @@
     "manifest_path": "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json"
   },
   "generator": "g3-baseline-generator-v1",
+  "governed_fingerprint": {
+    "algorithm": "clarityit-g3-governed-v1",
+    "description": "Deterministic projection over the signed G2 contract: governed product+platform objects, five target roles/memberships, closed-inventory grants (excluding grantor + extension objects), projected ownership (including database owner), effective default privileges, and the extension-owner invariant (boolean, not name). Fresh installs and P3-adopted databases converge on this fingerprint.",
+    "target_sha256": "8985a82cce3124ffd40a1ba5b2eff7aba821fbb7d40a7a66533a33859d5d408d"
+  },
   "postgres_major": 16
 }

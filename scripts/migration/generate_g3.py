@@ -19,7 +19,7 @@ import re
 import subprocess
 import sys
 import uuid
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Iterable
 
 
@@ -35,6 +35,38 @@ POSTGRES_DB = "clarityit"
 GENERATOR_VERSION = "g3-baseline-generator-v1"
 BASELINE_VERSION = "0001"
 
+# P3 adoption-source constants (G1-approved sanitized legacy fixture).
+P3_GOLDEN_FINGERPRINT = "cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b"
+P3_SOURCE_COMMIT = "29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33"
+G1_APPROVAL_REF = "3b4a6fdeb35473e5f73ca74bafa479bd2648fb10"
+G3_ARTIFACT_DATE = "2026-08-03T00:00:00Z"
+ADOPTION_SOURCE_PROFILE_NAMESPACE = uuid.UUID("a4d9c3f1-7e2b-4a6f-9d18-3b5c8e1f0a27")
+P3_PROFILE_ID = str(uuid.uuid5(
+    ADOPTION_SOURCE_PROFILE_NAMESPACE,
+    f"clarityit:g3:source-profile:{P3_GOLDEN_FINGERPRINT}",
+))
+
+# SQL-derived structural digest constants for the approved P3 source shape.
+# These are computed INSIDE the adoption transaction from the live catalog
+# (not supplied by the caller) and compared against these frozen values, so
+# the adoption is fail-closed against a drifted source even when the SQL is
+# invoked directly without the Python pre-check.
+#   P3_COLUMN_DIGEST: SHA-256 over ordered (table.column.data_type.charlen)
+#   P3_APPFN_DIGEST:  SHA-256 over the 10 signed application-function signatures
+P3_COLUMN_DIGEST = "7a3ffdf27f6949d174db6829c5f1914eb477923da021cf888b6893065d310722"
+P3_APPFN_DIGEST = "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0"
+P3_APPFN_NAMES = (
+    "adoc_set_updated_at", "kc_search_vector_update", "ki_search_vector_update",
+    "ki_set_updated_at", "normalize_team_slug", "normalize_user_email",
+    "prevent_bootstrap_unlock", "protect_last_team_owner", "set_updated_at",
+    "trg_artifacts_updated_at",
+)
+
+# The governed target fingerprint (clarityit-g3-governed-v1) is the convergence
+# target: both fresh installs and the P3-adopted database reach exact equality
+# on this projection.  It is recorded in the A4 manifest and the receipt.
+GOVERNED_TARGET_FINGERPRINT = "8985a82cce3124ffd40a1ba5b2eff7aba821fbb7d40a7a66533a33859d5d408d"
+
 LEGACY_DIR = Path("migrations/legacy/v1/001-040")
 LEGACY_SUMS = Path("migrations/legacy/v1/SHA256SUMS")
 ROLES_SQL = Path("migrations/v2/bootstrap/0000_roles.sql")
@@ -44,6 +76,7 @@ SEED_SQL = Path("migrations/v2/baseline/0001_seed.sql")
 CONTROL_MANIFEST = Path("migrations/v2/manifests/CONTROL-SCHEMA-MANIFEST.json")
 A4_MANIFEST = Path("migrations/v2/manifests/G3-A4-MANIFEST.json")
 V2_SUMS = Path("migrations/v2/manifests/SHA256SUMS")
+ADOPTION_SQL = Path("migrations/v2/adoption/0001_adopt_p3.sql")
 
 REQUIRED_EXTENSIONS = ("pgcrypto", "citext", "pg_trgm")
 
@@ -164,6 +197,27 @@ def json_bytes(value: object) -> bytes:
 
 def sql_bytes(lines: Iterable[str]) -> bytes:
     return ("\n".join(lines).rstrip() + "\n").encode()
+
+
+def canonical_repo_path(path: "Path | str") -> str:
+    """Normalize a repository path to canonical forward-slash form.
+
+    Generated artifacts (A4 manifest keys, detached checksum lines, archive
+    inventory) embed repository-relative paths as bytes.  On Windows,
+    ``str(Path("a/b"))`` yields ``"a\\b"`` and breaks determinism: the same
+    generator committed on POSIX (forward slashes) cannot reproduce its own
+    bytes on Windows.
+
+    This helper forces forward slashes on every platform.  It cannot rely
+    on ``Path.as_posix()`` alone, because on POSIX a backslash is a legal
+    filename character (not a separator), so ``as_posix()`` leaves
+    backslashes unchanged — a backslash-containing string or
+    ``PureWindowsPath`` would pass through unnormalized.  Instead the
+    string form is explicitly backslash-replaced before normalization.
+    """
+    text = str(path)
+    text = text.replace("\\", "/")
+    return str(PurePosixPath(text))
 
 
 def validate_frozen_inputs() -> tuple[dict, bytes]:
@@ -559,6 +613,385 @@ def generate_seed_sql(baseline_sha: str) -> bytes:
     return sql_bytes(lines)
 
 
+def _platform_statements() -> list[str]:
+    """The platform-control DDL statements, without the BEGIN/COMMIT wrapper.
+
+    Used by both the fresh bootstrap (``generate_platform_sql`` owns its
+    own transaction) and the adoption artifact (which wraps these in its
+    single atomic transaction).  The statements are identical so the
+    platform bytes are preserved; only the transaction boundary differs.
+    """
+    lines = [
+        f"DO $$ BEGIN ASSERT current_database() = '{POSTGRES_DB}', 'G3 platform bootstrap requires POSTGRES_DB={POSTGRES_DB}'; END $$;",
+        "SET LOCAL ROLE clarityit_owner;",
+        "CREATE SCHEMA platform AUTHORIZATION clarityit_owner;",
+        "REVOKE ALL ON SCHEMA platform FROM PUBLIC;",
+        "REVOKE ALL ON SCHEMA platform FROM clarityit_app;",
+        "",
+    ]
+    for name in ("source_profiles", "schema_revisions", "migration_runs", "reconciliation_results"):
+        lines.extend(render_create_table(name, CONTROL_TABLES[name]))
+        for index in CONTROL_TABLES[name].get("indexes", ()):
+            lines.append(index + ";")
+        lines.append("")
+    lines.extend([
+        "CREATE FUNCTION platform.protect_succeeded_revision() RETURNS trigger",
+        "LANGUAGE plpgsql AS $function$",
+        "BEGIN",
+        "    IF TG_OP = 'DELETE' OR OLD.success THEN",
+        "        RAISE EXCEPTION 'successful schema revision is immutable';",
+        "    END IF;",
+        "    RETURN NEW;",
+        "END;",
+        "$function$;",
+        "CREATE TRIGGER schema_revisions_immutable",
+        "BEFORE UPDATE OR DELETE ON platform.schema_revisions",
+        "FOR EACH ROW EXECUTE FUNCTION platform.protect_succeeded_revision();",
+        "",
+        "CREATE FUNCTION platform.reject_reconciliation_mutation() RETURNS trigger",
+        "LANGUAGE plpgsql AS $function$",
+        "BEGIN",
+        "    RAISE EXCEPTION 'reconciliation result is append-only';",
+        "    RETURN NULL;",
+        "END;",
+        "$function$;",
+        "CREATE TRIGGER reconciliation_results_append_only",
+        "BEFORE UPDATE OR DELETE ON platform.reconciliation_results",
+        "FOR EACH ROW EXECUTE FUNCTION platform.reject_reconciliation_mutation();",
+        "",
+        "REVOKE ALL ON ALL TABLES IN SCHEMA platform FROM PUBLIC, clarityit_app;",
+        "REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA platform FROM PUBLIC, clarityit_app;",
+        "ALTER DEFAULT PRIVILEGES FOR ROLE clarityit_owner IN SCHEMA platform REVOKE ALL ON TABLES FROM PUBLIC;",
+        "ALTER DEFAULT PRIVILEGES FOR ROLE clarityit_owner IN SCHEMA platform REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;",
+    ])
+    return lines
+
+
+def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
+    """Generate the deterministic P3 approved-source adoption artifact.
+
+    Adoption reconciles an existing P3 source database (whose 64 product
+    tables already conform to the signed G2 shape) to the governed target
+    posture: it creates the five target roles, transfers ownership of all
+    product objects + the database + public schema to ``clarityit_owner``,
+    installs the ``platform`` control schema, applies the signed grants and
+    default privileges, seeds the seven canonical permissions and the
+    adoption ledger rows, and demotes the application login to its signed
+    non-superuser posture.  It performs no legacy-replay, no product-table
+    creation, and no mutation of pre-existing P3 business rows; the only
+    product-row write is the seven canonical permission inserts.
+
+    Everything runs in a single transaction.  The bootstrap superuser
+    ``clarityit`` owns the extensions, so it is renamed to a fixed
+    ``NOLOGIN`` legacy-extension owner before the signed target
+    ``clarityit`` is created.  PostgreSQL prohibits renaming the current
+    session user, so a temporary ``NOLOGIN SUPERUSER`` administrator is
+    created, session authorization is switched to it for the rename, and
+    it is dropped before commit.  The final ``clarityit`` demotion is the
+    transaction's last state mutation, after all privileged operations and
+    assertions.
+    """
+    role_by_name = {role["name"]: role for role in manifest["target_roles"]}
+
+    def role_options(role: dict) -> str:
+        f = role["flags"]
+        return " ".join([
+            "LOGIN" if f["canlogin"] else "NOLOGIN",
+            "INHERIT" if f["inherit"] else "NOINHERIT",
+            "CREATEDB" if f["createdb"] else "NOCREATEDB",
+            "CREATEROLE" if f["createrole"] else "NOCREATEROLE",
+            "NOSUPERUSER", "NOREPLICATION", "NOBYPASSRLS",
+        ])
+
+    def target_role_flags_clause(role: dict) -> str:
+        f = role["flags"]
+        return " ".join([
+            "LOGIN" if f["canlogin"] else "NOLOGIN",
+            "INHERIT" if f["inherit"] else "NOINHERIT",
+            "CREATEDB" if f["createdb"] else "NOCREATEDB",
+            "CREATEROLE" if f["createrole"] else "NOCREATEROLE",
+            "SUPERUSER" if f["superuser"] else "NOSUPERUSER",
+            "REPLICATION" if f["replication"] else "NOREPLICATION",
+            "BYPASSRLS" if f["bypassrls"] else "NOBYPASSRLS",
+        ])
+
+    table_names = list(manifest["tables"].keys())
+    app_grants = manifest["target_grants"]["application_functions"]
+    app_signatures = [(g["schema"], g["name"], g["args"]) for g in app_grants]
+
+    lines = [
+        "-- G3 deterministic P3 approved-source adoption artifact.",
+        "-- Reconciles an existing P3 source to the signed G2 governed posture.",
+        "-- No legacy replay, no product-table creation, no business-row mutation.",
+        "-- The only product-row write is the seven canonical permission inserts.",
+        "-- DO NOT EDIT BY HAND -- regenerate with scripts/migration/generate_g3.py.",
+        r"\set ON_ERROR_STOP on",
+        "BEGIN;",
+        "",
+        "-- Bind the adoption producing commit at execution time (runtime-bound,",
+        "-- not a fingerprint).  The proof harness passes the exact implementation",
+        "-- commit SHA via the g3_source_commit psql variable.",
+        "SELECT set_config('g3.source_commit', :'g3_source_commit', true);",
+        "DO $$ BEGIN ASSERT current_setting('g3.source_commit', true) ~ '^[0-9a-f]{40}$',",
+        "    'g3.source_commit must be set to a 40-char lowercase hex SHA'; END $$;",
+        "",
+        "-- ============================================================",
+        "-- Preflight (read-only): the source must be the approved P3 shape.",
+        "-- ============================================================",
+        f"DO $g3_adopt_preflight$",
+        "BEGIN",
+        f"    IF current_database() <> '{POSTGRES_DB}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption requires database {POSTGRES_DB}, got %', current_database();",
+        "    END IF;",
+        "    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = current_user AND rolsuper) THEN",
+        "        RAISE EXCEPTION 'G3 adoption requires a PostgreSQL superuser';",
+        "    END IF;",
+        f"    IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgcrypto') THEN",
+        "        RAISE EXCEPTION 'G3 adoption requires extension pgcrypto';",
+        "    END IF;",
+        f"    IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'citext') THEN",
+        "        RAISE EXCEPTION 'G3 adoption requires extension citext';",
+        "    END IF;",
+        f"    IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm') THEN",
+        "        RAISE EXCEPTION 'G3 adoption requires extension pg_trgm';",
+        "    END IF;",
+        "    -- clarityit must exist as the P3 bootstrap superuser owning the extensions.",
+        "    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'clarityit' AND rolsuper) THEN",
+        "        RAISE EXCEPTION 'G3 adoption requires the P3 bootstrap superuser clarityit';",
+        "    END IF;",
+        "    IF (SELECT count(DISTINCT e.extname) FROM pg_extension e JOIN pg_roles r ON r.oid = e.extowner",
+        "        WHERE e.extname IN ('pgcrypto','citext','pg_trgm') AND r.rolname = 'clarityit') <> 3 THEN",
+        "        RAISE EXCEPTION 'G3 adoption requires clarityit to own pgcrypto, citext, and pg_trgm';",
+        "    END IF;",
+        f"    -- SQL-derived structural digest: fail-closed against drift, computed",
+        f"    -- from the live catalog (NOT caller-supplied).  Catches column/type",
+        f"    -- changes and function-signature drift without trusting a string.",
+        f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
+        f"        format('%s.%s.%s.%s', table_name, column_name, data_type,",
+        f"        COALESCE(character_maximum_length::text, '')), E'\\n'",
+        f"        ORDER BY table_name, ordinal_position), 'UTF8'), 'sha256'), 'hex')",
+        f"        FROM information_schema.columns WHERE table_schema='public' AND table_name IN (",
+        f"            SELECT table_name FROM information_schema.tables",
+        f"            WHERE table_schema='public' AND table_type='BASE TABLE'))",
+        f"        <> '{P3_COLUMN_DIGEST}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption source column inventory drifted (digest mismatch)';",
+        f"    END IF;",
+        f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
+        f"        format('%s.%s(%s)', n.nspname, p.proname,",
+        f"        pg_get_function_identity_arguments(p.oid)), E'\\n' ORDER BY 1,2,3), 'UTF8'), 'sha256'), 'hex')",
+        f"        FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace",
+        f"        WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY[{','.join(repr(n) for n in P3_APPFN_NAMES)}]::text[]))",
+        f"        <> '{P3_APPFN_DIGEST}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption source application-function signatures drifted (digest mismatch)';",
+        f"    END IF;",
+        "    -- Target identities must be absent (single-shot adoption).",
+        "    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN (",
+        "        'clarityit_app','clarityit_owner','clarityit_migrator','clarityit_admin',",
+        "        'legacy_ext_owner','g3_adopt_admin')) THEN",
+        "        RAISE EXCEPTION 'G3 adoption is single-shot: a target/legacy identity already exists';",
+        "    END IF;",
+        "    IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'platform') THEN",
+        "        RAISE EXCEPTION 'G3 adoption requires no existing platform schema';",
+        "    END IF;",
+    ]
+    # Assert the 64 product tables + 1 sequence exist (shape conformance is
+    # verified by the pre_adopt_verify Python check; here we assert presence).
+    for key in table_names:
+        schema, name = key.split(".", 1)
+        lines.append(
+            f"    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+            f"WHERE n.nspname='{schema}' AND c.relname='{name}' AND c.relkind='r') THEN"
+        )
+        lines.append(f"        RAISE EXCEPTION 'G3 adoption requires product table {key}';")
+        lines.append("    END IF;")
+    lines.extend([
+        "END",
+        "$g3_adopt_preflight$;",
+        "",
+        "-- ============================================================",
+        "-- Role transition (atomic, inside this transaction).",
+        "-- The bootstrap clarityit owns the extensions; rename it to a fixed",
+        "-- NOLOGIN legacy-extension owner, then create the signed target",
+        "-- clarityit.  PostgreSQL forbids renaming the current session user,",
+        "-- so switch session authorization to a temporary administrator.",
+        "-- ============================================================",
+        "CREATE ROLE g3_adopt_admin NOLOGIN SUPERUSER;",
+        "SET SESSION AUTHORIZATION g3_adopt_admin;",
+        "ALTER ROLE clarityit RENAME TO legacy_ext_owner;",
+        "ALTER ROLE legacy_ext_owner NOLOGIN;",
+        f"CREATE ROLE clarityit {role_options(role_by_name['clarityit'])};",
+    ])
+    # Create the other four target roles.
+    for name in ("clarityit_app", "clarityit_owner", "clarityit_migrator", "clarityit_admin"):
+        lines.append(f"CREATE ROLE {name} {role_options(role_by_name[name])};")
+    lines.append("")
+    # Memberships.
+    for membership in manifest["target_memberships"]:
+        lines.append(membership["sql"] + ";")
+    lines.extend([
+        "-- Transfer database ownership to clarityit_owner BEFORE platform",
+        "-- creation.  This gives clarityit_owner the CREATE privilege on the",
+        "-- database as its owner, so SET LOCAL ROLE clarityit_owner can",
+        "-- create the platform schema without any temporary GRANT CREATE",
+        "-- (which would leave an unnecessary database ACL difference).",
+        f"ALTER DATABASE {POSTGRES_DB} OWNER TO clarityit_owner;",
+        "",
+        "-- ============================================================",
+        "-- Platform control schema (same statements as the fresh bootstrap,",
+        "-- rendered without its own BEGIN/COMMIT so the adoption stays atomic).",
+        "-- ============================================================",
+    ])
+    lines.extend(_platform_statements())
+    lines.extend([
+        "RESET ROLE;",
+        "",
+        "-- ============================================================",
+        "-- Ownership transfer: product objects + public schema to",
+        "-- clarityit_owner.  Idempotent (a no-op if already owned).",
+        "-- (Database ownership was transferred above, before platform.)",
+        "-- ============================================================",
+        "ALTER SCHEMA public OWNER TO clarityit_owner;",
+    ])
+    for key in table_names:
+        schema, name = key.split(".", 1)
+        lines.append(f"ALTER TABLE {schema}.{name} OWNER TO clarityit_owner;")
+    for seq in manifest["sequences"]:
+        lines.append(f"ALTER SEQUENCE {seq['schema']}.{seq['name']} OWNER TO clarityit_owner;")
+    for sig in app_signatures:
+        schema, name, args = sig
+        lines.append(f"ALTER FUNCTION {schema}.{name}({args}) OWNER TO clarityit_owner;")
+    lines.extend([
+        "",
+        "-- ============================================================",
+        "-- Signed grants (idempotent) and default privileges.",
+        "-- ============================================================",
+        "REVOKE CREATE ON SCHEMA public FROM PUBLIC;",
+        "GRANT USAGE ON SCHEMA public TO clarityit_app;",
+    ])
+    # Table grants.
+    for grant in manifest["target_grants"]["tables"]:
+        lines.append(
+            f"GRANT {', '.join(grant['privileges'])} ON TABLE {grant['schema']}.{grant['name']} "
+            f"TO {grant['grantee']};"
+        )
+    # Sequence grants.
+    for grant in manifest["target_grants"]["sequences"]:
+        lines.append(
+            f"GRANT {', '.join(grant['privileges'])} ON SEQUENCE {grant['schema']}.{grant['name']} "
+            f"TO {grant['grantee']};"
+        )
+    # Application-function per-signature revoke+grant (NOT bulk; preserve ext ACL).
+    for grant in app_grants:
+        lines.append(grant["public_revoke_sql"] + ";")
+        for recipient in grant["grant_to"]:
+            lines.append(recipient["grant_sql"] + ";")
+    lines.append("")
+    # Default privileges (public schema).
+    for default in manifest["target_default_privileges"]:
+        privileges = ", ".join(default["privileges"])
+        lines.append(
+            f"ALTER DEFAULT PRIVILEGES FOR ROLE {default['creator']} "
+            f"IN SCHEMA {default['schema']} GRANT {privileges} ON {default['object_type']} "
+            f"TO {default['grantee']};"
+        )
+    for revoke in manifest["target_grants"]["default_privileges_public_revoke"]:
+        if revoke["action"] != "REVOKE EXECUTE FROM PUBLIC":
+            raise RuntimeError("unsupported G2 default-privilege PUBLIC revoke")
+        lines.append(
+            f"ALTER DEFAULT PRIVILEGES FOR ROLE {revoke['creator']} "
+            f"IN SCHEMA {revoke['schema']} REVOKE EXECUTE ON {revoke['object_type']} FROM PUBLIC;"
+        )
+    lines.extend([
+        "",
+        "-- ============================================================",
+        "-- Seed + adoption ledger.  Performed before the final role transition.",
+        "-- No pre-existing P3 business rows are mutated.",
+        "-- ============================================================",
+        "SET LOCAL ROLE clarityit_owner;",
+    ])
+    # Seven canonical permissions.
+    perm_rows = []
+    for name, description, resource, action, risk in CANONICAL_PERMISSIONS:
+        escaped = description.replace("'", "''")
+        perm_rows.append(
+            f"    ('{permission_uuid(name)}', '{name}', '{escaped}', "
+            f"'{resource}', '{action}', '{risk}', '2026-08-02T00:00:00Z')"
+        )
+    lines.append("INSERT INTO public.permissions (id, name, description, resource, action, risk_level, created_at) VALUES")
+    lines.append(",\n".join(perm_rows) + ";")
+    lines.extend([
+        "DO $$",
+        "BEGIN",
+        "    ASSERT NOT EXISTS (SELECT 1 FROM public.permissions WHERE name LIKE '%.edit%'), 'G3 seed contains legacy .edit permission';",
+        "    ASSERT (SELECT count(*) FROM public.permissions WHERE name IN ('work.items.update.own','work.items.update.any','projects.update','incidents.update.own','incidents.update.any','docs.update.own','docs.update.any')) = 7, 'G3 canonical permission set incomplete';",
+        "END",
+        "$$;",
+        f"INSERT INTO platform.source_profiles (profile_id, schema_fingerprint, postgres_version, postgres_major, extensions, roles_digest, source_commit, approved_by, approved_at) VALUES (",
+        f"    '{P3_PROFILE_ID}', '{P3_GOLDEN_FINGERPRINT}', 'PostgreSQL 16', 16, "
+        f"'[\"pgcrypto\",\"citext\",\"pg_trgm\"]'::jsonb, "
+        f"'{roles_digest_for_manifest(manifest)}', '{P3_SOURCE_COMMIT}', '{G1_APPROVAL_REF}', '{G3_ARTIFACT_DATE}');",
+        "INSERT INTO platform.schema_revisions (version, name, checksum, source_commit, applied_at, applied_by, execution_ms, success)",
+        f"VALUES ('{BASELINE_VERSION}', 'adopt-p3', '{baseline_sha}', current_setting('g3.source_commit', true), '{G3_ARTIFACT_DATE}', 'g3-adoption-artifact', 0, true);",
+        "RESET ROLE;",
+        "",
+        "-- ============================================================",
+        "-- End of privileged operations.  Reset session authorization from",
+        "-- the temporary administrator back to the original session identity,",
+        "-- then drop the temporary administrator.  This occurs AFTER seed and",
+        "-- ledger insertion and BEFORE the final role transition, so the",
+        "-- temporary identity exists only while privileged operations are",
+        "-- still in progress.",
+        "-- ============================================================",
+        "RESET SESSION AUTHORIZATION;",
+        "DROP ROLE g3_adopt_admin;",
+        "",
+        "-- ============================================================",
+        "-- Final bootstrap-role transition (LAST state mutation).",
+        "-- Demote the new clarityit to its signed non-superuser target posture",
+        "-- only after every privileged operation and assertion has succeeded.",
+        "-- ============================================================",
+        f"ALTER ROLE clarityit {target_role_flags_clause(role_by_name['clarityit'])};",
+        "",
+        "-- Final read-only assertions.",
+        "DO $g3_adopt_validate$",
+        "BEGIN",
+        "    ASSERT (SELECT count(*) FROM pg_roles WHERE rolname IN ('clarityit','clarityit_app','clarityit_owner','clarityit_migrator','clarityit_admin')) = 5, 'G3 adoption role count mismatch';",
+        "    ASSERT NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'legacy_ext_owner' AND rolcanlogin), 'legacy_ext_owner must be NOLOGIN';",
+        "    ASSERT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'clarityit' AND NOT rolsuper), 'clarityit must be demoted to NOSUPERUSER';",
+        "    ASSERT (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()) = 'clarityit_owner', 'database must be owned by clarityit_owner';",
+        "    ASSERT NOT EXISTS (",
+        "        SELECT 1 FROM pg_extension e JOIN pg_roles r ON r.oid = e.extowner",
+        "        WHERE e.extname IN ('pgcrypto','citext','pg_trgm') AND r.rolname IN ('clarityit','clarityit_owner')),"
+        "        'no extension may be owned by a target role';",
+        "END",
+        "$g3_adopt_validate$;",
+        "COMMIT;",
+    ])
+    return sql_bytes(lines)
+
+
+def roles_digest_for_manifest(manifest: dict) -> str:
+    """Deterministic roles_digest for the source_profiles row."""
+    import hashlib as _hs
+    role_rows = sorted(
+        ({"name": r["name"], "flags": r["flags"]} for r in manifest["target_roles"]),
+        key=lambda x: x["name"],
+    )
+    membership_rows = sorted(
+        ({
+            "member": m["member"], "role_of": m["role_of"],
+            "admin_option": m["admin_option"], "inherit_option": m["inherit_option"],
+            "set_option": m["set_option"],
+        } for m in manifest["target_memberships"]),
+        key=lambda x: (x["member"], x["role_of"]),
+    )
+    payload = [
+        json.dumps(role_rows, sort_keys=True, ensure_ascii=True, separators=(",", ":")),
+        json.dumps(membership_rows, sort_keys=True, ensure_ascii=True, separators=(",", ":")),
+    ]
+    return _hs.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
 def generate_control_manifest(platform_sql: bytes) -> bytes:
     value = {
         "format_version": 1,
@@ -622,6 +1055,7 @@ def expected_files() -> tuple[dict[Path, bytes], dict]:
     files[BASELINE_SQL] = generate_baseline_sql(manifest)
     files[SEED_SQL] = generate_seed_sql(sha256(files[BASELINE_SQL]))
     files[CONTROL_MANIFEST] = generate_control_manifest(files[PLATFORM_SQL])
+    files[ADOPTION_SQL] = generate_adoption_sql(manifest, sha256(files[BASELINE_SQL]))
 
     composite_components = [
         ("product_manifest_blob_sha256", G2_MANIFEST_SHA256.encode("ascii")),
@@ -658,27 +1092,51 @@ def expected_files() -> tuple[dict[Path, bytes], dict]:
             "sha256": installation_sha,
         },
         "components": {
-            str(path): {"sha256": sha256(data), "size": len(data)}
-            for path, data in sorted(files.items(), key=lambda item: str(item[0]))
+            canonical_repo_path(path): {"sha256": sha256(data), "size": len(data)}
+            for path, data in sorted(files.items(), key=lambda item: canonical_repo_path(item[0]))
             if path in {LEGACY_SUMS, ROLES_SQL, PLATFORM_SQL, BASELINE_SQL, SEED_SQL, CONTROL_MANIFEST}
+        },
+        "adoption": {
+            "description": "P3 approved-source adoption artifact; distinct from fresh-install composite.",
+            "p3_golden_fingerprint": P3_GOLDEN_FINGERPRINT,
+            "p3_source_commit": P3_SOURCE_COMMIT,
+            "g1_approval_ref": G1_APPROVAL_REF,
+            "p3_profile_id": P3_PROFILE_ID,
+            "baseline_checksum": sha256(files[BASELINE_SQL]),
+            "adoption_sql_sha256": sha256(files[ADOPTION_SQL]),
+            "adoption_sql_size": len(files[ADOPTION_SQL]),
+            "p3_column_digest": P3_COLUMN_DIGEST,
+            "p3_appfn_digest": P3_APPFN_DIGEST,
+        },
+        "governed_fingerprint": {
+            "algorithm": "clarityit-g3-governed-v1",
+            "description": (
+                "Deterministic projection over the signed G2 contract: governed "
+                "product+platform objects, five target roles/memberships, "
+                "closed-inventory grants (excluding grantor + extension objects), "
+                "projected ownership (including database owner), effective default "
+                "privileges, and the extension-owner invariant (boolean, not name). "
+                "Fresh installs and P3-adopted databases converge on this fingerprint."
+            ),
+            "target_sha256": GOVERNED_TARGET_FINGERPRINT,
         },
     }
     files[A4_MANIFEST] = json_bytes(a4)
 
     checksum_paths = (
         LEGACY_SUMS, ROLES_SQL, PLATFORM_SQL, BASELINE_SQL,
-        SEED_SQL, CONTROL_MANIFEST, A4_MANIFEST,
+        SEED_SQL, CONTROL_MANIFEST, A4_MANIFEST, ADOPTION_SQL,
     )
     checksum_lines = [
         "# G3 detached artifact checksums (repository-relative paths).",
-        *[f"{sha256(files[path])}  {path}" for path in checksum_paths],
+        *[f"{sha256(files[path])}  {canonical_repo_path(path)}" for path in checksum_paths],
     ]
     files[V2_SUMS] = sql_bytes(checksum_lines)
     return files, a4
 
 
 def write_files(files: dict[Path, bytes]) -> None:
-    for relative, data in sorted(files.items(), key=lambda item: str(item[0])):
+    for relative, data in sorted(files.items(), key=lambda item: canonical_repo_path(item[0])):
         target = ROOT / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
@@ -686,7 +1144,7 @@ def write_files(files: dict[Path, bytes]) -> None:
 
 def check_files(files: dict[Path, bytes]) -> list[str]:
     failures = []
-    for relative, expected in sorted(files.items(), key=lambda item: str(item[0])):
+    for relative, expected in sorted(files.items(), key=lambda item: canonical_repo_path(item[0])):
         target = ROOT / relative
         if not target.exists():
             failures.append(f"missing: {relative}")

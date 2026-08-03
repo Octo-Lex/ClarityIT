@@ -70,6 +70,40 @@ G3 does not authorize or contain:
 - modification or execution of migrations `001–040`;
 - changes to the signed G2 product manifest.
 
+## Approved-source P3 adoption
+
+G3 requires the approved P3 source to converge on the exact governed
+target fingerprint, not merely the raw profiler fingerprint.  The raw
+fingerprint is environment-dependent (it hashes `migration_state`, every
+non-system role including the bootstrap superuser, and an opaque
+`grants_sha256` that bakes in owner ACL lines).  G3 therefore defines a
+**governed target projection** (`clarityit-g3-governed-v1`) that hashes
+only the signed G2 contract: governed product and platform objects, the
+five target roles and their memberships, closed-world grants over the
+governed object inventory (excluding the grantor and extension objects),
+projected ownership (including the database owner), effective default
+privileges, and the extension-owner invariant (no required extension
+owned by a target role — the specific non-target owner name is
+deliberately not hashed, because `g3bootstrap` and `legacy_ext_owner`
+intentionally differ between fresh and adopted installations).
+
+The adoption artifact `migrations/v2/adoption/0001_adopt_p3.sql`
+reconciles an existing P3 source to the governed posture in a single
+atomic transaction: it creates the five target roles (renaming the
+bootstrap `clarityit` to a fixed `NOLOGIN` `legacy_ext_owner` that
+retains extension ownership, then creating the signed target
+`clarityit`), transfers database and object ownership to
+`clarityit_owner`, installs the `platform` control schema, applies the
+signed grants and default privileges, seeds the seven canonical
+permissions and the adoption ledger rows, and demotes the new
+`clarityit` to its signed non-superuser posture as the transaction's
+last state mutation.  It performs no mutation of pre-existing P3
+business rows; the only product-row write is the seven canonical
+permission inserts.
+
+Convergence is proven when the adopted database's governed fingerprint
+equals the fresh-install governed fingerprint.
+
 ## Stop conditions
 
 Stop G3 and return to the applicable prior gate if:
