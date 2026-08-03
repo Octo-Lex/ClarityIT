@@ -53,21 +53,18 @@ P3_PROFILE_ID = str(uuid.uuid5(
 # invoked directly without the Python pre-check.
 #   P3_COLUMN_DIGEST: SHA-256 over ordered (table.column.data_type.charlen)
 #   P3_APPFN_DIGEST:  SHA-256 over the 10 signed application-function signatures
-P3_COLUMN_DIGEST = "7a3ffdf27f6949d174db6829c5f1914eb477923da021cf888b6893065d310722"
-P3_APPFN_DIGEST = "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0"
-# Additional SQL-derived structural digests for the drift gate.  Constraints
-# are excluded because P3 and the G3 baseline use different constraint NAMES
-# (the definitions match, verified by pre_adopt_verify's shape conformance,
-# but pg_get_constraintdef embeds the name, making a SQL digest unstable).
-# Indexes, triggers, and sequences are stable across P3 and G3.
+# Complete SQL-derived structural digests for the drift gate.  Each covers
+# the full property set so that function-body changes, column default/
+# nullability/identity changes, renamed constraints, or changed sequence
+# cache all fail the gate.  All are computed inside the adoption transaction
+# from the live catalog (not caller-supplied).
+P3_COLUMN_DIGEST = "4a4dde3b47e5a5ff606eb735bf34f2536b2041603fc79e46ce52e518a0039dbe"
+P3_APPFN_SIG_DIGEST = "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0"
+P3_APPFN_BODY_DIGEST = "143cc88d07fa638c9e4d2a515140b987db210c6f381537ed7d6e75dff664f0f8"
+P3_CONSTRAINT_DIGEST = "87372790e05c745ee3867cfe89d06df1017c9247615f0b7d98b8d55eba99fdf3"
 P3_INDEX_DIGEST = "6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3"
 P3_TRIGGER_DIGEST = "b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333"
-P3_SEQUENCE_DIGEST = "789e5e123525230ab682cef6e85af14fe770218cc8e8b28c11d442242449611c"
-# Constraint digest over (schema, table, definition) — name-independent and
-# stable across P3 and the G3 baseline.  The earlier exclusion of constraints
-# was a serialization defect (positional ORDER BY mixing name+definition),
-# not a real divergence.  Both fresh and P3 produce this same digest.
-P3_CONSTRAINT_DIGEST = "ee24c4d4e80489de479102aa1fb899582091faeab7fd0882e9ec7e8a07b8c69b"
+P3_SEQUENCE_DIGEST = "e9405993816d28cd3facb54bc535c7c9ec830e913409a13a015075cde1f6e6de"
 P3_APPFN_NAMES = (
     "adoc_set_updated_at", "kc_search_vector_update", "ki_search_vector_update",
     "ki_set_updated_at", "normalize_team_slug", "normalize_user_email",
@@ -776,27 +773,38 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         "        WHERE e.extname IN ('pgcrypto','citext','pg_trgm') AND r.rolname = 'clarityit') <> 3 THEN",
         "        RAISE EXCEPTION 'G3 adoption requires clarityit to own pgcrypto, citext, and pg_trgm';",
         "    END IF;",
-        f"    -- SQL-derived structural digest: fail-closed against drift, computed",
-        f"    -- from the live catalog (NOT caller-supplied).  Catches column/type",
-        f"    -- changes and function-signature drift without trusting a string.",
+        f"    -- SQL-derived structural digests: fail-closed against drift, computed",
+        f"    -- from the live catalog (NOT caller-supplied).  Each covers the full",
+        f"    -- property set so body/default/nullability/identity/constraint-name/cache",
+        f"    -- changes all fail the gate.",
+        f"    -- Column digest: name, type, NOT NULL, default, identity.",
         f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
-        f"        format('%s.%s.%s.%s', table_name, column_name, data_type,",
-        f"        COALESCE(character_maximum_length::text, '')), E'\\n'",
+        f"        format('%s.%s.%s|notnull:%s|default:%s|identity:%s',",
+        f"        table_name, column_name, data_type, is_nullable,",
+        f"        COALESCE(column_default, ''), COALESCE(is_identity, '')), E'\\n'",
         f"        ORDER BY table_name, ordinal_position), 'UTF8'), 'sha256'), 'hex')",
-        f"        FROM information_schema.columns WHERE table_schema='public' AND table_name IN (",
-        f"            SELECT table_name FROM information_schema.tables",
-        f"            WHERE table_schema='public' AND table_type='BASE TABLE'))",
+        f"        FROM information_schema.columns WHERE table_schema='public')",
         f"        <> '{P3_COLUMN_DIGEST}' THEN",
-        f"        RAISE EXCEPTION 'G3 adoption source column inventory drifted (digest mismatch)';",
+        f"        RAISE EXCEPTION 'G3 adoption source column properties drifted (digest mismatch)';",
         f"    END IF;",
+        f"    -- Application-function signature digest.",
         f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
         f"        format('%s.%s(%s)', n.nspname, p.proname,",
         f"        pg_get_function_identity_arguments(p.oid)), E'\\n' ORDER BY 1,2,3), 'UTF8'), 'sha256'), 'hex')",
         f"        FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace",
         f"        WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY[{','.join(repr(n) for n in P3_APPFN_NAMES)}]::text[]))",
-        f"        <> '{P3_APPFN_DIGEST}' THEN",
+        f"        <> '{P3_APPFN_SIG_DIGEST}' THEN",
         f"        RAISE EXCEPTION 'G3 adoption source application-function signatures drifted (digest mismatch)';",
         f"    END IF;",
+        f"    -- Application-function BODY digest (full pg_get_functiondef).",
+        f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
+        f"        pg_get_functiondef(p.oid), E'\\n' ORDER BY n.nspname, p.proname), 'UTF8'), 'sha256'), 'hex')",
+        f"        FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace",
+        f"        WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY[{','.join(repr(n) for n in P3_APPFN_NAMES)}]::text[]))",
+        f"        <> '{P3_APPFN_BODY_DIGEST}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption source application-function bodies drifted (digest mismatch)';",
+        f"    END IF;",
+        f"    -- Index digest.",
         f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
         f"        pg_get_indexdef(ix.indexrelid, 0, true), E'\\n'",
         f"        ORDER BY n.nspname, c.relname, i.relname), 'UTF8'), 'sha256'), 'hex')",
@@ -806,6 +814,7 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         f"        <> '{P3_INDEX_DIGEST}' THEN",
         f"        RAISE EXCEPTION 'G3 adoption source index inventory drifted (digest mismatch)';",
         f"    END IF;",
+        f"    -- Trigger digest.",
         f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
         f"        pg_get_triggerdef(t.oid, true), E'\\n'",
         f"        ORDER BY n.nspname, c.relname, t.tgname), 'UTF8'), 'sha256'), 'hex')",
@@ -815,21 +824,26 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         f"        <> '{P3_TRIGGER_DIGEST}' THEN",
         f"        RAISE EXCEPTION 'G3 adoption source trigger inventory drifted (digest mismatch)';",
         f"    END IF;",
+        f"    -- Sequence digest: type, start, increment, min, max, cache, cycle.",
         f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
-        f"        format('%s.%s.%s.%s.%s', n.nspname, c.relname, s.seqstart, s.seqincrement, s.seqcycle), E'\\n'",
-        f"        ORDER BY 1, 2), 'UTF8'), 'sha256'), 'hex')",
+        f"        format('%s.%s|type:%s|start:%s|inc:%s|min:%s|max:%s|cache:%s|cycle:%s',",
+        f"        n.nspname, c.relname, s.seqtypid::regtype, s.seqstart, s.seqincrement,",
+        f"        s.seqmin, s.seqmax, s.seqcache, s.seqcycle), E'\\n'",
+        f"        ORDER BY n.nspname, c.relname), 'UTF8'), 'sha256'), 'hex')",
         f"        FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid",
         f"        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')",
         f"        <> '{P3_SEQUENCE_DIGEST}' THEN",
-        f"        RAISE EXCEPTION 'G3 adoption source sequence drifted (sequence digest mismatch)';",
+        f"        RAISE EXCEPTION 'G3 adoption source sequence properties drifted (digest mismatch)';",
         f"    END IF;",
+        f"    -- Constraint digest: name + definition (all 287, names included).",
         f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
-        f"        format('%s.%s.%s', n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), E'\\n'",
-        f"        ORDER BY n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), 'UTF8'), 'sha256'), 'hex')",
+        f"        format('%s.%s.%s|%s', n.nspname, c.relname, con.conname,",
+        f"        pg_get_constraintdef(con.oid, true)), E'\\n'",
+        f"        ORDER BY n.nspname, c.relname, con.conname), 'UTF8'), 'sha256'), 'hex')",
         f"        FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid",
         f"        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r')",
         f"        <> '{P3_CONSTRAINT_DIGEST}' THEN",
-        f"        RAISE EXCEPTION 'G3 adoption source drifted (constraint digest mismatch)';",
+        f"        RAISE EXCEPTION 'G3 adoption source constraints drifted (digest mismatch)';",
         f"    END IF;",
         "    -- Target identities must be absent (single-shot adoption).",
         "    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN (",
@@ -1153,7 +1167,8 @@ def expected_files() -> tuple[dict[Path, bytes], dict]:
             "adoption_sql_sha256": sha256(files[ADOPTION_SQL]),
             "adoption_sql_size": len(files[ADOPTION_SQL]),
             "p3_column_digest": P3_COLUMN_DIGEST,
-            "p3_appfn_digest": P3_APPFN_DIGEST,
+            "p3_appfn_sig_digest": P3_APPFN_SIG_DIGEST,
+            "p3_appfn_body_digest": P3_APPFN_BODY_DIGEST,
             "p3_constraint_digest": P3_CONSTRAINT_DIGEST,
             "p3_index_digest": P3_INDEX_DIGEST,
             "p3_trigger_digest": P3_TRIGGER_DIGEST,

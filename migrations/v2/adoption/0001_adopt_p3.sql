@@ -41,19 +41,21 @@ BEGIN
         WHERE e.extname IN ('pgcrypto','citext','pg_trgm') AND r.rolname = 'clarityit') <> 3 THEN
         RAISE EXCEPTION 'G3 adoption requires clarityit to own pgcrypto, citext, and pg_trgm';
     END IF;
-    -- SQL-derived structural digest: fail-closed against drift, computed
-    -- from the live catalog (NOT caller-supplied).  Catches column/type
-    -- changes and function-signature drift without trusting a string.
+    -- SQL-derived structural digests: fail-closed against drift, computed
+    -- from the live catalog (NOT caller-supplied).  Each covers the full
+    -- property set so body/default/nullability/identity/constraint-name/cache
+    -- changes all fail the gate.
+    -- Column digest: name, type, NOT NULL, default, identity.
     IF (SELECT encode(public.digest(convert_to(string_agg(
-        format('%s.%s.%s.%s', table_name, column_name, data_type,
-        COALESCE(character_maximum_length::text, '')), E'\n'
+        format('%s.%s.%s|notnull:%s|default:%s|identity:%s',
+        table_name, column_name, data_type, is_nullable,
+        COALESCE(column_default, ''), COALESCE(is_identity, '')), E'\n'
         ORDER BY table_name, ordinal_position), 'UTF8'), 'sha256'), 'hex')
-        FROM information_schema.columns WHERE table_schema='public' AND table_name IN (
-            SELECT table_name FROM information_schema.tables
-            WHERE table_schema='public' AND table_type='BASE TABLE'))
-        <> '7a3ffdf27f6949d174db6829c5f1914eb477923da021cf888b6893065d310722' THEN
-        RAISE EXCEPTION 'G3 adoption source column inventory drifted (digest mismatch)';
+        FROM information_schema.columns WHERE table_schema='public')
+        <> '4a4dde3b47e5a5ff606eb735bf34f2536b2041603fc79e46ce52e518a0039dbe' THEN
+        RAISE EXCEPTION 'G3 adoption source column properties drifted (digest mismatch)';
     END IF;
+    -- Application-function signature digest.
     IF (SELECT encode(public.digest(convert_to(string_agg(
         format('%s.%s(%s)', n.nspname, p.proname,
         pg_get_function_identity_arguments(p.oid)), E'\n' ORDER BY 1,2,3), 'UTF8'), 'sha256'), 'hex')
@@ -62,6 +64,15 @@ BEGIN
         <> '53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0' THEN
         RAISE EXCEPTION 'G3 adoption source application-function signatures drifted (digest mismatch)';
     END IF;
+    -- Application-function BODY digest (full pg_get_functiondef).
+    IF (SELECT encode(public.digest(convert_to(string_agg(
+        pg_get_functiondef(p.oid), E'\n' ORDER BY n.nspname, p.proname), 'UTF8'), 'sha256'), 'hex')
+        FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+        WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY['adoc_set_updated_at','kc_search_vector_update','ki_search_vector_update','ki_set_updated_at','normalize_team_slug','normalize_user_email','prevent_bootstrap_unlock','protect_last_team_owner','set_updated_at','trg_artifacts_updated_at']::text[]))
+        <> '143cc88d07fa638c9e4d2a515140b987db210c6f381537ed7d6e75dff664f0f8' THEN
+        RAISE EXCEPTION 'G3 adoption source application-function bodies drifted (digest mismatch)';
+    END IF;
+    -- Index digest.
     IF (SELECT encode(public.digest(convert_to(string_agg(
         pg_get_indexdef(ix.indexrelid, 0, true), E'\n'
         ORDER BY n.nspname, c.relname, i.relname), 'UTF8'), 'sha256'), 'hex')
@@ -71,6 +82,7 @@ BEGIN
         <> '6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3' THEN
         RAISE EXCEPTION 'G3 adoption source index inventory drifted (digest mismatch)';
     END IF;
+    -- Trigger digest.
     IF (SELECT encode(public.digest(convert_to(string_agg(
         pg_get_triggerdef(t.oid, true), E'\n'
         ORDER BY n.nspname, c.relname, t.tgname), 'UTF8'), 'sha256'), 'hex')
@@ -80,21 +92,26 @@ BEGIN
         <> 'b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333' THEN
         RAISE EXCEPTION 'G3 adoption source trigger inventory drifted (digest mismatch)';
     END IF;
+    -- Sequence digest: type, start, increment, min, max, cache, cycle.
     IF (SELECT encode(public.digest(convert_to(string_agg(
-        format('%s.%s.%s.%s.%s', n.nspname, c.relname, s.seqstart, s.seqincrement, s.seqcycle), E'\n'
-        ORDER BY 1, 2), 'UTF8'), 'sha256'), 'hex')
+        format('%s.%s|type:%s|start:%s|inc:%s|min:%s|max:%s|cache:%s|cycle:%s',
+        n.nspname, c.relname, s.seqtypid::regtype, s.seqstart, s.seqincrement,
+        s.seqmin, s.seqmax, s.seqcache, s.seqcycle), E'\n'
+        ORDER BY n.nspname, c.relname), 'UTF8'), 'sha256'), 'hex')
         FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')
-        <> '789e5e123525230ab682cef6e85af14fe770218cc8e8b28c11d442242449611c' THEN
-        RAISE EXCEPTION 'G3 adoption source sequence drifted (sequence digest mismatch)';
+        <> 'e9405993816d28cd3facb54bc535c7c9ec830e913409a13a015075cde1f6e6de' THEN
+        RAISE EXCEPTION 'G3 adoption source sequence properties drifted (digest mismatch)';
     END IF;
+    -- Constraint digest: name + definition (all 287, names included).
     IF (SELECT encode(public.digest(convert_to(string_agg(
-        format('%s.%s.%s', n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), E'\n'
-        ORDER BY n.nspname, c.relname, pg_get_constraintdef(con.oid, true)), 'UTF8'), 'sha256'), 'hex')
+        format('%s.%s.%s|%s', n.nspname, c.relname, con.conname,
+        pg_get_constraintdef(con.oid, true)), E'\n'
+        ORDER BY n.nspname, c.relname, con.conname), 'UTF8'), 'sha256'), 'hex')
         FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r')
-        <> 'ee24c4d4e80489de479102aa1fb899582091faeab7fd0882e9ec7e8a07b8c69b' THEN
-        RAISE EXCEPTION 'G3 adoption source drifted (constraint digest mismatch)';
+        <> '87372790e05c745ee3867cfe89d06df1017c9247615f0b7d98b8d55eba99fdf3' THEN
+        RAISE EXCEPTION 'G3 adoption source constraints drifted (digest mismatch)';
     END IF;
     -- Target identities must be absent (single-shot adoption).
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN (

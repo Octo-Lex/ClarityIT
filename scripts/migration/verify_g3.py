@@ -679,11 +679,13 @@ def post_adopt_verify(dsn_fresh: str, dsn_adopted: str) -> None:
             fail(f"post-adoption source_profiles fingerprint mismatch: {sp_fp}")
         if sp_major != 16:
             fail(f"post-adoption source_profiles postgres_major mismatch: {sp_major}")
+        if sp_pgver != "PostgreSQL 16":
+            fail(f"post-adoption source_profiles postgres_version mismatch: {sp_pgver}")
         if sp_commit != g3.P3_SOURCE_COMMIT:
             fail(f"post-adoption source_profiles source_commit mismatch: {sp_commit}")
         if sp_approved != g3.G1_APPROVAL_REF:
             fail(f"post-adoption source_profiles approved_by mismatch: {sp_approved}")
-        if str(sp_at).replace(" ", "T").replace("+00:00", "Z") != g3.G3_ARTIFACT_DATE:
+        if re.sub(r"\+00:00$|\+00$", "Z", str(sp_at).replace(" ", "T")) != g3.G3_ARTIFACT_DATE:
             fail(f"post-adoption source_profiles approved_at mismatch: {sp_at}")
         expected_roles_digest = g3.roles_digest_for_manifest(signed)
         if sp_roles != expected_roles_digest:
@@ -697,14 +699,14 @@ def post_adopt_verify(dsn_fresh: str, dsn_adopted: str) -> None:
             (ROOT / g3.BASELINE_SQL).read_bytes()
         ).hexdigest()
         cursor.execute(
-            "SELECT version, name, checksum, source_commit, applied_by, execution_ms, success "
+            "SELECT version, name, checksum, source_commit, applied_at, applied_by, execution_ms, success "
             "FROM platform.schema_revisions WHERE version = %s AND name = 'adopt-p3'",
             (g3.BASELINE_VERSION,),
         )
         row = cursor.fetchone()
         if row is None:
             fail("post-adoption platform.schema_revisions is missing the adopt-p3 row")
-        rev_version, rev_name, rev_checksum, rev_scommit, rev_applied_by, rev_ms, rev_success = row
+        rev_version, rev_name, rev_checksum, rev_scommit, rev_applied_at, rev_applied_by, rev_ms, rev_success = row
         if rev_checksum != baseline_sha:
             fail(f"post-adoption schema_revisions checksum mismatch: {rev_checksum} != {baseline_sha}")
         if not rev_success:
@@ -713,16 +715,22 @@ def post_adopt_verify(dsn_fresh: str, dsn_adopted: str) -> None:
             fail(f"post-adoption schema_revisions applied_by mismatch: {rev_applied_by}")
         if rev_ms != 0:
             fail(f"post-adoption schema_revisions execution_ms mismatch: {rev_ms}")
+        if re.sub(r"\+00:00$|\+00$", "Z", str(rev_applied_at).replace(" ", "T")) != g3.G3_ARTIFACT_DATE:
+            fail(f"post-adoption schema_revisions applied_at mismatch: {rev_applied_at}")
 
-        # Validate the canonical permission rows (full content, not just names).
+        # Validate the canonical permission rows (full content including UUID + created_at).
         cursor.execute(
-            "SELECT name, description, resource, action, risk_level FROM public.permissions ORDER BY name"
+            "SELECT id::text, name, description, resource, action, risk_level, created_at::text "
+            "FROM public.permissions ORDER BY name"
         )
-        live_perms = {(r[0], r[1], r[2], r[3], r[4]) for r in cursor.fetchall()}
-        expected_perms = {(name, desc, res, act, risk) for name, desc, res, act, risk in g3.CANONICAL_PERMISSIONS}
+        live_perms = {(r[0], r[1], r[2], r[3], r[4], r[5], re.sub(r"\+00:00$|\+00$", "Z", str(r[6]).replace(" ", "T"))) for r in cursor.fetchall()}
+        expected_perms = {
+            (g3.permission_uuid(name), name, desc, res, act, risk, "2026-08-02T00:00:00Z")
+            for name, desc, res, act, risk in g3.CANONICAL_PERMISSIONS
+        }
         if live_perms != expected_perms:
-            fail(f"post-adoption permission rows differ from canonical seven (full content): {live_perms}")
-        if any(name.endswith(".edit") for name, *_ in live_perms):
+            fail(f"post-adoption permission rows differ from canonical seven (full content + UUID): {live_perms}")
+        if any(name.endswith(".edit") for _, name, *_ in live_perms):
             fail("post-adoption permissions contain a legacy .edit row")
     finally:
         connection.rollback()
