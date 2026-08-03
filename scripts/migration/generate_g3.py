@@ -46,6 +46,35 @@ P3_PROFILE_ID = str(uuid.uuid5(
     f"clarityit:g3:source-profile:{P3_GOLDEN_FINGERPRINT}",
 ))
 
+# SQL-derived structural digest constants for the approved P3 source shape.
+# These are computed INSIDE the adoption transaction from the live catalog
+# (not supplied by the caller) and compared against these frozen values, so
+# the adoption is fail-closed against a drifted source even when the SQL is
+# invoked directly without the Python pre-check.
+#   P3_COLUMN_DIGEST: SHA-256 over ordered (table.column.data_type.charlen)
+#   P3_APPFN_DIGEST:  SHA-256 over the 10 signed application-function signatures
+P3_COLUMN_DIGEST = "7a3ffdf27f6949d174db6829c5f1914eb477923da021cf888b6893065d310722"
+P3_APPFN_DIGEST = "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0"
+# Additional SQL-derived structural digests for the drift gate.  Constraints
+# are excluded because P3 and the G3 baseline use different constraint NAMES
+# (the definitions match, verified by pre_adopt_verify's shape conformance,
+# but pg_get_constraintdef embeds the name, making a SQL digest unstable).
+# Indexes, triggers, and sequences are stable across P3 and G3.
+P3_INDEX_DIGEST = "6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3"
+P3_TRIGGER_DIGEST = "b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333"
+P3_SEQUENCE_DIGEST = "789e5e123525230ab682cef6e85af14fe770218cc8e8b28c11d442242449611c"
+P3_APPFN_NAMES = (
+    "adoc_set_updated_at", "kc_search_vector_update", "ki_search_vector_update",
+    "ki_set_updated_at", "normalize_team_slug", "normalize_user_email",
+    "prevent_bootstrap_unlock", "protect_last_team_owner", "set_updated_at",
+    "trg_artifacts_updated_at",
+)
+
+# The governed target fingerprint (clarityit-g3-governed-v1) is the convergence
+# target: both fresh installs and the P3-adopted database reach exact equality
+# on this projection.  It is recorded in the A4 manifest and the receipt.
+GOVERNED_TARGET_FINGERPRINT = "9881c93e79b825963d3c3434de23a3900b3797b181ad0413bafaa5dc4dbc7de6"
+
 LEGACY_DIR = Path("migrations/legacy/v1/001-040")
 LEGACY_SUMS = Path("migrations/legacy/v1/SHA256SUMS")
 ROLES_SQL = Path("migrations/v2/bootstrap/0000_roles.sql")
@@ -185,11 +214,18 @@ def canonical_repo_path(path: "Path | str") -> str:
     inventory) embed repository-relative paths as bytes.  On Windows,
     ``str(Path("a/b"))`` yields ``"a\\b"`` and breaks determinism: the same
     generator committed on POSIX (forward slashes) cannot reproduce its own
-    bytes on Windows.  This helper forces POSIX separators via
-    ``PurePosixPath`` regardless of ``os.sep`` so the persisted bytes are
-    identical on every platform.
+    bytes on Windows.
+
+    This helper forces forward slashes on every platform.  It cannot rely
+    on ``Path.as_posix()`` alone, because on POSIX a backslash is a legal
+    filename character (not a separator), so ``as_posix()`` leaves
+    backslashes unchanged — a backslash-containing string or
+    ``PureWindowsPath`` would pass through unnormalized.  Instead the
+    string form is explicitly backslash-replaced before normalization.
     """
-    return str(PurePosixPath(Path(path).as_posix()))
+    text = str(path)
+    text = text.replace("\\", "/")
+    return str(PurePosixPath(text))
 
 
 def validate_frozen_inputs() -> tuple[dict, bytes]:
@@ -700,17 +736,12 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         r"\set ON_ERROR_STOP on",
         "BEGIN;",
         "",
-        "-- Bind the adoption producing commit and the verified source fingerprint",
-        "-- at execution time.  The proof harness computes the live profiler",
-        "-- fingerprint (via pre_adopt_verify) and passes it as g3_source_fingerprint;",
-        "-- the SQL asserts it matches the G1-approved P3 golden so adoption is",
-        "-- fail-closed against a drifted source even when invoked directly.",
+        "-- Bind the adoption producing commit at execution time (runtime-bound,",
+        "-- not a fingerprint).  The proof harness passes the exact implementation",
+        "-- commit SHA via the g3_source_commit psql variable.",
         "SELECT set_config('g3.source_commit', :'g3_source_commit', true);",
-        "SELECT set_config('g3.source_fingerprint', :'g3_source_fingerprint', true);",
         "DO $$ BEGIN ASSERT current_setting('g3.source_commit', true) ~ '^[0-9a-f]{40}$',",
         "    'g3.source_commit must be set to a 40-char lowercase hex SHA'; END $$;",
-        f"DO $$ BEGIN ASSERT current_setting('g3.source_fingerprint', true) = '{P3_GOLDEN_FINGERPRINT}',",
-        "    'g3.source_fingerprint must equal the G1-approved P3 golden'; END $$;",
         "",
         "-- ============================================================",
         "-- Preflight (read-only): the source must be the approved P3 shape.",
@@ -740,6 +771,53 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         "        WHERE e.extname IN ('pgcrypto','citext','pg_trgm') AND r.rolname = 'clarityit') <> 3 THEN",
         "        RAISE EXCEPTION 'G3 adoption requires clarityit to own pgcrypto, citext, and pg_trgm';",
         "    END IF;",
+        f"    -- SQL-derived structural digest: fail-closed against drift, computed",
+        f"    -- from the live catalog (NOT caller-supplied).  Catches column/type",
+        f"    -- changes and function-signature drift without trusting a string.",
+        f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
+        f"        format('%s.%s.%s.%s', table_name, column_name, data_type,",
+        f"        COALESCE(character_maximum_length::text, '')), E'\\n'",
+        f"        ORDER BY table_name, ordinal_position), 'UTF8'), 'sha256'), 'hex')",
+        f"        FROM information_schema.columns WHERE table_schema='public' AND table_name IN (",
+        f"            SELECT table_name FROM information_schema.tables",
+        f"            WHERE table_schema='public' AND table_type='BASE TABLE'))",
+        f"        <> '{P3_COLUMN_DIGEST}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption source column inventory drifted (digest mismatch)';",
+        f"    END IF;",
+        f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
+        f"        format('%s.%s(%s)', n.nspname, p.proname,",
+        f"        pg_get_function_identity_arguments(p.oid)), E'\\n' ORDER BY 1,2,3), 'UTF8'), 'sha256'), 'hex')",
+        f"        FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace",
+        f"        WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY[{','.join(repr(n) for n in P3_APPFN_NAMES)}]::text[]))",
+        f"        <> '{P3_APPFN_DIGEST}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption source application-function signatures drifted (digest mismatch)';",
+        f"    END IF;",
+        f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
+        f"        pg_get_indexdef(ix.indexrelid, 0, true), E'\\n'",
+        f"        ORDER BY n.nspname, c.relname, i.relname), 'UTF8'), 'sha256'), 'hex')",
+        f"        FROM pg_index ix JOIN pg_class c ON c.oid=ix.indrelid",
+        f"        JOIN pg_class i ON i.oid=ix.indexrelid",
+        f"        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')",
+        f"        <> '{P3_INDEX_DIGEST}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption source index inventory drifted (digest mismatch)';",
+        f"    END IF;",
+        f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
+        f"        pg_get_triggerdef(t.oid, true), E'\\n'",
+        f"        ORDER BY n.nspname, c.relname, t.tgname), 'UTF8'), 'sha256'), 'hex')",
+        f"        FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid",
+        f"        JOIN pg_namespace n ON n.oid=c.relnamespace",
+        f"        WHERE n.nspname='public' AND NOT t.tgisinternal)",
+        f"        <> '{P3_TRIGGER_DIGEST}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption source trigger inventory drifted (digest mismatch)';",
+        f"    END IF;",
+        f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
+        f"        format('%s.%s.%s.%s.%s', n.nspname, c.relname, s.seqstart, s.seqincrement, s.seqcycle), E'\\n'",
+        f"        ORDER BY 1, 2), 'UTF8'), 'sha256'), 'hex')",
+        f"        FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid",
+        f"        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')",
+        f"        <> '{P3_SEQUENCE_DIGEST}' THEN",
+        f"        RAISE EXCEPTION 'G3 adoption source sequence inventory drifted (digest mismatch)';",
+        f"    END IF;",
         "    -- Target identities must be absent (single-shot adoption).",
         "    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN (",
         "        'clarityit_app','clarityit_owner','clarityit_migrator','clarityit_admin',",
@@ -1061,6 +1139,21 @@ def expected_files() -> tuple[dict[Path, bytes], dict]:
             "baseline_checksum": sha256(files[BASELINE_SQL]),
             "adoption_sql_sha256": sha256(files[ADOPTION_SQL]),
             "adoption_sql_size": len(files[ADOPTION_SQL]),
+            "p3_column_digest": P3_COLUMN_DIGEST,
+            "p3_appfn_digest": P3_APPFN_DIGEST,
+        },
+        "governed_fingerprint": {
+            "algorithm": "clarityit-g3-governed-v1",
+            "domain": "clarityit-g3-governed-v1\\0",
+            "description": (
+                "Deterministic projection over the signed G2 contract: governed "
+                "product+platform objects, five target roles/memberships, "
+                "closed-inventory grants (excluding grantor + extension objects), "
+                "projected ownership (including database owner), effective default "
+                "privileges, and the extension-owner invariant (boolean, not name). "
+                "Fresh installs and P3-adopted databases converge on this fingerprint."
+            ),
+            "target_sha256": GOVERNED_TARGET_FINGERPRINT,
         },
     }
     files[A4_MANIFEST] = json_bytes(a4)

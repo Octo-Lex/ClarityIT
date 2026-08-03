@@ -74,53 +74,71 @@ def roles_digest(role_rows: list, membership_rows: list) -> str:
     return hashlib.sha256(_normalize(payload).encode("utf-8")).hexdigest()
 
 
-def _grant_material(cur, governed_schemas: tuple[str, ...], target_role_names: set[str]) -> list[str]:
-    """Closed-world ACL material over the governed object inventory.
+def _grant_material(cur, governed_schemas: tuple[str, ...], target_role_names: set[str], app_signatures: set, governed_relations: set) -> list[str]:
+    """Closed-world ACL material over the governed object inventory only.
 
     Returns sorted ``object|schema|name|grantor_excluded|grantee|privilege|is_grantable``
-    strings for relations, functions, schemas, and sequences in the
-    governed schemas, restricted to grantees in the target role set plus
-    PUBLIC.  The environment-dependent *grantor* is deliberately excluded:
-    only object identity, grantee, privilege, and grantability are retained,
-    so two databases with the same governed posture but different
-    bootstrap grantors reach the same material.
+    strings restricted to the closed governed inventory: the 64 product
+    tables, the product sequence, the platform tables (in
+    ``governed_relations``), the 10 signed application functions and the
+    platform functions (in ``app_signatures``), and the public+platform
+    schemas.  Extension objects and their default PUBLIC grants are
+    excluded because they are not part of the signed contract.
+
+    Grantees are restricted to the target role set plus PUBLIC (for the
+    signed per-function PUBLIC revokes).  The environment-dependent
+    *grantor* is excluded: only object identity, grantee, privilege, and
+    grantability are retained.
     """
     material: list[str] = []
     schema_list = ",".join("'%s'" % s for s in governed_schemas)
     role_list = ",".join("'%s'" % r for r in (target_role_names | {"PUBLIC"}))
 
-    # Relation grants (tables, sequences, views) in governed schemas.
-    cur.execute(
-        "SELECT n.nspname, c.relname, c.relkind, "
-        "pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable "
-        "FROM pg_class c "
-        "JOIN pg_namespace n ON n.oid = c.relnamespace, "
-        "aclexplode(c.relacl) a "
-        "WHERE n.nspname IN (%s) AND c.relkind IN ('r','S','v','m','f','p') "
-        "AND pg_get_userbyid(a.grantee) IN (%s) "
-        "ORDER BY 1,2,3,4,5" % (schema_list, role_list)
-    )
-    for nsp, rel, kind, grantee, priv, grantable in cur.fetchall():
-        material.append(f"rel|{nsp}|{rel}|{kind}|{grantee}|{priv}|{grantable}")
+    # Relation grants: only the governed inventory (product tables + sequence
+    # + platform tables), identified by (schema, name) pairs.
+    if governed_relations:
+        rel_filter = " OR ".join(
+            "(n.nspname = '%s' AND c.relname = '%s')" % (s, n)
+            for s, n in governed_relations
+        )
+        cur.execute(
+            "SELECT n.nspname, c.relname, c.relkind, "
+            "pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable "
+            "FROM pg_class c "
+            "JOIN pg_namespace n ON n.oid = c.relnamespace, "
+            "aclexplode(c.relacl) a "
+            "WHERE (%s) AND c.relkind IN ('r','S','v','m','f','p') "
+            "AND pg_get_userbyid(a.grantee) IN (%s) "
+            "ORDER BY 1,2,3,4,5" % (rel_filter, role_list)
+        )
+        for nsp, rel, kind, grantee, priv, grantable in cur.fetchall():
+            material.append(f"rel|{nsp}|{rel}|{kind}|{grantee}|{priv}|{grantable}")
 
-    # Function grants in governed schemas (application functions only;
-    # extension objects are excluded by filtering to the target grantee
-    # set, which never includes the extension installer).
-    cur.execute(
-        "SELECT n.nspname, p.proname, "
-        "pg_get_function_identity_arguments(p.oid), "
-        "pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable "
-        "FROM pg_proc p "
-        "JOIN pg_namespace n ON n.oid = p.pronamespace, "
-        "aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a "
-        "WHERE n.nspname IN (%s) AND p.prokind IN ('f','p','w') "
-        "AND pg_get_userbyid(a.grantee) IN (%s) "
-        "ORDER BY 1,2,3,4,5" % (schema_list, role_list)
-    )
-    for nsp, proname, args, grantee, priv, grantable in cur.fetchall():
-        material.append(f"func|{nsp}|{proname}|{args}|{grantee}|{priv}|{grantable}")
+    # Function grants: only the signed application functions + platform
+    # functions, identified by (schema, name, args) triples.  This excludes
+    # all extension-provided functions (citext, pgcrypto, pg_trgm) whose
+    # default PUBLIC EXECUTE grants would otherwise enter the material.
+    if app_signatures:
+        func_filter = " OR ".join(
+            "(n.nspname = '%s' AND p.proname = '%s' AND "
+            "pg_get_function_identity_arguments(p.oid) = '%s')" % (s, n, a)
+            for s, n, a in app_signatures
+        )
+        cur.execute(
+            "SELECT n.nspname, p.proname, "
+            "pg_get_function_identity_arguments(p.oid), "
+            "pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable "
+            "FROM pg_proc p "
+            "JOIN pg_namespace n ON n.oid = p.pronamespace, "
+            "aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a "
+            "WHERE (%s) AND p.prokind IN ('f','p','w') "
+            "AND pg_get_userbyid(a.grantee) IN (%s) "
+            "ORDER BY 1,2,3,4,5" % (func_filter, role_list)
+        )
+        for nsp, proname, args, grantee, priv, grantable in cur.fetchall():
+            material.append(f"func|{nsp}|{proname}|{args}|{grantee}|{priv}|{grantable}")
 
-    # Schema grants.
+    # Schema grants: public + platform only.
     cur.execute(
         "SELECT n.nspname, pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable "
         "FROM pg_namespace n, aclexplode(n.nspacl) a "
@@ -314,11 +332,26 @@ def governed_capture(cur, signed: dict, control: dict) -> dict:
         (row["schema"], row["name"], row["args"])
         for row in signed["target_grants"]["application_functions"]
     }
+    # Add platform functions to the governed function inventory.
+    for fn in control.get("functions", []):
+        schema, rest = fn.split(".", 1)
+        name, args = rest.split("(", 1)
+        app_signatures.add((schema, name, args.rstrip(")")))
     all_functions = cs.functions(cur, list(governed_schemas))
     app_functions = [f for f in all_functions if (f["schema"], f["name"], f["args"]) in app_signatures]
 
+    # Governed relation inventory: signed product tables + sequences + platform tables.
+    governed_relations = set()
+    for key in signed["tables"]:
+        schema, name = key.split(".", 1)
+        governed_relations.add((schema, name))
+    for seq in signed["sequences"]:
+        governed_relations.add((seq["schema"], seq["name"]))
+    for tname in control.get("tables", {}):
+        governed_relations.add(("platform", tname))
+
     # Governed grants, projected ownership, default privileges, extension invariant.
-    grants = _grant_material(cur, governed_schemas, target_role_names)
+    grants = _grant_material(cur, governed_schemas, target_role_names, app_signatures, governed_relations)
     ownership = _projected_ownership(cur, governed_schemas, app_signatures)
     default_privs = _default_privileges_effective(cur, governed_schemas, {"clarityit_owner"})
     ext_invariant = _extension_owner_invariant(cur, required_extensions, target_role_names)
