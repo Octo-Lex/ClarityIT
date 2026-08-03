@@ -1,4 +1,14 @@
 {
+  "adoption": {
+    "adoption_sql_sha256": "6291c33ae2a3f2d3fc82fceafeba17e8326770433c707d36d79f1910d20ef615",
+    "adoption_sql_size": 44297,
+    "baseline_checksum": "1021adefe8b5edaae13010a713cdde594f084a66b9d4012940603ee4a94e0508",
+    "description": "P3 approved-source adoption artifact; distinct from fresh-install composite.",
+    "g1_approval_ref": "3b4a6fdeb35473e5f73ca74bafa479bd2648fb10",
+    "p3_golden_fingerprint": "cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b",
+    "p3_profile_id": "7c5cb0b9-1fb4-540d-9433-f0196ff6f7bb",
+    "p3_source_commit": "29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33"
+  },
   "artifact": "ClarityIT WP-00 G3 reconciled baseline (A4)",
   "components": {
     "migrations/legacy/v1/SHA256SUMS": {

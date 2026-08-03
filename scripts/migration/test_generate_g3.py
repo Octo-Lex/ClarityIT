@@ -6,7 +6,7 @@ import importlib.util
 import json
 import sys
 import unittest
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 
 HERE = Path(__file__).resolve().parent
@@ -88,6 +88,36 @@ class GenerateG3Tests(unittest.TestCase):
                 "persistence": "p",
             }],
         )
+
+    def test_canonical_repo_path_rejects_windows_separators(self):
+        """Generated artifact paths must use forward slashes on every platform.
+
+        On POSIX ``str(Path("a/b"))`` is already forward-slash, so an output
+        assertion alone cannot detect a regression where the generator uses
+        ``str(path)`` instead of ``canonical_repo_path``.  This test feeds an
+        explicit ``PureWindowsPath`` (backslash separators) through the helper
+        and asserts the forward-slash result, failing on any implementation
+        that leaks ``os.sep`` into persisted bytes — regardless of the host
+        platform running the test.
+        """
+        windows_path = PureWindowsPath(r"migrations\legacy\v1\SHA256SUMS")
+        self.assertIn("\\", str(windows_path))
+        canonical = g3.canonical_repo_path(windows_path)
+        self.assertEqual(canonical, "migrations/legacy/v1/SHA256SUMS")
+        self.assertNotIn("\\", canonical)
+        # A plain string with backslashes must also normalize.
+        self.assertEqual(
+            g3.canonical_repo_path(r"migrations\legacy\v1\SHA256SUMS"),
+            "migrations/legacy/v1/SHA256SUMS",
+        )
+
+    def test_generated_artifact_paths_contain_no_backslashes(self):
+        """Belt-and-braces: the persisted A4 and detached checksum bytes embed
+        only forward-slash repository paths on every platform."""
+        for key in self.a4_a["components"]:
+            self.assertNotIn("\\", key, f"A4 component key has backslash: {key}")
+        v2sums = self.files_a[g3.V2_SUMS].decode()
+        self.assertNotIn("\\", v2sums, "V2 SHA256SUMS contains a backslash path")
 
 
 if __name__ == "__main__":
