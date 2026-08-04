@@ -56,5 +56,5 @@ remain unsigned until the named human owners record their decisions.
 
 | Role | Owner | Decision | Signature | Date |
 |---|---|---|---|---|
-| Architecture | | | | |
-| Database | | | | |
+| Architecture | Archy | **APPROVE** — Exact product, control, composite, and governed-target identities | AR | 2026-08-04 |
+| Database | Domty | **APPROVE** — Reconciled A4 baseline, PostgreSQL target, and P3 adoption artifact | DO | 2026-08-04 |
