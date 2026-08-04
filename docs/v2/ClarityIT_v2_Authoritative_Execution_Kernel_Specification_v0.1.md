@@ -73,9 +73,16 @@ Detailed frontend layouts, pricing, tenancy packaging, general workflow authorin
 
 ## 2. Architectural responsibility and ownership
 
-![Figure 1. Authoritative command, evidence, and verification flow.](images/authoritative-command-evidence-verification-flow.png)
+![Figure 1. Authoritative operation sequence: dispatch, evidence sealing, verification, and outcome decision.](images/authoritative-command-evidence-verification-flow.png)
 
-*Figure 1. Authoritative command, evidence, and verification flow.*
+*Figure 1. Authoritative operation sequence: dispatch, evidence sealing,
+verification, and outcome decision. Editable source:
+[Authoritative Operation Sequence](ClarityIT-v2-Authoritative-Operation-Sequence.md).*
+
+The dashed destination-bound credential-broker node is a proposed P-09
+refinement from the Native Pattern draft. It illustrates the existing K-10
+credentialless-agent boundary but is not adopted as a detailed implementation
+contract by this Kernel version.
 
 | **Component**                   | **Owns**                                                                                                              | **Must not**                                                                      |
 |---------------------------------|-----------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|
@@ -579,6 +586,15 @@ The provider-facing idempotency token MAY be a safe encoding of this key when su
 
 - Native guard decisions are deterministic and logged; an LLM may explain or investigate them later but cannot be on the enforcement path.
 
+Trust placement is phase-specific. The CT 150 co-location of development IAM,
+KES, evidence storage, and application components is a bounded development
+exception under the [Environment Trust and Evidence Custody Deployment Profile
+v0.1](ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md).
+It does not satisfy production separation, independent durability, or disaster
+recovery. Production must be provisioned fresh across approved independent
+trust and evidence-custody failure domains, without reusing CT 150 identities,
+root keys, service credentials, storage credentials, or evidence keys.
+
 ## 17. Evidence and audit model
 
 | **Section**      | **Required references**                                                                                            |
@@ -736,3 +752,6 @@ Conformance is layered. A provider profile cannot compensate for a failing kerne
 | **Site Runtime Protocol**                  | Handshake, envelope signatures, sequence/acknowledgment, offline queue, upgrades, and attestation.           |
 | **First-Release Experience Specification** | Screen states, permissions, user language, receipts, errors, and accessibility acceptance.                   |
 | **Evidence Retention and Export Policy**   | Workspace retention, legal hold, redaction, key rotation, export verification, and deletion evidence.        |
+| **Native Pattern Specification**           | Reusable governed-work patterns and conformance requirements that preserve kernel invariants.                |
+| **Environment Trust and Evidence Custody Deployment Profile** | Phase-specific trust placement, custody controls, and no-in-place promotion boundary.       |
+| **Delivery Roadmap**                       | Package dependencies and release gates; cannot weaken kernel semantics.                                     |

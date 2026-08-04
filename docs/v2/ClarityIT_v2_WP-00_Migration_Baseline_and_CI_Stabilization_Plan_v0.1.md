@@ -94,6 +94,12 @@ This work package implements phases 0 and 1 of the ClarityIT v2 v1-to-v2 Compati
 | P3 fixtures, CI matrix, failure injection, release evidence | Frontend redesign, new product surfaces, or provider mutations      |
 | Legacy-truth classification contract fixture                | Promotion of historical claims into v2 Verification or outcomes     |
 
+> **Follow-on boundary:** No Native Pattern implementation or WP-01 through
+> WP-10 feature work is part of WP-00. G6 remains the prerequisite for those
+> packages. CT 150 evidence custody may satisfy only the signed development
+> exception; it is not production-readiness evidence and cannot be promoted in
+> place.
+
 ## 2. Confirmed starting baseline
 
 The source implementation was rechecked on 30 July 2026. *(Historical: main resolved to `b9d1587` at original authoring. Current revision starting baseline is `main@318b4eb`.)* The repository contains 40 legacy SQL files and 64 nominal unique table definitions. The compatibility specification remains authoritative where it deliberately supersedes older repository guidance.
@@ -509,6 +515,10 @@ Target critical path: 15 working days from access to P1 and the restorable backu
 > **Acceptance decision** WP-00 is Accepted only when AC-00-01 through AC-00-30 are evidenced and G6 is signed. Otherwise it is Blocked with named failed criteria, owner, corrective work, and preserved evidence. Conditional or partial acceptance is not permitted.
 
 Acceptance authorizes the next implementation-ready contract: Generic Compute Adapter Specification v0.1, followed by the Proxmox VE conformance profile and the verified virtual-machine recovery slice. It does not itself authorize provider mutation, Site Runtime deployment, host agents, additional adapters, or broader UI work.
+
+The [Project Completion Authority](PROJECT-COMPLETION-AUTHORITY.md) records the
+current gate and exact integrated identities. It is a status ledger, not a
+substitute for G6 evidence or signatures.
 
 ## Appendix A. First-day execution checklist
 

@@ -68,10 +68,15 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and [`docs/releases/`](docs
 
 ## ClarityIT v2
 
-The draft ClarityIT v2 specification program is maintained in
-[`docs/v2/`](docs/v2/README.md). It defines the target product, authoritative
-execution kernel, v1-to-v2 migration contract, WP-00 stabilization plan, and
-editable layered reference architecture.
+The ClarityIT v2 specification and delivery program is maintained in
+[`docs/v2/`](docs/v2/README.md). Start with the
+[Project Completion Authority](docs/v2/PROJECT-COMPLETION-AUTHORITY.md) for the
+current gate, frozen identities, remaining work, and continuation rules. The
+directory also contains the target product, authoritative execution kernel,
+v1-to-v2 migration contract, WP-00 stabilization plan, reusable native
+patterns, environment trust profile, delivery roadmap, and editable layered
+reference architecture with authoritative-operation, trust/deployment, and
+Signals/Routines companion views.
 
 ## Architecture
 
