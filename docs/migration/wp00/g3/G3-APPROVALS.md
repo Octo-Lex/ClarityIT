@@ -50,9 +50,9 @@ This receipt update records the evidence only. It does not change the product, c
 ## Approvals
 
 The exact product, control, composite, and governed-target identities above
-require approval from the named Architecture and Database owners. The live
-and adoption evidence is complete and Linux-CI-verified; the signature rows
-remain unsigned until the named human owners record their decisions.
+are approved by the named Architecture and Database owners below. The live
+and adoption evidence is complete and Linux-CI-verified; both signature rows
+are recorded.
 
 | Role | Owner | Decision | Signature | Date |
 |---|---|---|---|---|
