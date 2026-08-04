@@ -35,21 +35,24 @@ the adoption transaction from the live catalog (not caller-supplied).
 
 ## Exact-commit live proof
 
-- Producing commit: `84e4d39f68a5f7bbecf69cb45507c832090d1cbc`
+- Producing commit: `570a0ec7e31087d1dd6db22e14935e21e7481cf6`
 - Executed: 2026-08-04
 - Runtime: native PostgreSQL 16.14-alpine (pinned digest `7a396fd2…`), database `clarityit`
-- Platform: Ubuntu (GitHub Actions, Linux CI run `30888199397`)
+- Platform: Ubuntu (GitHub Actions, Linux CI run `30900328914`)
 - Fresh installs: two independent installs of the four declared G3 SQL artifacts in contract order
 - P3 adoption: applied `0001_adopt_p3.sql` to a live P3 source on the pinned image
 - Result markers: `G3-COMMITTED-BLOBS PASS`, `G3-INPUT-BIND PASS`, `LEGACY-ARCHIVE PASS`, `BASELINE-GEN PASS`, `PRIVILEGE PASS`, `CONTROL PASS`, `SEED-EQUIV PASS`, `NEGATIVE PASS`, `A4-BIND PASS`, `G3-RECEIPT-BIND PASS`, `FRESH-EQUIV PASS`, `PRODUCT-CONFORM PASS`, `CONTROL-LIVE PASS`, `SEED-LIVE PASS`, `GOVERNED-FRESH-EQUIV PASS`, `ADOPT-P3 PRECONDITIONS PASS`, `ADOPT-P3 CONVERGE PASS`, `ADOPT-P3 DRIFT-NEGATIVE PASS`, `ADOPT-P3 ATOMICITY PASS`
-- Generator tests: 9 passed (including generation_expression regression test)
-- Linux CI: PASS (run `30888199397`, all steps green)
+- Generator tests: 9 passed (including production-coupled generation_expression regression test)
+- Linux CI: PASS (run `30900328914`, all steps green)
 
 This receipt update records the evidence only. It does not change the product, control, or composite identities, generated SQL, legacy archive, or executable verifier. The only producing-tip-to-receipt-tip file change is this file (`G3-APPROVALS.md`).
 
 ## Approvals
 
-Architecture and Database approve the exact product, control, composite, and governed-target identities above. The live and adoption evidence is complete and Linux-CI-verified; the signature rows remain unsigned until the named human owners record their decisions.
+The exact product, control, composite, and governed-target identities above
+require approval from the named Architecture and Database owners. The live
+and adoption evidence is complete and Linux-CI-verified; the signature rows
+remain unsigned until the named human owners record their decisions.
 
 | Role | Owner | Decision | Signature | Date |
 |---|---|---|---|---|
