@@ -47,9 +47,9 @@ BEGIN
     -- changes all fail the gate.
     -- Column digest: name, type, NOT NULL, default, identity (generation,
     -- start, increment, minimum, maximum, cycle), charlen, precision,
-    -- scale, collation, generated.
+    -- scale, collation, generated, generation_expression.
     IF (SELECT encode(public.digest(convert_to(string_agg(
-        format('%s.%s.%s|notnull:%s|default:%s|identity:%s|idgen:%s|idstart:%s|idinc:%s|idmin:%s|idmax:%s|idcycle:%s|charlen:%s|precision:%s|scale:%s|collation:%s|generated:%s',
+        format('%s.%s.%s|notnull:%s|default:%s|identity:%s|idgen:%s|idstart:%s|idinc:%s|idmin:%s|idmax:%s|idcycle:%s|charlen:%s|precision:%s|scale:%s|collation:%s|generated:%s|genexpr:%s',
         table_name, column_name, data_type, is_nullable,
         COALESCE(column_default, ''), COALESCE(is_identity, ''),
         COALESCE(identity_generation, ''), COALESCE(identity_start, ''),
@@ -59,10 +59,11 @@ BEGIN
         COALESCE(numeric_precision::text, ''),
         COALESCE(numeric_scale::text, ''),
         COALESCE(collation_name, ''),
-        COALESCE(is_generated, '')), E'\n'
+        COALESCE(is_generated, ''),
+        COALESCE(generation_expression, '')), E'\n'
         ORDER BY table_name, column_name), 'UTF8'), 'sha256'), 'hex')
         FROM information_schema.columns WHERE table_schema='public')
-        <> '5c7d17cac317e9a4d2ae768e38db1225a28337c3c30a6651ea0c7611898e8683' THEN
+        <> 'd9f5770ec46f18cb19c0037241a183667731914084a71f1c27a481a16ea08b0d' THEN
         RAISE EXCEPTION 'G3 adoption source column properties drifted (digest mismatch)';
     END IF;
     -- Application-function signature digest (explicit ORDER BY columns).

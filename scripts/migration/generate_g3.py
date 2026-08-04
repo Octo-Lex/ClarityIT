@@ -58,7 +58,7 @@ P3_PROFILE_ID = str(uuid.uuid5(
 # nullability/identity changes, renamed constraints, or changed sequence
 # cache all fail the gate.  All are computed inside the adoption transaction
 # from the live catalog (not caller-supplied).
-P3_COLUMN_DIGEST = "5c7d17cac317e9a4d2ae768e38db1225a28337c3c30a6651ea0c7611898e8683"
+P3_COLUMN_DIGEST = "d9f5770ec46f18cb19c0037241a183667731914084a71f1c27a481a16ea08b0d"
 P3_APPFN_SIG_DIGEST = "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0"
 P3_APPFN_BODY_DIGEST = "143cc88d07fa638c9e4d2a515140b987db210c6f381537ed7d6e75dff664f0f8"
 P3_CONSTRAINT_DIGEST = "87372790e05c745ee3867cfe89d06df1017c9247615f0b7d98b8d55eba99fdf3"
@@ -779,9 +779,9 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         f"    -- changes all fail the gate.",
         f"    -- Column digest: name, type, NOT NULL, default, identity (generation,",
         f"    -- start, increment, minimum, maximum, cycle), charlen, precision,",
-        f"    -- scale, collation, generated.",
+        f"    -- scale, collation, generated, generation_expression.",
         f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
-        f"        format('%s.%s.%s|notnull:%s|default:%s|identity:%s|idgen:%s|idstart:%s|idinc:%s|idmin:%s|idmax:%s|idcycle:%s|charlen:%s|precision:%s|scale:%s|collation:%s|generated:%s',",
+        f"        format('%s.%s.%s|notnull:%s|default:%s|identity:%s|idgen:%s|idstart:%s|idinc:%s|idmin:%s|idmax:%s|idcycle:%s|charlen:%s|precision:%s|scale:%s|collation:%s|generated:%s|genexpr:%s',",
         f"        table_name, column_name, data_type, is_nullable,",
         f"        COALESCE(column_default, ''), COALESCE(is_identity, ''),",
         f"        COALESCE(identity_generation, ''), COALESCE(identity_start, ''),",
@@ -791,7 +791,8 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         f"        COALESCE(numeric_precision::text, ''),",
         f"        COALESCE(numeric_scale::text, ''),",
         f"        COALESCE(collation_name, ''),",
-        f"        COALESCE(is_generated, '')), E'\\n'",
+        f"        COALESCE(is_generated, ''),",
+        f"        COALESCE(generation_expression, '')), E'\\n'",
         f"        ORDER BY table_name, column_name), 'UTF8'), 'sha256'), 'hex')",
         f"        FROM information_schema.columns WHERE table_schema='public')",
         f"        <> '{P3_COLUMN_DIGEST}' THEN",
