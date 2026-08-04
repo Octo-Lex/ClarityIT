@@ -119,31 +119,24 @@ class GenerateG3Tests(unittest.TestCase):
         v2sums = self.files_a[g3.V2_SUMS].decode()
         self.assertNotIn("\\", v2sums, "V2 SHA256SUMS contains a backslash path")
 
-    def test_column_digest_includes_generation_expression(self):
-        """The column drift gate must hash generation_expression, not just
-        is_generated.  Two generated columns with different expressions must
-        produce different advertised digests.  This test constructs two
-        synthetic column-projection strings that differ ONLY in
-        generation_expression and proves their SHA-256 digests differ."""
-        import hashlib
-
-        def col_digest(gen_expr):
-            # Minimal projection mirroring the adoption-SQL column digest:
-            # one column where only generation_expression changes.
-            line = (
-                "teams.gen_col|integer|notnull:YES|default:|identity:NO"
-                "|idgen:|idstart:|idinc:|idmin:|idmax:|idcycle:"
-                "|charlen:|precision:32|scale:0|collation:"
-                "|generated:ALWAYS|genexpr:" + gen_expr
-            )
-            return hashlib.sha256(line.encode("utf-8")).hexdigest()
-
-        d1 = col_digest("(id + 1)")
-        d2 = col_digest("(id + 2)")
-        self.assertNotEqual(
-            d1, d2,
-            "columns differing only in generation_expression produced the "
-            "same digest — generation_expression is not in the hash",
+    def test_column_digest_gate_couples_generation_expression(self):
+        """Production-coupled regression: the generated adoption SQL must
+        contain BOTH the ``generation_expression`` information_schema column
+        in the digest query AND the ``genexpr`` format field.  Removing
+        either from the generator would cause this test to fail."""
+        adoption_sql = self.files_a[g3.ADOPTION_SQL].decode()
+        self.assertIn(
+            "generation_expression",
+            adoption_sql,
+            "adoption SQL column digest does not project generation_expression "
+            "from information_schema — the drift gate cannot detect "
+            "expression-only changes on generated columns",
+        )
+        self.assertIn(
+            "genexpr:",
+            adoption_sql,
+            "adoption SQL column digest format string lacks the genexpr field "
+            "— generation_expression is not incorporated into the digest",
         )
 
 
