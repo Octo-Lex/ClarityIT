@@ -20,7 +20,7 @@ The product digest remains the signed G2 identity. The control and composite dig
 | Identity | Value |
 |---|---|
 | Governed target fingerprint (algorithm `clarityit-g3-governed-v1`, domain `clarityit-g3-governed-v1\0`) | `9881c93e79b825963d3c3434de23a3900b3797b181ad0413bafaa5dc4dbc7de6` |
-| Adoption artifact (`0001_adopt_p3.sql`) SHA-256 | `6a26a48fb7262b12216ef16cd16d540d4f7a5f33b2f07d0157dae5fdba8516a7` |
+| Adoption artifact (`0001_adopt_p3.sql`) SHA-256 | `a89ab852b7add6e130bc9ed941caa4329f3024a5c1d3cabd7b25ba2f89a64359` |
 | P3 golden source fingerprint (G1-approved) | `cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b` |
 | P3 source commit | `29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33` |
 | G1 approval reference | `3b4a6fdeb35473e5f73ca74bafa479bd2648fb10` |
@@ -28,22 +28,22 @@ The product digest remains the signed G2 identity. The control and composite dig
 The governed target fingerprint is the convergence target: two fresh installs
 and the P3-adopted database all reach exact equality on this projection. The
 matrix asserts the computed value equals this frozen target (live-bound).
-The SQL-derived structural digests (columns including identity/generation
-properties, constraints with names, function bodies, indexes, triggers,
-sequences with OWNED BY dependencies) are computed inside the adoption
-transaction from the live catalog (not caller-supplied).
+The SQL-derived structural digests (columns including identity/generation/
+generation_expression properties, constraints with names, function bodies,
+indexes, triggers, sequences with OWNED BY dependencies) are computed inside
+the adoption transaction from the live catalog (not caller-supplied).
 
 ## Exact-commit live proof
 
-- Producing commit: `cd31784a968210db1dd4e204cf46762caeb2d760`
+- Producing commit: `84e4d39f68a5f7bbecf69cb45507c832090d1cbc`
 - Executed: 2026-08-04
 - Runtime: native PostgreSQL 16.14-alpine (pinned digest `7a396fd2…`), database `clarityit`
-- Platform: Ubuntu (GitHub Actions, Linux CI run `30874478497`)
+- Platform: Ubuntu (GitHub Actions, Linux CI run `30888199397`)
 - Fresh installs: two independent installs of the four declared G3 SQL artifacts in contract order
 - P3 adoption: applied `0001_adopt_p3.sql` to a live P3 source on the pinned image
 - Result markers: `G3-COMMITTED-BLOBS PASS`, `G3-INPUT-BIND PASS`, `LEGACY-ARCHIVE PASS`, `BASELINE-GEN PASS`, `PRIVILEGE PASS`, `CONTROL PASS`, `SEED-EQUIV PASS`, `NEGATIVE PASS`, `A4-BIND PASS`, `G3-RECEIPT-BIND PASS`, `FRESH-EQUIV PASS`, `PRODUCT-CONFORM PASS`, `CONTROL-LIVE PASS`, `SEED-LIVE PASS`, `GOVERNED-FRESH-EQUIV PASS`, `ADOPT-P3 PRECONDITIONS PASS`, `ADOPT-P3 CONVERGE PASS`, `ADOPT-P3 DRIFT-NEGATIVE PASS`, `ADOPT-P3 ATOMICITY PASS`
-- Generator tests: 8 passed
-- Linux CI: PASS (run `30874478497`, all steps green)
+- Generator tests: 9 passed (including generation_expression regression test)
+- Linux CI: PASS (run `30888199397`, all steps green)
 
 This receipt update records the evidence only. It does not change the product, control, or composite identities, generated SQL, legacy archive, or executable verifier. The only producing-tip-to-receipt-tip file change is this file (`G3-APPROVALS.md`).
 
