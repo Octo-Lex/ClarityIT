@@ -1,10 +1,11 @@
 # ClarityIT v2 Project Completion Authority
 
 **Status:** Current authoritative project handoff
-**Snapshot date:** 4 August 2026
-**Integrated baseline:** `wp00/g2-schema-decisions` at `211c0ee1abeab0626472a2502d35de13eb9db080`
-**Current completed boundary:** WP-00 G3 closed, signed, and integrated
-**Next gate:** G4, only after separate explicit authorization
+**Snapshot date:** 5 August 2026
+**Integrated baseline:** `wp00/g2-schema-decisions` at the commit containing this record, descended from `ac7222737e14796174ed78420f1f388e6c21170b`
+**Current completed boundary:** WP-00 G3 closed, signed, and integrated; PR #13 authority/architecture update integrated
+**Current authorized activity:** G4 Go migration runner implementation under `G4-AUTH-2026-08-05`; G4 is not accepted
+**Next gate:** G4 acceptance; G5 remains unauthorized
 
 ## 1. Purpose
 
@@ -83,6 +84,23 @@ The controlling G3 receipt is
 [`docs/migration/wp00/g3/G3-APPROVALS.md`](../migration/wp00/g3/G3-APPROVALS.md).
 Do not edit that signed receipt merely to restate current status.
 
+PR #13 separately integrated the completion authority and corrected architecture
+suite without changing any G3 byte or identity:
+
+| Item | Exact value |
+|---|---|
+| PR #13 source commit | `ed5e1fe2497eea9335f069920608e0d28b68b6e1` |
+| PR #13 render commit | `60c64893708f530c812567d6e817e8222dfa3b4b` |
+| PR #13 squash commit | `91fe4919e82044573241f24fdf619f0aef26bc84` |
+| Provenance ancestry bridge | `ac7222737e14796174ed78420f1f388e6c21170b` |
+| Current authority integration root | `wp00/g2-schema-decisions@ac7222737e14796174ed78420f1f388e6c21170b` |
+| Role-based review | GitHub review `4859164706`; one delegated Product/Architecture/Security/Delivery assessment, not four independent attestations |
+
+The squash, render tip, and bridge have the same tree. The bridge has the squash
+as first parent and the render tip as second parent, so both the source and
+render provenance commits are ancestors. The G3 signed tip and recovery branch
+remain unchanged.
+
 ## 4. Frozen identities
 
 These identities are unchanged by the integration and by documentation-only
@@ -114,13 +132,14 @@ test does not skip an earlier decision, and code presence does not close a gate.
 | G0 — source freeze | Complete prerequisite | Repository history and WP-00 source baseline | Preserve; do not reopen implicitly |
 | G1 — profiles and restore | **Closed**, 2026-08-01 | [`migrations/profiles/G1-APPROVALS.md`](../../migrations/profiles/G1-APPROVALS.md), closure commit `0dd21d8` | Development-only trust exception remains in force |
 | G2 — schema decisions and target | **Closed**, 2026-08-02 | [`migrations/profiles/g2/G2-APPROVALS.md`](../../migrations/profiles/g2/G2-APPROVALS.md), signed commit `f04f94f...` | Target manifest is a read-only G3 input |
-| G3 — reconciled baseline | **Closed, signed, integrated**, 2026-08-04 | [G3 approval receipt](../migration/wp00/g3/G3-APPROVALS.md), signed tip `97f83e4...`, integrated target `211c0ee1...` | Preserve identities and ancestry |
-| G4 — Go migration runner | **Not started; not authorized** | WP-00 WS4/G4 contract | Requires separate explicit authorization and a package-specific plan |
+| G3 — reconciled baseline | **Closed, signed, integrated**, 2026-08-04 | [G3 approval receipt](../migration/wp00/g3/G3-APPROVALS.md), signed tip `97f83e4...`, authority integration root `ac722273...` | Preserve identities and ancestry |
+| G4 — Go migration runner | **Authorized to implement; not accepted**, 2026-08-05 | [G4 authorization and package plan](../migration/wp00/g4/G4-AUTHORIZATION-AND-PLAN.md), `G4-AUTH-2026-08-05` | Implement only the bounded plan; Database + Backend acceptance receipt required; no G5 work |
 | G5 — blocking CI matrix | **Not started** | WP-00 WS5/G5 contract | Begins only after G4 acceptance; existing green CI does not by itself pass G5 |
 | G6 — WP-00 acceptance | **Not started** | WP-00 AC-00-01 through AC-00-30 and signed A11 evidence | No conditional or partial acceptance |
 
-The immediate technical sequence is G4, then G5, then G6. This record does not
-authorize any of them. It also does not authorize provider mutation, Site
+The immediate technical sequence is G4 implementation and acceptance, then a
+separate G5 authorization, then G6. This record authorizes G4 implementation
+only. It does not authorize G5, G6, provider mutation, Site
 Runtime, host agents, additional adapters, broader UI work, production cutover,
 or WP-01 through WP-10 implementation.
 
@@ -147,7 +166,7 @@ later package requires its own approval and package plan before implementation.
 
 | Release | Work packages | Required outcome | Current status |
 |---|---|---|---|
-| Foundation | WP-00, WP-01 | Reproducible migration foundation and authoritative kernel foundation | WP-00 through G3 only |
+| Foundation | WP-00, WP-01 | Reproducible migration foundation and authoritative kernel foundation | WP-00 G4 authorized; not accepted |
 | R1 — Verified VM Recovery | WP-02, WP-03 | One governed `compute.virtual_machine.start` lineage on one enrolled non-production VM, independently verified and human-accepted | Not started |
 | R2 — Private and Reusable Operations | WP-04, WP-05 | Private-zone execution plus reviewed knowledge and skills | Not started; blocked by R1 |
 | R3 — Evented and Project Work | WP-06, WP-07 | Governed Signals, Routines, Projects, and software-delivery contexts | Not started |
@@ -218,12 +237,15 @@ dump may be added to make the repository appear self-contained.
    the requested gate.
 3. Verify the G3 signed tip remains an ancestor of the integrated target and the
    frozen identities still match the signed receipts.
-4. Confirm explicit authorization for the next gate. In the present state, that
-   means G4 only; silence or a general request to continue is not authorization
-   for G5, G6, provider mutation, or a later work package.
+4. Confirm the requested work is permitted by
+   [`G4-AUTHORIZATION-AND-PLAN.md`](../migration/wp00/g4/G4-AUTHORIZATION-AND-PLAN.md).
+   G4 implementation is authorized; G4 acceptance still requires its exact
+   evidence and decisions. Silence or a general request to continue is not
+   authorization for G5, G6, provider mutation, or a later work package.
 5. Create a normal forward branch and preserve all existing evidence and signed
    history. Do not force-push, rewrite, or delete recovery references.
-6. Update this completion ledger in the same integration that changes a gate or
+6. Use `wp00/g4-migration-runner` for authorized G4 work. Update this completion
+   ledger in the same integration that changes a gate or
    project status. Record exact commits, CI runs, artifact digests, approvals,
    remaining blockers, and the next permitted action.
 
