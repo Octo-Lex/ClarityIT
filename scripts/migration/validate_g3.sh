@@ -155,25 +155,30 @@ python3 scripts/migration/verify_g3.py post-adopt \
 # grant values, column definitions, and per-table row counts.
 catalog_snapshot() {
     local name="$1"
-    # SHA-256 over ACTUAL catalog content: roles+flags, memberships, ownership,
-    # grants, columns, functions, permission rows, and per-table row counts.
-    # Row counts use ANALYZE+reltuples: for P3's scale (≤11 rows/table) PostgreSQL
-    # 16 ANALYZE produces exact counts (verified deterministic across calls).
-    docker exec "$name" psql -U clarityit -d clarityit -qtAc "
-        ANALYZE;
+    # Part 1: catalog content (roles, memberships, schemas, rels, cols, grants,
+    # funcs, perms) — single deterministic query, no temp tables.
+    local catalog_digest
+    catalog_digest=$(docker exec "$name" psql -U clarityit -d clarityit -qtAc "
         WITH parts(label, content) AS (
             VALUES
             ('roles', COALESCE((SELECT string_agg(format('%s|%s|%s|%s|%s|%s|%s', rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolbypassrls), E'\n' ORDER BY rolname) FROM pg_roles WHERE rolname !~ '^pg_'), '')),
             ('members', COALESCE((SELECT string_agg(format('member:%s->role_of:%s|admin:%s|inherit:%s|set:%s', member.rolname, granted.rolname, am.admin_option, am.inherit_option, am.set_option), E'\n' ORDER BY 1,2) FROM pg_auth_members am JOIN pg_roles member ON member.oid=am.member JOIN pg_roles granted ON granted.oid=am.roleid WHERE member.rolname !~ '^pg_' AND granted.rolname !~ '^pg_'), '')),
-            ('schemas', COALESCE((SELECT string_agg(format('schema:%s|owner:%s', nspname, pg_get_userbyid(nspowner)), E'\n' ORDER BY nspname) FROM pg_namespace WHERE nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND nspname NOT LIKE 'pg_temp%'), '')),
+            ('schemas', COALESCE((SELECT string_agg(format('schema:%s|owner:%s', nspname, pg_get_userbyid(nspowner)), E'\n' ORDER BY nspname) FROM pg_namespace WHERE nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND nspname NOT LIKE 'pg_temp%' AND nspname NOT LIKE 'pg_toast_temp%'), '')),
             ('rels', COALESCE((SELECT string_agg(format('rel:%s.%s|%s|owner:%s', n.nspname, c.relname, c.relkind, pg_get_userbyid(c.relowner)), E'\n' ORDER BY 1,2) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind IN ('r','S','i','v')), '')),
-            ('cols', COALESCE((SELECT string_agg(format('col:%s.%s.%s|%s|notnull:%s', table_schema, table_name, column_name, data_type, is_nullable), E'\n' ORDER BY 1,2,3) FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema')), '')),
+            ('cols', COALESCE((SELECT string_agg(format('col:%s.%s.%s|%s|notnull:%s', table_schema, table_name, column_name, data_type, is_nullable), E'\n' ORDER BY 1,2,3) FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema') AND table_schema NOT LIKE 'pg_temp%'), '')),
             ('grants', COALESCE((SELECT string_agg(format('grant:%s.%s|%s|grantee:%s|priv:%s|grantable:%s', n.nspname, c.relname, c.relkind, pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable), E'\n' ORDER BY 1,2,3,4,5) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace, aclexplode(c.relacl) a WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind IN ('r','S','i','v')), '')),
-            ('funcs', COALESCE((SELECT string_agg(format('func:%s.%s(%s)|owner:%s', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), pg_get_userbyid(p.proowner)), E'\n' ORDER BY 1,2,3) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%'), '')),
-            ('perms', COALESCE((SELECT string_agg(format('perm:%s|%s', id, name), E'\n' ORDER BY name) FROM public.permissions), '')),
-            ('rowcounts', COALESCE((SELECT string_agg(format('%s.%s=%s', n.nspname, c.relname, c.reltuples::bigint), E'\n' ORDER BY n.nspname, c.relname) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind='r'), ''))
+            ('funcs', COALESCE((SELECT string_agg(format('func:%s.%s(%s)|owner:%s', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), pg_get_userbyid(p.proowner)), E'\n' ORDER BY n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%'), '')),
+            ('perms', COALESCE((SELECT string_agg(format('perm:%s|%s', id, name), E'\n' ORDER BY name) FROM public.permissions), ''))
         )
-        SELECT encode(public.digest(convert_to(string_agg(label||':'||content, E'\n===\n' ORDER BY label), 'UTF8'), 'sha256'), 'hex') FROM parts" 2>&1 | grep -E '^[0-9a-f]{64}$' | head -1
+        SELECT encode(public.digest(convert_to(string_agg(label||':'||content, E'\n===\n' ORDER BY label), 'UTF8'), 'sha256'), 'hex') FROM parts" 2>&1 | tr -d '[:space:]')
+    # Part 2: exact per-table COUNT(*) via dynamic SQL (separate session;
+    # deterministic on its own). Combined with part 1 via sha256sum.
+    local rowcount_digest
+    rowcount_digest=$(docker exec "$name" psql -U clarityit -d clarityit -qtAc "
+        CREATE TEMP TABLE _ec(s text, t text, c bigint);
+        DO \$do\$ DECLARE r record; c bigint; BEGIN FOR r IN SELECT n.nspname, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind='r' LOOP EXECUTE format('SELECT count(*) FROM %I.%I', r.nspname, r.relname) INTO c; INSERT INTO _ec VALUES(r.nspname, r.relname, c); END LOOP; END \$do\$;
+        SELECT encode(public.digest(convert_to(string_agg(s||'.'||t||'='||c, E'\n' ORDER BY s, t), 'UTF8'), 'sha256'), 'hex') FROM _ec" 2>&1 | grep -E '^[0-9a-f]{64}$' | head -1)
+    echo -n "${catalog_digest}+${rowcount_digest}" | sha256sum | cut -d' ' -f1
 }
 
 echo "=== Drift negative: actual adoption SQL must reject drifted P3 with zero writes ==="

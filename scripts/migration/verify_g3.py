@@ -715,6 +715,8 @@ def post_adopt_verify(dsn_fresh: str, dsn_adopted: str) -> None:
             fail(f"post-adoption schema_revisions applied_by mismatch: {rev_applied_by}")
         if rev_ms != 0:
             fail(f"post-adoption schema_revisions execution_ms mismatch: {rev_ms}")
+        if not rev_scommit or not re.match(r'^[0-9a-f]{40}$', rev_scommit):
+            fail(f"post-adoption schema_revisions source_commit is not a valid 40-hex SHA: {rev_scommit}")
         if re.sub(r"\+00:00$|\+00$", "Z", str(rev_applied_at).replace(" ", "T")) != g3.G3_ARTIFACT_DATE:
             fail(f"post-adoption schema_revisions applied_at mismatch: {rev_applied_at}")
 
