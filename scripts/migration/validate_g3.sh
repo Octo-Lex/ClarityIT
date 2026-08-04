@@ -147,7 +147,8 @@ docker exec -i "$container_p3" psql -U clarityit -d clarityit \
 echo "--- post-adopt convergence ---"
 python3 scripts/migration/verify_g3.py post-adopt \
     --dsn-fresh "$(dsn "$port_a" g3_proof_admin "$password")" \
-    --dsn-adopted "$(dsn "$port_p3" g3_proof_admin "$password")"
+    --dsn-adopted "$(dsn "$port_p3" g3_proof_admin "$password")" \
+    --expected-source-commit "$(git rev-parse HEAD)"
 
 # Complete catalog snapshot for drift/atomicity comparisons.
 # Produces a SHA-256 over the ACTUAL catalog content (not just counts):
@@ -162,11 +163,11 @@ catalog_snapshot() {
         WITH parts(label, content) AS (
             VALUES
             ('roles', COALESCE((SELECT string_agg(format('%s|%s|%s|%s|%s|%s|%s', rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolbypassrls), E'\n' ORDER BY rolname) FROM pg_roles WHERE rolname !~ '^pg_'), '')),
-            ('members', COALESCE((SELECT string_agg(format('member:%s->role_of:%s|admin:%s|inherit:%s|set:%s', member.rolname, granted.rolname, am.admin_option, am.inherit_option, am.set_option), E'\n' ORDER BY 1,2) FROM pg_auth_members am JOIN pg_roles member ON member.oid=am.member JOIN pg_roles granted ON granted.oid=am.roleid WHERE member.rolname !~ '^pg_' AND granted.rolname !~ '^pg_'), '')),
+            ('members', COALESCE((SELECT string_agg(format('member:%s->role_of:%s|admin:%s|inherit:%s|set:%s', member.rolname, granted.rolname, am.admin_option, am.inherit_option, am.set_option), E'\n' ORDER BY member.rolname, granted.rolname) FROM pg_auth_members am JOIN pg_roles member ON member.oid=am.member JOIN pg_roles granted ON granted.oid=am.roleid WHERE member.rolname !~ '^pg_' AND granted.rolname !~ '^pg_'), '')),
             ('schemas', COALESCE((SELECT string_agg(format('schema:%s|owner:%s', nspname, pg_get_userbyid(nspowner)), E'\n' ORDER BY nspname) FROM pg_namespace WHERE nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND nspname NOT LIKE 'pg_temp%' AND nspname NOT LIKE 'pg_toast_temp%'), '')),
-            ('rels', COALESCE((SELECT string_agg(format('rel:%s.%s|%s|owner:%s', n.nspname, c.relname, c.relkind, pg_get_userbyid(c.relowner)), E'\n' ORDER BY 1,2) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind IN ('r','S','i','v')), '')),
-            ('cols', COALESCE((SELECT string_agg(format('col:%s.%s.%s|%s|notnull:%s', table_schema, table_name, column_name, data_type, is_nullable), E'\n' ORDER BY 1,2,3) FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema') AND table_schema NOT LIKE 'pg_temp%'), '')),
-            ('grants', COALESCE((SELECT string_agg(format('grant:%s.%s|%s|grantee:%s|priv:%s|grantable:%s', n.nspname, c.relname, c.relkind, pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable), E'\n' ORDER BY 1,2,3,4,5) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace, aclexplode(c.relacl) a WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind IN ('r','S','i','v')), '')),
+            ('rels', COALESCE((SELECT string_agg(format('rel:%s.%s|%s|owner:%s', n.nspname, c.relname, c.relkind, pg_get_userbyid(c.relowner)), E'\n' ORDER BY n.nspname, c.relname) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind IN ('r','S','i','v')), '')),
+            ('cols', COALESCE((SELECT string_agg(format('col:%s.%s.%s|%s|notnull:%s', table_schema, table_name, column_name, data_type, is_nullable), E'\n' ORDER BY table_schema, table_name, column_name) FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema') AND table_schema NOT LIKE 'pg_temp%'), '')),
+            ('grants', COALESCE((SELECT string_agg(format('grant:%s.%s|%s|grantee:%s|priv:%s|grantable:%s', n.nspname, c.relname, c.relkind, pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable), E'\n' ORDER BY n.nspname, c.relname, pg_get_userbyid(a.grantee), a.privilege_type) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace, aclexplode(c.relacl) a WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%' AND c.relkind IN ('r','S','i','v')), '')),
             ('funcs', COALESCE((SELECT string_agg(format('func:%s.%s(%s)|owner:%s', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), pg_get_userbyid(p.proowner)), E'\n' ORDER BY n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND n.nspname NOT LIKE 'pg_temp%'), '')),
             ('perms', COALESCE((SELECT string_agg(format('perm:%s|%s', id, name), E'\n' ORDER BY name) FROM public.permissions), ''))
         )

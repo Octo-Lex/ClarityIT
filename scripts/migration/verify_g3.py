@@ -637,7 +637,7 @@ def pre_adopt_verify(dsn: str) -> None:
     print("ADOPT-P3 PRECONDITIONS PASS: source is the approved P3 shape; no writes performed")
 
 
-def post_adopt_verify(dsn_fresh: str, dsn_adopted: str) -> None:
+def post_adopt_verify(dsn_fresh: str, dsn_adopted: str, expected_source_commit: str = "") -> None:
     """Post-adoption conformance + governed convergence check.
 
     Verifies the adopted database: product-shape and roles/privileges
@@ -717,6 +717,11 @@ def post_adopt_verify(dsn_fresh: str, dsn_adopted: str) -> None:
             fail(f"post-adoption schema_revisions execution_ms mismatch: {rev_ms}")
         if not rev_scommit or not re.match(r'^[0-9a-f]{40}$', rev_scommit):
             fail(f"post-adoption schema_revisions source_commit is not a valid 40-hex SHA: {rev_scommit}")
+        if expected_source_commit and rev_scommit != expected_source_commit:
+            fail(
+                f"post-adoption schema_revisions source_commit {rev_scommit} "
+                f"!= expected implementation SHA {expected_source_commit}"
+            )
         if re.sub(r"\+00:00$|\+00$", "Z", str(rev_applied_at).replace(" ", "T")) != g3.G3_ARTIFACT_DATE:
             fail(f"post-adoption schema_revisions applied_at mismatch: {rev_applied_at}")
 
@@ -817,6 +822,7 @@ def main() -> int:
     post = sub.add_parser("post-adopt", help="post-adoption conformance + governed convergence")
     post.add_argument("--dsn-fresh", required=True)
     post.add_argument("--dsn-adopted", required=True)
+    post.add_argument("--expected-source-commit", default="", help="exact implementation SHA to bind source_commit against")
     sub.add_parser("receipt-bind", help="verify producing-commit-to-receipt-tip binding (commit 2 only)")
     args = parser.parse_args()
     try:
@@ -832,7 +838,7 @@ def main() -> int:
         elif args.command == "pre-adopt":
             pre_adopt_verify(args.dsn)
         elif args.command == "post-adopt":
-            post_adopt_verify(args.dsn_fresh, args.dsn_adopted)
+            post_adopt_verify(args.dsn_fresh, args.dsn_adopted, args.expected_source_commit)
         elif args.command == "receipt-bind":
             receipt_bind_verify()
     except (AssertionError, KeyError, RuntimeError, ValueError) as exc:

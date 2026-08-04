@@ -45,12 +45,16 @@ BEGIN
     -- from the live catalog (NOT caller-supplied).  Each covers the full
     -- property set so body/default/nullability/identity/constraint-name/cache
     -- changes all fail the gate.
-    -- Column digest: name, type, NOT NULL, default, identity, charlen,
-    -- precision, scale, collation, generated.
+    -- Column digest: name, type, NOT NULL, default, identity (generation,
+    -- start, increment, minimum, maximum, cycle), charlen, precision,
+    -- scale, collation, generated.
     IF (SELECT encode(public.digest(convert_to(string_agg(
-        format('%s.%s.%s|notnull:%s|default:%s|identity:%s|charlen:%s|precision:%s|scale:%s|collation:%s|generated:%s',
+        format('%s.%s.%s|notnull:%s|default:%s|identity:%s|idgen:%s|idstart:%s|idinc:%s|idmin:%s|idmax:%s|idcycle:%s|charlen:%s|precision:%s|scale:%s|collation:%s|generated:%s',
         table_name, column_name, data_type, is_nullable,
         COALESCE(column_default, ''), COALESCE(is_identity, ''),
+        COALESCE(identity_generation, ''), COALESCE(identity_start, ''),
+        COALESCE(identity_increment, ''), COALESCE(identity_minimum, ''),
+        COALESCE(identity_maximum, ''), COALESCE(identity_cycle, ''),
         COALESCE(character_maximum_length::text, ''),
         COALESCE(numeric_precision::text, ''),
         COALESCE(numeric_scale::text, ''),
@@ -58,7 +62,7 @@ BEGIN
         COALESCE(is_generated, '')), E'\n'
         ORDER BY table_name, column_name), 'UTF8'), 'sha256'), 'hex')
         FROM information_schema.columns WHERE table_schema='public')
-        <> '33ac369b7cb896ce22c91766c1caf12755506b11c799d929a4cb22aeb4ef2303' THEN
+        <> '5c7d17cac317e9a4d2ae768e38db1225a28337c3c30a6651ea0c7611898e8683' THEN
         RAISE EXCEPTION 'G3 adoption source column properties drifted (digest mismatch)';
     END IF;
     -- Application-function signature digest (explicit ORDER BY columns).
@@ -99,16 +103,21 @@ BEGIN
         <> 'b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333' THEN
         RAISE EXCEPTION 'G3 adoption source trigger inventory drifted (digest mismatch)';
     END IF;
-    -- Sequence digest: type, start, increment, min, max, cache, cycle, owner.
+    -- Sequence digest: type, start, increment, min, max, cache, cycle,
+    -- owner, and OWNED BY dependency.
     IF (SELECT encode(public.digest(convert_to(string_agg(
-        format('%s.%s|type:%s|start:%s|inc:%s|min:%s|max:%s|cache:%s|cycle:%s|owner:%s',
+        format('%s.%s|type:%s|start:%s|inc:%s|min:%s|max:%s|cache:%s|cycle:%s|owner:%s|ownedby:%s',
         n.nspname, c.relname, s.seqtypid::regtype, s.seqstart, s.seqincrement,
         s.seqmin, s.seqmax, s.seqcache, s.seqcycle,
-        pg_get_userbyid(c.relowner)), E'\n'
+        pg_get_userbyid(c.relowner),
+        COALESCE((SELECT dc.relname || '.' || da.attname
+            FROM pg_depend d JOIN pg_class dc ON dc.oid=d.refobjid
+            JOIN pg_attribute da ON da.attrelid=d.refobjid AND da.attnum=d.refobjsubid
+            WHERE d.objid=c.oid AND d.deptype='a' LIMIT 1), 'NONE')), E'\n'
         ORDER BY n.nspname, c.relname), 'UTF8'), 'sha256'), 'hex')
         FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')
-        <> '876fc2ed13992bedea3a31fab0a67a35770b4294a9d5718ee7f33138a90df216' THEN
+        <> '1d5f4ddaff8fd246b75c680cff3323a21452227406f593ad198039a3387d9f52' THEN
         RAISE EXCEPTION 'G3 adoption source sequence properties drifted (digest mismatch)';
     END IF;
     -- Constraint digest: name + definition (all 287, names included).

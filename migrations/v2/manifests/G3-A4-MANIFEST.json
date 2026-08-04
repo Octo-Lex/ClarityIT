@@ -1,18 +1,18 @@
 {
   "adoption": {
-    "adoption_sql_sha256": "53e7b6523c44deba90e55c14a0acdf3b369e6b07070686b7a529350182fbe2e1",
-    "adoption_sql_size": 49447,
+    "adoption_sql_sha256": "6a26a48fb7262b12216ef16cd16d540d4f7a5f33b2f07d0157dae5fdba8516a7",
+    "adoption_sql_size": 50108,
     "baseline_checksum": "1021adefe8b5edaae13010a713cdde594f084a66b9d4012940603ee4a94e0508",
     "description": "P3 approved-source adoption artifact; distinct from fresh-install composite.",
     "g1_approval_ref": "3b4a6fdeb35473e5f73ca74bafa479bd2648fb10",
     "p3_appfn_body_digest": "143cc88d07fa638c9e4d2a515140b987db210c6f381537ed7d6e75dff664f0f8",
     "p3_appfn_sig_digest": "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0",
-    "p3_column_digest": "33ac369b7cb896ce22c91766c1caf12755506b11c799d929a4cb22aeb4ef2303",
+    "p3_column_digest": "5c7d17cac317e9a4d2ae768e38db1225a28337c3c30a6651ea0c7611898e8683",
     "p3_constraint_digest": "87372790e05c745ee3867cfe89d06df1017c9247615f0b7d98b8d55eba99fdf3",
     "p3_golden_fingerprint": "cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b",
     "p3_index_digest": "6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3",
     "p3_profile_id": "7c5cb0b9-1fb4-540d-9433-f0196ff6f7bb",
-    "p3_sequence_digest": "876fc2ed13992bedea3a31fab0a67a35770b4294a9d5718ee7f33138a90df216",
+    "p3_sequence_digest": "1d5f4ddaff8fd246b75c680cff3323a21452227406f593ad198039a3387d9f52",
     "p3_source_commit": "29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33",
     "p3_trigger_digest": "b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333"
   },

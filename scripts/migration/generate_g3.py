@@ -58,13 +58,13 @@ P3_PROFILE_ID = str(uuid.uuid5(
 # nullability/identity changes, renamed constraints, or changed sequence
 # cache all fail the gate.  All are computed inside the adoption transaction
 # from the live catalog (not caller-supplied).
-P3_COLUMN_DIGEST = "33ac369b7cb896ce22c91766c1caf12755506b11c799d929a4cb22aeb4ef2303"
+P3_COLUMN_DIGEST = "5c7d17cac317e9a4d2ae768e38db1225a28337c3c30a6651ea0c7611898e8683"
 P3_APPFN_SIG_DIGEST = "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0"
 P3_APPFN_BODY_DIGEST = "143cc88d07fa638c9e4d2a515140b987db210c6f381537ed7d6e75dff664f0f8"
 P3_CONSTRAINT_DIGEST = "87372790e05c745ee3867cfe89d06df1017c9247615f0b7d98b8d55eba99fdf3"
 P3_INDEX_DIGEST = "6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3"
 P3_TRIGGER_DIGEST = "b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333"
-P3_SEQUENCE_DIGEST = "876fc2ed13992bedea3a31fab0a67a35770b4294a9d5718ee7f33138a90df216"
+P3_SEQUENCE_DIGEST = "1d5f4ddaff8fd246b75c680cff3323a21452227406f593ad198039a3387d9f52"
 P3_APPFN_NAMES = (
     "adoc_set_updated_at", "kc_search_vector_update", "ki_search_vector_update",
     "ki_set_updated_at", "normalize_team_slug", "normalize_user_email",
@@ -777,12 +777,16 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         f"    -- from the live catalog (NOT caller-supplied).  Each covers the full",
         f"    -- property set so body/default/nullability/identity/constraint-name/cache",
         f"    -- changes all fail the gate.",
-        f"    -- Column digest: name, type, NOT NULL, default, identity, charlen,",
-        f"    -- precision, scale, collation, generated.",
+        f"    -- Column digest: name, type, NOT NULL, default, identity (generation,",
+        f"    -- start, increment, minimum, maximum, cycle), charlen, precision,",
+        f"    -- scale, collation, generated.",
         f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
-        f"        format('%s.%s.%s|notnull:%s|default:%s|identity:%s|charlen:%s|precision:%s|scale:%s|collation:%s|generated:%s',",
+        f"        format('%s.%s.%s|notnull:%s|default:%s|identity:%s|idgen:%s|idstart:%s|idinc:%s|idmin:%s|idmax:%s|idcycle:%s|charlen:%s|precision:%s|scale:%s|collation:%s|generated:%s',",
         f"        table_name, column_name, data_type, is_nullable,",
         f"        COALESCE(column_default, ''), COALESCE(is_identity, ''),",
+        f"        COALESCE(identity_generation, ''), COALESCE(identity_start, ''),",
+        f"        COALESCE(identity_increment, ''), COALESCE(identity_minimum, ''),",
+        f"        COALESCE(identity_maximum, ''), COALESCE(identity_cycle, ''),",
         f"        COALESCE(character_maximum_length::text, ''),",
         f"        COALESCE(numeric_precision::text, ''),",
         f"        COALESCE(numeric_scale::text, ''),",
@@ -831,12 +835,17 @@ def generate_adoption_sql(manifest: dict, baseline_sha: str) -> bytes:
         f"        <> '{P3_TRIGGER_DIGEST}' THEN",
         f"        RAISE EXCEPTION 'G3 adoption source trigger inventory drifted (digest mismatch)';",
         f"    END IF;",
-        f"    -- Sequence digest: type, start, increment, min, max, cache, cycle, owner.",
+        f"    -- Sequence digest: type, start, increment, min, max, cache, cycle,",
+        f"    -- owner, and OWNED BY dependency.",
         f"    IF (SELECT encode(public.digest(convert_to(string_agg(",
-        f"        format('%s.%s|type:%s|start:%s|inc:%s|min:%s|max:%s|cache:%s|cycle:%s|owner:%s',",
+        f"        format('%s.%s|type:%s|start:%s|inc:%s|min:%s|max:%s|cache:%s|cycle:%s|owner:%s|ownedby:%s',",
         f"        n.nspname, c.relname, s.seqtypid::regtype, s.seqstart, s.seqincrement,",
         f"        s.seqmin, s.seqmax, s.seqcache, s.seqcycle,",
-        f"        pg_get_userbyid(c.relowner)), E'\\n'",
+        f"        pg_get_userbyid(c.relowner),",
+        f"        COALESCE((SELECT dc.relname || '.' || da.attname",
+        f"            FROM pg_depend d JOIN pg_class dc ON dc.oid=d.refobjid",
+        f"            JOIN pg_attribute da ON da.attrelid=d.refobjid AND da.attnum=d.refobjsubid",
+        f"            WHERE d.objid=c.oid AND d.deptype='a' LIMIT 1), 'NONE')), E'\\n'",
         f"        ORDER BY n.nspname, c.relname), 'UTF8'), 'sha256'), 'hex')",
         f"        FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid",
         f"        JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')",
