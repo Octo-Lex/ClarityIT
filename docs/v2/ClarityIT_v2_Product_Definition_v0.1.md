@@ -159,9 +159,20 @@ Conversation coordinates work; it does not grant permission. Agent reasoning exp
 
 *Figure 1. ClarityIT v2 layered provider-neutral reference architecture (target state).*
 
+The editable [Layered System Architecture](ClarityIT-v2-Layered-System-Architecture.md)
+is the source for Figure 1. Its companion views make the boundaries intentionally
+compressed in the executive overview explicit:
+
+- [Authoritative Operation Sequence](ClarityIT-v2-Authoritative-Operation-Sequence.md)
+- [Trust and Deployment Topology](ClarityIT-v2-Trust-and-Deployment-Topology.md)
+- [Signals and Routines](ClarityIT-v2-Signals-and-Routines.md) — proposed P-15;
+  not an approved implementation contract
+
 > **Execution truth invariant** Provider, worker and agent outputs remain source-attributed claims after persistence. Only independent verification can establish a verified result, and only a separate outcome decision can accept it.
 
 Scope note: the figure is the target architecture. Site Runtime, Native Enforcement, and the Optional Host Sensor are not part of WP-00 or the initial central-route Proxmox slice.
+
+Deployment placement note: the figure is logical, not a requirement for one host per plane. The bounded CT 150 development placement and the mandatory fresh production trust/custody topology are governed by the [Environment Trust and Evidence Custody Deployment Profile v0.1](ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md). The development exception cannot be promoted in place.
 
 ### 6.1 Experience plane
 
@@ -324,6 +335,8 @@ During disconnection, observation and protective deny rules continue and spool l
 7.  Run the non-production pilot and satisfy every mandatory product and kernel criterion.
 
 8.  Only then implement the Site Runtime for a private-network/SSH slice and broaden Projects, Routines, Team, and Knowledge.
+
+Delivery remains migration-first and proof-gated. WP-00 stabilizes the migration baseline, restore evidence, and blocking CI. WP-01 introduces the authoritative kernel foundation. WP-02 implements the provider-neutral VM-start capability and initial provider conformance. WP-03 delivers the Case experience and accepts the verified non-production pilot. Only after Release R1 may WP-04 add the Site Runtime, WP-05 add reviewed knowledge and operational skills, WP-06 add Signals and Routines, WP-07 add Project and software-delivery contexts, WP-08 add controlled multi-target execution, WP-09 add a second provider and extension SDK, and WP-10 complete production hardening and rollout. The [Native Pattern Specification](ClarityIT_v2_Native_Pattern_Specification_v0.1.md) defines the reusable pattern contracts; the [Delivery Roadmap](ClarityIT_v2_Delivery_Roadmap_v0.2.md) defines proposed package ownership and gates.
 
 ## 11. First release: verified virtual-machine recovery
 
@@ -583,5 +596,8 @@ The ClarityIT v2 Authoritative Execution Kernel Specification v0.1 defines canon
 | **Product Definition v0.1**             | User, value, experience, scope, release boundary, product acceptance. | Product and design authority |
 | **Reference Architecture**              | Component placement and system relationships.                         | Architecture baseline        |
 | **Execution Kernel Specification v0.1** | Authoritative semantics, protocols, failures, and conformance.        | Engineering contract         |
+| **Native Pattern Specification v0.1**   | Reusable experience, orchestration, knowledge, routine, and scale patterns. | Pattern contract          |
+| **Environment Trust and Evidence Custody Profile v0.1** | Development placement and production trust/custody exit rules. | Deployment trust contract |
+| **Delivery Roadmap v0.2**               | Proposed package sequence, dependencies, evidence, and release gates. | Planning authority        |
 | **Compute adapter profile**             | Generic VM capability and normalized resource contract.               | Capability contract          |
 | **Proxmox VE profile**                  | Provider mapping, receipts, polling, and pilot constraints.           | Reference implementation     |
