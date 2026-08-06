@@ -1,0 +1,236 @@
+{
+  "description": "G3 platform migration-control schema; separate from signed G2 product identity.",
+  "format_version": 1,
+  "functions": [
+    "platform.protect_succeeded_revision()",
+    "platform.reject_reconciliation_mutation()"
+  ],
+  "owner": "clarityit_owner",
+  "platform_sql_sha256": "3e3ace0d2bbb9378c31f012bf85e56a8657ffec37622d6216bbdff882768fbec",
+  "runtime_grants": [],
+  "schema": "platform",
+  "tables": {
+    "migration_runs": {
+      "columns": [
+        {
+          "name": "run_id",
+          "sql_suffix": "NOT NULL DEFAULT gen_random_uuid()",
+          "type": "uuid"
+        },
+        {
+          "name": "database_name",
+          "sql_suffix": "NOT NULL DEFAULT current_database()",
+          "type": "text"
+        },
+        {
+          "name": "source_profile_id",
+          "sql_suffix": "",
+          "type": "text"
+        },
+        {
+          "name": "target_version",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "state",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "started_at",
+          "sql_suffix": "NOT NULL",
+          "type": "timestamp with time zone"
+        },
+        {
+          "name": "completed_at",
+          "sql_suffix": "",
+          "type": "timestamp with time zone"
+        },
+        {
+          "name": "release_id",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "evidence_ref",
+          "sql_suffix": "",
+          "type": "text"
+        }
+      ],
+      "constraints": [
+        "CONSTRAINT migration_runs_pkey PRIMARY KEY (run_id)",
+        "CONSTRAINT migration_runs_source_profile_fkey FOREIGN KEY (source_profile_id) REFERENCES platform.source_profiles(profile_id)",
+        "CONSTRAINT migration_runs_state_check CHECK (state IN ('planned','profiled','preflighted','expanding','backfilling','reconciling','cutover_ready','cutover_committed','observing','completed','blocked','paused','precommit_rolled_back','forward_recovery_required'))",
+        "CONSTRAINT migration_runs_time_order CHECK (completed_at IS NULL OR completed_at >= started_at)"
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX migration_runs_one_active_per_database ON platform.migration_runs (database_name) WHERE state NOT IN ('completed','blocked','precommit_rolled_back')"
+      ]
+    },
+    "reconciliation_results": {
+      "columns": [
+        {
+          "name": "run_id",
+          "sql_suffix": "NOT NULL",
+          "type": "uuid"
+        },
+        {
+          "name": "check_id",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "scope",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "expected",
+          "sql_suffix": "NOT NULL",
+          "type": "jsonb"
+        },
+        {
+          "name": "actual",
+          "sql_suffix": "NOT NULL",
+          "type": "jsonb"
+        },
+        {
+          "name": "result",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "evidence_ref",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "recorded_at",
+          "sql_suffix": "NOT NULL",
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": [
+        "CONSTRAINT reconciliation_results_pkey PRIMARY KEY (run_id, check_id, scope)",
+        "CONSTRAINT reconciliation_results_run_fkey FOREIGN KEY (run_id) REFERENCES platform.migration_runs(run_id)",
+        "CONSTRAINT reconciliation_results_result_check CHECK (result IN ('pass','fail','blocked'))",
+        "CONSTRAINT reconciliation_results_evidence_present CHECK (btrim(evidence_ref) <> '')"
+      ],
+      "indexes": []
+    },
+    "schema_revisions": {
+      "columns": [
+        {
+          "name": "version",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "name",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "checksum",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "source_commit",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "applied_at",
+          "sql_suffix": "NOT NULL",
+          "type": "timestamp with time zone"
+        },
+        {
+          "name": "applied_by",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "execution_ms",
+          "sql_suffix": "NOT NULL",
+          "type": "bigint"
+        },
+        {
+          "name": "success",
+          "sql_suffix": "NOT NULL",
+          "type": "boolean"
+        }
+      ],
+      "constraints": [
+        "CONSTRAINT schema_revisions_pkey PRIMARY KEY (version)",
+        "CONSTRAINT schema_revisions_checksum_key UNIQUE (checksum)",
+        "CONSTRAINT schema_revisions_checksum_sha256 CHECK (checksum ~ '^[0-9a-f]{64}$')",
+        "CONSTRAINT schema_revisions_execution_nonnegative CHECK (execution_ms >= 0)"
+      ],
+      "indexes": []
+    },
+    "source_profiles": {
+      "columns": [
+        {
+          "name": "profile_id",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "schema_fingerprint",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "postgres_version",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "postgres_major",
+          "sql_suffix": "NOT NULL",
+          "type": "integer"
+        },
+        {
+          "name": "extensions",
+          "sql_suffix": "NOT NULL",
+          "type": "jsonb"
+        },
+        {
+          "name": "roles_digest",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "source_commit",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "approved_by",
+          "sql_suffix": "NOT NULL",
+          "type": "text"
+        },
+        {
+          "name": "approved_at",
+          "sql_suffix": "NOT NULL",
+          "type": "timestamp with time zone"
+        }
+      ],
+      "constraints": [
+        "CONSTRAINT source_profiles_pkey PRIMARY KEY (profile_id)",
+        "CONSTRAINT source_profiles_fingerprint_sha256 CHECK (schema_fingerprint ~ '^[0-9a-f]{64}$')",
+        "CONSTRAINT source_profiles_roles_sha256 CHECK (roles_digest ~ '^[0-9a-f]{64}$')",
+        "CONSTRAINT source_profiles_pg16 CHECK (postgres_major = 16)",
+        "CONSTRAINT source_profiles_extensions_array CHECK (jsonb_typeof(extensions) = 'array')",
+        "CONSTRAINT source_profiles_approver_present CHECK (btrim(approved_by) <> '')"
+      ],
+      "indexes": []
+    }
+  },
+  "triggers": [
+    "platform.schema_revisions.schema_revisions_immutable",
+    "platform.reconciliation_results.reconciliation_results_append_only"
+  ]
+}

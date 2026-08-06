@@ -1,0 +1,6 @@
+{
+  "quote": "\"",
+  "backslash": "\\",
+  "slash": "/",
+  "mixed": "a\"b\\c/d"
+}

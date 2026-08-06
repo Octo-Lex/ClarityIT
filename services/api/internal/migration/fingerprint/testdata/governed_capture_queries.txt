@@ -1,0 +1,118 @@
+--- QUERY 0 (params=None) ---
+SET TRANSACTION READ ONLY
+
+--- QUERY 1 (params=(['clarityit', 'clarityit_admin', 'clarityit_app', 'clarityit_migrator', 'clarityit_owner'],)) ---
+SELECT rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolreplication, rolbypassrls FROM pg_roles WHERE rolname = ANY(%s) ORDER BY rolname
+
+--- QUERY 2 (params=(['clarityit', 'clarityit_admin', 'clarityit_app', 'clarityit_migrator', 'clarityit_owner'], ['clarityit', 'clarityit_admin', 'clarityit_app', 'clarityit_migrator', 'clarityit_owner'])) ---
+SELECT member.rolname, granted.rolname, am.admin_option, am.inherit_option, am.set_option FROM pg_auth_members am JOIN pg_roles member ON member.oid = am.member JOIN pg_roles granted ON granted.oid = am.roleid WHERE member.rolname = ANY(%s) AND granted.rolname = ANY(%s) ORDER BY 1,2
+
+--- QUERY 3 (params=[['public', 'platform']]) ---
+
+        SELECT n.nspname, c.relname, c.relkind, c.relpersistence,
+               pg_catalog.format_type(c.reltype, NULL)
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+          AND c.relkind IN ('r','v','m','S','f','p')
+        ORDER BY n.nspname, c.relkind, c.relname;
+        
+
+--- QUERY 4 (params=[['public', 'platform']]) ---
+
+        SELECT n.nspname, c.relname, a.attnum, a.attname,
+               pg_catalog.format_type(a.atttypid, a.atttypmod),
+               a.attnotnull, pg_get_expr(d.adbin, d.adrelid), a.attidentity
+        FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+        WHERE n.nspname = ANY(%s) AND a.attnum > 0 AND NOT a.attisdropped
+          AND c.relkind IN ('r','v','m','f','p')
+        ORDER BY n.nspname, c.relname, a.attnum;
+        
+
+--- QUERY 5 (params=[['public', 'platform']]) ---
+
+        SELECT n.nspname, c.relname, con.conname, con.contype,
+               pg_get_constraintdef(con.oid, true)
+        FROM pg_constraint con
+        JOIN pg_class c ON c.oid = con.conrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+        ORDER BY n.nspname, c.relname, con.contype, con.conname;
+        
+
+--- QUERY 6 (params=[['public', 'platform']]) ---
+
+        SELECT n.nspname, c.relname, i.relname,
+               pg_get_indexdef(ix.indexrelid, 0, true),
+               ix.indisunique, ix.indisprimary
+        FROM pg_index ix
+        JOIN pg_class c ON c.oid = ix.indrelid
+        JOIN pg_class i ON i.oid = ix.indexrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+        ORDER BY n.nspname, c.relname, i.relname;
+        
+
+--- QUERY 7 (params=[['public', 'platform']]) ---
+
+        SELECT n.nspname, c.relname, t.tgname, pg_get_triggerdef(t.oid, true)
+        FROM pg_trigger t
+        JOIN pg_class c ON c.oid = t.tgrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s) AND NOT t.tgisinternal
+        ORDER BY n.nspname, c.relname, t.tgname;
+        
+
+--- QUERY 8 (params=[['public', 'platform']]) ---
+
+        SELECT n.nspname, c.relname,
+               s.seqtypid::regtype, s.seqstart, s.seqincrement,
+               s.seqmax, s.seqmin, s.seqcache, s.seqcycle
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_sequence s ON s.seqrelid = c.oid
+        WHERE n.nspname = ANY(%s) AND c.relkind = 'S'
+        ORDER BY n.nspname, c.relname;
+        
+
+--- QUERY 9 (params=[['public', 'platform']]) ---
+
+        SELECT n.nspname, p.proname,
+               pg_get_function_identity_arguments(p.oid),
+               pg_get_functiondef(p.oid)
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = ANY(%s) AND p.prokind IN ('f','p','w')
+        ORDER BY n.nspname, p.proname,
+                 pg_get_function_identity_arguments(p.oid);
+        
+
+--- QUERY 10 (params=None) ---
+SELECT n.nspname, c.relname, c.relkind, pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace, aclexplode(c.relacl) a WHERE ((n.nspname = 'public' AND c.relname = 'agent_identities') OR (n.nspname = 'public' AND c.relname = 'agent_runs') OR (n.nspname = 'public' AND c.relname = 'knowledge_items') OR (n.nspname = 'public' AND c.relname = 'approval_decisions') OR (n.nspname = 'public' AND c.relname = 'users') OR (n.nspname = 'public' AND c.relname = 'incidents') OR (n.nspname = 'public' AND c.relname = 'work_items') OR (n.nspname = 'public' AND c.relname = 'artifact_documents') OR (n.nspname = 'public' AND c.relname = 'agent_intentions') OR (n.nspname = 'public' AND c.relname = 'agent_tool_grants') OR (n.nspname = 'public' AND c.relname = 'recommendation_evidence') OR (n.nspname = 'public' AND c.relname = 'storage_objects') OR (n.nspname = 'public' AND c.relname = 'bootstrap_lock') OR (n.nspname = 'public' AND c.relname = 'context_relation_reviews') OR (n.nspname = 'public' AND c.relname = 'saved_knowledge_answers') OR (n.nspname = 'platform' AND c.relname = 'migration_runs') OR (n.nspname = 'public' AND c.relname = 'object_links') OR (n.nspname = 'public' AND c.relname = 'agent_evaluation_runs') OR (n.nspname = 'public' AND c.relname = 'context_nodes') OR (n.nspname = 'public' AND c.relname = 'integration_api_keys') OR (n.nspname = 'public' AND c.relname = 'mfa_recovery_codes') OR (n.nspname = 'public' AND c.relname = 'objects') OR (n.nspname = 'public' AND c.relname = 'platform_roles') OR (n.nspname = 'public' AND c.relname = 'context_bundles') OR (n.nspname = 'public' AND c.relname = 'artifact_meeting_data') OR (n.nspname = 'public' AND c.relname = 'mfa_challenges') OR (n.nspname = 'public' AND c.relname = 'agent_evaluation_scenario_results') OR (n.nspname = 'public' AND c.relname = 'remediation_proposals') OR (n.nspname = 'public' AND c.relname = 'teams') OR (n.nspname = 'public' AND c.relname = 'user_sessions') OR (n.nspname = 'public' AND c.relname = 'tool_registry') OR (n.nspname = 'public' AND c.relname = 'assets') OR (n.nspname = 'public' AND c.relname = 'user_webauthn_credentials') OR (n.nspname = 'platform' AND c.relname = 'source_profiles') OR (n.nspname = 'public' AND c.relname = 'knowledge_chunks') OR (n.nspname = 'public' AND c.relname = 'permissions') OR (n.nspname = 'public' AND c.relname = 'artifact_templates') OR (n.nspname = 'public' AND c.relname = 'knowledge_collection_items') OR (n.nspname = 'public' AND c.relname = 'audit_logs') OR (n.nspname = 'public' AND c.relname = 'artifact_document_versions') OR (n.nspname = 'public' AND c.relname = 'idempotency_keys') OR (n.nspname = 'public' AND c.relname = 'knowledge_collections') OR (n.nspname = 'public' AND c.relname = 'roles') OR (n.nspname = 'public' AND c.relname = 'user_platform_roles') OR (n.nspname = 'public' AND c.relname = 'role_permissions') OR (n.nspname = 'public' AND c.relname = 'docs') OR (n.nspname = 'public' AND c.relname = 'object_comments') OR (n.nspname = 'platform' AND c.relname = 'reconciliation_results') OR (n.nspname = 'public' AND c.relname = 'audit_logs_id_seq') OR (n.nspname = 'platform' AND c.relname = 'schema_revisions') OR (n.nspname = 'public' AND c.relname = 'invitations') OR (n.nspname = 'public' AND c.relname = 'action_outcomes') OR (n.nspname = 'public' AND c.relname = 'user_mfa_factors') OR (n.nspname = 'public' AND c.relname = 'context_edge_evidence') OR (n.nspname = 'public' AND c.relname = 'remediation_steps') OR (n.nspname = 'public' AND c.relname = 'alerts') OR (n.nspname = 'public' AND c.relname = 'proxmox_mutation_windows') OR (n.nspname = 'public' AND c.relname = 'asset_actions') OR (n.nspname = 'public' AND c.relname = 'team_memberships') OR (n.nspname = 'public' AND c.relname = 'password_reset_tokens') OR (n.nspname = 'public' AND c.relname = 'outbox_events') OR (n.nspname = 'public' AND c.relname = 'context_edges') OR (n.nspname = 'public' AND c.relname = 'agent_effect_results') OR (n.nspname = 'public' AND c.relname = 'approval_requests') OR (n.nspname = 'public' AND c.relname = 'refresh_tokens') OR (n.nspname = 'public' AND c.relname = 'approval_policies') OR (n.nspname = 'public' AND c.relname = 'team_access_grants') OR (n.nspname = 'public' AND c.relname = 'artifacts') OR (n.nspname = 'public' AND c.relname = 'object_storage_refs')) AND c.relkind IN ('r','S','v','m','f','p') AND pg_get_userbyid(a.grantee) IN ('clarityit_app','clarityit_admin','PUBLIC','clarityit','clarityit_migrator','clarityit_owner') ORDER BY 1,2,3,4,5
+
+--- QUERY 11 (params=None) ---
+SELECT n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a WHERE ((n.nspname = 'public' AND p.proname = 'normalize_user_email' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'platform' AND p.proname = 'reject_reconciliation_mutation' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'public' AND p.proname = 'prevent_bootstrap_unlock' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'public' AND p.proname = 'normalize_team_slug' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'public' AND p.proname = 'kc_search_vector_update' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'public' AND p.proname = 'adoc_set_updated_at' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'public' AND p.proname = 'ki_set_updated_at' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'public' AND p.proname = 'protect_last_team_owner' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'platform' AND p.proname = 'protect_succeeded_revision' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'public' AND p.proname = 'set_updated_at' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'public' AND p.proname = 'trg_artifacts_updated_at' AND pg_get_function_identity_arguments(p.oid) = '') OR (n.nspname = 'public' AND p.proname = 'ki_search_vector_update' AND pg_get_function_identity_arguments(p.oid) = '')) AND p.prokind IN ('f','p','w') AND pg_get_userbyid(a.grantee) IN ('clarityit_app','clarityit_admin','PUBLIC','clarityit','clarityit_migrator','clarityit_owner') ORDER BY 1,2,3,4,5
+
+--- QUERY 12 (params=None) ---
+SELECT n.nspname, pg_get_userbyid(a.grantee), a.privilege_type, a.is_grantable FROM pg_namespace n, aclexplode(n.nspacl) a WHERE n.nspname IN ('public','platform') AND pg_get_userbyid(a.grantee) IN ('clarityit_app','clarityit_admin','PUBLIC','clarityit','clarityit_migrator','clarityit_owner') ORDER BY 1,2,3
+
+--- QUERY 13 (params=None) ---
+SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()
+
+--- QUERY 14 (params=None) ---
+SELECT n.nspname, pg_get_userbyid(n.nspowner) FROM pg_namespace n WHERE n.nspname IN ('public','platform') ORDER BY 1
+
+--- QUERY 15 (params=None) ---
+SELECT n.nspname, c.relname, c.relkind, pg_get_userbyid(c.relowner) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname IN ('public','platform') AND c.relkind IN ('r','S','i','v','m','f','p') ORDER BY 1,2,3
+
+--- QUERY 16 (params=None) ---
+SELECT n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), pg_get_userbyid(p.proowner) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname IN ('public','platform') AND p.prokind IN ('f','p','w') ORDER BY 1,2,3
+
+--- QUERY 17 (params=None) ---
+SELECT pg_get_userbyid(d.defaclrole), n.nspname, d.defaclobjtype, pg_get_userbyid(a.grantee), a.privilege_type FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace, aclexplode(d.defaclacl) a WHERE pg_get_userbyid(d.defaclrole) IN ('clarityit_owner') AND n.nspname IN ('public','platform') ORDER BY 1,2,3,4,5
+
+--- QUERY 18 (params=None) ---
+SELECT e.extname, pg_get_userbyid(e.extowner) FROM pg_extension e WHERE e.extname IN ('pgcrypto','citext','pg_trgm') ORDER BY 1
