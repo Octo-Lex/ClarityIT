@@ -648,6 +648,14 @@ Rollback depends on whether a consequential external submission may have occurre
 
 - The Site Runtime is not required for this migration and receives no schema or data-migration privilege.
 
+The CT 150 IAM/KES/evidence-store co-location is permitted only as the bounded
+development exception defined by the [Environment Trust and Evidence Custody
+Deployment Profile v0.1](ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md).
+It cannot establish production custody or be promoted in place. Production
+migration and release evidence require a fresh topology with independent trust,
+evidence, audit, and recovery failure domains and newly issued identities, keys,
+and storage credentials.
+
 ## 16. CI, test fixtures, and release gates
 
 The v2 branch cannot merge while backend CI remains non-blocking. CI must build the fresh and upgrade paths from immutable artifacts and prove interruption safety, compatibility behavior, and historical truth.
@@ -689,6 +697,7 @@ The v2 branch cannot merge while backend CI remains non-blocking. CI must build 
 | **MT-16** | Precommit rollback re-enables only the frozen v1 artifact and records the rollback.                           |
 | **MT-17** | Post-submission failure enters forward recovery and reconciles without database restore or resubmit.          |
 | **MT-18** | A reviewer reconstructs source profile, mapping, classification, cutover, and first v2 lineage from evidence. |
+| **MT-19** | A production candidate rejects CT 150 identities, keys, credentials, and shared-failure-domain custody; fresh trust and custody controls pass independently. |
 
 ### 16.2 Release gates
 
@@ -744,6 +753,7 @@ The v2 branch cannot merge while backend CI remains non-blocking. CI must build 
 | **A9**  | Cutover packet            | Runbook, owners, schedule, decision, smoke tests, status and evidence.          |
 | **A10** | Recovery packet           | Precommit rollback and post-submission forward-recovery procedures.             |
 | **A11** | Release evidence manifest | All gates, signatures, artifact digests and final acceptance.                   |
+| **A12** | Environment trust profile evidence | Declared environment class, topology, identities, key provenance, custody controls, recovery proof, and no-in-place-promotion decision. |
 
 ## Appendix A. Complete v1 table disposition registry
 
