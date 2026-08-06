@@ -3,24 +3,35 @@
 This directory is the portable GitHub-flavored Markdown edition of the current
 ClarityIT v2 specification and delivery program. The design authorities are
 dated 30 July through 1 August 2026; the current completion ledger is dated
-4 August 2026.
+5 August 2026.
+
+## Start here
+
+The [Project Completion Authority](PROJECT-COMPLETION-AUTHORITY.md) is the
+operational entry point for current gate status, frozen identities, authorized
+continuation, and blocked scope. It does not replace the semantic authority of
+the Product Definition, execution kernel, migration specification, or signed
+evidence records.
+
+The packaging provenance for this integration onto `main` is recorded in
+[`docs/migration/wp00/AUTHORITY-RECONCILIATION.md`](../migration/wp00/AUTHORITY-RECONCILIATION.md).
 
 ## Documents
 
 | Order | Document | Role |
 |---:|---|---|
-| 1 | [Product Definition](ClarityIT_v2_Product_Definition_v0.1.md) | Product and design authority: users, value, experience, scope, and release boundary |
-| 2 | [Authoritative Execution Kernel](ClarityIT_v2_Authoritative_Execution_Kernel_Specification_v0.1.md) | Engineering contract: truth, authority, execution, verification, outcomes, and evidence |
-| 3 | [v1-to-v2 Compatibility and Migration](ClarityIT_v2_v1-to-v2_Compatibility_and_Migration_Specification_v0.1.md) | Migration contract: source profiles, coexistence, cutover, rollback, and historical truth |
-| 4 | [WP-00 Migration Baseline and CI Stabilization Plan](ClarityIT_v2_WP-00_Migration_Baseline_and_CI_Stabilization_Plan_v0.1.md) | First delivery work package: migration phases 0–1 and gates G0–G6 |
-| 5 | [Layered System Architecture](ClarityIT-v2-Layered-System-Architecture.md) | Editable Mermaid executive overview of the seven-plane target-state architecture |
-| 6 | [Authoritative Operation Sequence](ClarityIT-v2-Authoritative-Operation-Sequence.md) | Physical outbox dispatch, evidence sealing, independent verification, and accountable outcome decision |
-| 7 | [Trust and Deployment Topology](ClarityIT-v2-Trust-and-Deployment-Topology.md) | Workload identity, credentials, policy, runtime compatibility, isolation, and environment placement |
-| 8 | [Signals and Routines](ClarityIT-v2-Signals-and-Routines.md) | Proposed separation of human intake, Signals, routine firing, deduplication, destinations, and exceptions |
-| 9 | [Native Pattern Specification](ClarityIT_v2_Native_Pattern_Specification_v0.1.md) | Draft normative patterns for governed work, execution, knowledge, routines, and scale |
-| 10 | [Environment Trust and Evidence Custody Profile](ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md) | Adopted development exception and normative production trust/custody exit criteria |
-| 11 | [Delivery Roadmap](ClarityIT_v2_Delivery_Roadmap_v0.2.md) | Draft WP-01–WP-10, RG-01–RG-10, and R1–R5 completion sequence |
-| 12 | [Project Completion Authority](PROJECT-COMPLETION-AUTHORITY.md) | Current gate ledger, frozen identities, authorization boundary, and future-session handoff |
+| 1 | [Project Completion Authority](PROJECT-COMPLETION-AUTHORITY.md) | Current gate ledger, frozen identities, authorization boundary, and future-session handoff |
+| 2 | [Product Definition](ClarityIT_v2_Product_Definition_v0.1.md) | Product and design authority: users, value, experience, scope, and release boundary |
+| 3 | [Authoritative Execution Kernel](ClarityIT_v2_Authoritative_Execution_Kernel_Specification_v0.1.md) | Engineering contract: truth, authority, execution, verification, outcomes, and evidence |
+| 4 | [v1-to-v2 Compatibility and Migration](ClarityIT_v2_v1-to-v2_Compatibility_and_Migration_Specification_v0.1.md) | Migration contract: source profiles, coexistence, cutover, rollback, and historical truth |
+| 5 | [WP-00 Migration Baseline and CI Stabilization Plan](ClarityIT_v2_WP-00_Migration_Baseline_and_CI_Stabilization_Plan_v0.1.md) | First delivery work package: migration phases 0–1 and gates G0–G6 |
+| 6 | [Delivery Roadmap](ClarityIT_v2_Delivery_Roadmap_v0.2.md) | Draft WP-01–WP-10, RG-01–RG-10, and R1–R5 completion sequence |
+| 7 | [Native Pattern Specification](ClarityIT_v2_Native_Pattern_Specification_v0.1.md) | Draft normative patterns for governed work, execution, knowledge, routines, and scale |
+| 8 | [Environment Trust and Evidence Custody Profile](ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md) | Adopted development exception and normative production trust/custody exit criteria |
+| 9 | [Layered System Architecture](ClarityIT-v2-Layered-System-Architecture.md) | Editable Mermaid executive overview of the seven-plane target-state architecture |
+| 10 | [Authoritative Operation Sequence](ClarityIT-v2-Authoritative-Operation-Sequence.md) | Physical outbox dispatch, evidence sealing, independent verification, and accountable outcome decision |
+| 11 | [Trust and Deployment Topology](ClarityIT-v2-Trust-and-Deployment-Topology.md) | Workload identity, credentials, policy, runtime compatibility, isolation, and environment placement |
+| 12 | [Signals and Routines](ClarityIT-v2-Signals-and-Routines.md) | Proposed separation of human intake, Signals, routine firing, deduplication, destinations, and exceptions |
 
 Corrected DOCX distributions for the original four long-form specifications are
 retained under [`rendered/v0.1/`](rendered/v0.1/). Markdown is the maintained
@@ -37,10 +48,9 @@ first-release scope.
 
 Only WP-00 is currently a formal delivery package. WP-01 through WP-10 and
 RG-01 through RG-10 remain proposed names and boundaries until separately
-approved package plans exist. The
-[Project Completion Authority](PROJECT-COMPLETION-AUTHORITY.md) is the
-authoritative starting point for current status and continuation; it does not
-override the semantic authority of the specifications or signed receipts.
+approved package plans exist. The Project Completion Authority is authoritative
+for current status and continuation; it does not override the semantic authority
+of the specifications or signed receipts.
 
 The architecture suite is target state. The layered overview and authoritative
 operation sequence are constrained by the Product and Kernel v0.1 baselines.
