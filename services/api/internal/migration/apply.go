@@ -76,6 +76,7 @@ type ApplyResult struct {
 	StartedAt          time.Time
 	CompletedAt        time.Time
 	ExecutionMs        int64
+	DDLStarted         bool // true only when DDL was actually submitted (past preflight + into target tx)
 	Err                error
 }
 
@@ -239,9 +240,10 @@ func Apply(ctx context.Context, pool *pgxpool.Pool, opts ApplyOptions) ApplyResu
 		return res
 	}
 
-	// ddl_started flips to true immediately before the first frozen body.
-	// (Role normalization + metadata binding happen BEFORE this point and are
-	// not DDL.)
+	// ddl_started flips to true immediately before the first frozen body is
+	// submitted. Role normalization + metadata binding happen BEFORE this point
+	// and are not DDL. This is the real DDL-start state the CLI emits.
+	res.DDLStarted = true
 
 	// Execute the path-specific artifact chain.
 	switch pf.Path {

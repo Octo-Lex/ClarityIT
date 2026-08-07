@@ -18,6 +18,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/clarityit/api/internal/migration/assets"
 )
 
 // forbiddenDeps is the list of internal package path prefixes that the migration
@@ -82,33 +84,31 @@ func TestPrivilegeBoundary_NoForbiddenDeps(t *testing.T) {
 	}
 }
 
-// TestPrivilegeBoundary_LegacyMigrationsNeverSelectable confirms the embedded
-// asset list contains ONLY the G3 v2 artifacts, never legacy 001-040 SQL. This
-// is the packaging-layer guarantee; the classifier-level guarantee is in
-// preflight_test.go (TestNoReconstructionOfLegacyChain).
+// TestPrivilegeBoundary_LegacyMigrationsNeverSelectable inspects the REAL
+// embedded asset registry (assets.AllAssets) and confirms every .sql asset
+// belongs to exactly the authorized execution set. No legacy 001-040 can appear.
 func TestPrivilegeBoundary_LegacyMigrationsNeverSelectable(t *testing.T) {
-	for _, name := range []string{
-		"001_core_extensions.sql", "040_knowledge_collections.sql",
-	} {
-		for _, asset := range AllAssetNamesFlat() {
-			if string(asset) == name {
-				t.Errorf("legacy migration %q is embedded in the asset package (forbidden)", name)
-			}
+	authorizedSQL := map[string]bool{
+		"0000_platform.sql":  true,
+		"0000_roles.sql":     true,
+		"0001_reconciled.sql": true,
+		"0001_seed.sql":      true,
+		"0001_adopt_p3.sql":  true,
+	}
+	for _, asset := range assets.AllAssets {
+		name := string(asset)
+		if !strings.HasSuffix(name, ".sql") {
+			continue // manifests + checksum files are not executable SQL
+		}
+		if !authorizedSQL[name] {
+			t.Errorf("unauthorized SQL asset embedded: %q (not in the authorized execution set)", name)
 		}
 	}
-}
-
-// AllAssetNamesFlat returns all embedded asset names for the legacy-exclusion check.
-func AllAssetNamesFlat() []string {
-	var out []string
-	// The assets package exports AllAssets; check each.
-	for _, a := range []string{
-		"0000_platform.sql", "0000_roles.sql", "0001_reconciled.sql",
-		"0001_seed.sql", "0001_adopt_p3.sql",
-		"G3-A4-MANIFEST.json", "CONTROL-SCHEMA-MANIFEST.json",
-		"TARGET-SCHEMA-MANIFEST.json", "v2-SHA256SUMS", "legacy-SHA256SUMS",
-	} {
-		out = append(out, a)
+	// Also confirm no legacy-looking file snuck in.
+	for _, asset := range assets.AllAssets {
+		name := string(asset)
+		if strings.HasPrefix(name, "001_") || strings.HasPrefix(name, "040_") {
+			t.Errorf("legacy migration %q is embedded in the asset package", name)
+		}
 	}
-	return out
 }

@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/clarityit/api/internal/migration"
@@ -142,12 +143,16 @@ func runApply(ctx context.Context, dsn, actor, releaseID, evidenceRef string) {
 		EvidenceRef: evidenceRef,
 	})
 
-	// Emit the result document.
+	// Emit the result document using the REAL ddl_started state from ApplyResult.
+	statusStr := "applied"
+	if res.Path == migration.Path("no_op") {
+		statusStr = "no_op"
+	}
 	out := migration.Result{
-		Status:    "applied",
+		Status:    statusStr,
 		Code:      res.Code,
 		Phase:     migration.PhaseApply,
-		DDLStarted: res.Err == nil,
+		DDLStarted: res.DDLStarted,
 		Class:     res.Class,
 		Path:      res.Path,
 		GovernedFP: res.GovernedFingerprint,
@@ -158,11 +163,11 @@ func runApply(ctx context.Context, dsn, actor, releaseID, evidenceRef string) {
 	if res.Err != nil {
 		out.Status = "blocked"
 		out.Code = migration.CodeUnknown
-		out.DDLStarted = false
+		out.DDLStarted = res.DDLStarted // preserve real state even on failure
 		out.Diagnostics = []migration.Diag{{
 			CheckID: "apply_error",
 			Result:  "fail",
-			Detail:  sanitizeErr(res.Err.Error()),
+			Detail:  sanitizeErr(res.Err),
 		}}
 	}
 	migration.Emit(os.Stdout, out)
@@ -183,20 +188,34 @@ func emitError(ctx string, err error) {
 		Diagnostics: []migration.Diag{{
 			CheckID: ctx,
 			Result:  "fail",
-			Detail:  sanitizeErr(err.Error()),
+			Detail:  sanitizeErr(err),
 		}},
 	})
 }
 
-// sanitizeErr strips connection strings, DSNs, and raw SQL from error messages
-// before emitting them in the result document.
-func sanitizeErr(s string) string {
-	// The result document must never contain DSNs, passwords, or raw SQL.
-	// For now, truncate to 200 chars and note it's sanitized.
-	if len(s) > 200 {
-		return s[:200] + "... (sanitized)"
+// sanitizeErr maps an error to a stable allowlisted diagnostic string. It never
+// emits raw error text (which may contain DSNs, passwords, or SQL) to stdout.
+// Raw errors go to stderr only; the result document carries a stable code.
+func sanitizeErr(err error) string {
+	if err == nil {
+		return ""
 	}
-	return s
+	s := err.Error()
+	// Map to stable allowlisted reason codes based on the error content.
+	switch {
+	case strings.Contains(s, "connect") || strings.Contains(s, "connection"):
+		return "connection_failed"
+	case strings.Contains(s, "preflight") || strings.Contains(s, "packaging"):
+		return "preflight_failed"
+	case strings.Contains(s, "lock"):
+		return "lock_contention"
+	case strings.Contains(s, "verify") || strings.Contains(s, "fingerprint") || strings.Contains(s, "mismatch"):
+		return "verification_failed"
+	case strings.Contains(s, "commit") || strings.Contains(s, "rollback"):
+		return "transaction_failed"
+	default:
+		return "apply_failed"
+	}
 }
 
 // sub holds the current subcommand name for error context.

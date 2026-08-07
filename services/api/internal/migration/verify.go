@@ -36,13 +36,13 @@ func Verify(ctx context.Context, conn *pgx.Conn) (Result, error) {
 	}
 	if !hasPlatform {
 		return Result{
-			Status: "verified",
-			Code:   CodeOK,
+			Status: "blocked",
+			Code:   CodeLedgerInconsistent,
 			Phase:  PhaseVerify,
 			Diagnostics: []Diag{{
 				CheckID: "platform",
-				Result:  "absent",
-				Detail:  "platform schema does not exist; nothing to verify",
+				Result:  "fail",
+				Detail:  "platform schema does not exist; cannot verify an uninstalled database",
 			}},
 		}, nil
 	}
@@ -91,20 +91,30 @@ func Verify(ctx context.Context, conn *pgx.Conn) (Result, error) {
 		})
 	}
 
-	// Verify revision 0001 consistency.
+	// Verify revision 0001 consistency. A missing revision or success=false is a
+	// hard block — the structural fingerprint may match without the ledger being
+	// correct, so these checks are independent.
 	var revChecksum string
 	var revSuccess bool
-	if err := tx.QueryRow(ctx, `SELECT checksum, success FROM platform.schema_revisions WHERE version='0001' LIMIT 1`).Scan(&revChecksum, &revSuccess); err == nil {
+	err = tx.QueryRow(ctx, `SELECT checksum, success FROM platform.schema_revisions WHERE version='0001' LIMIT 1`).Scan(&revChecksum, &revSuccess)
+	if err != nil {
+		// Revision 0001 missing — block.
+		res.Status = "blocked"
+		res.Code = CodeLedgerInconsistent
+		res.Diagnostics = append(res.Diagnostics, Diag{
+			CheckID: "revision_0001",
+			Result:  "fail",
+			Detail:  "revision 0001 is missing from the ledger",
+		})
+	} else {
 		if revChecksum != BaselineChecksum {
 			res.Diagnostics = append(res.Diagnostics, Diag{
 				CheckID: "revision_checksum",
 				Result:  "fail",
 				Detail:  fmt.Sprintf("recorded=%s frozen=%s (MISMATCH)", revChecksum[:12], BaselineChecksum[:12]),
 			})
-			if res.Status == "verified" {
-				res.Status = "blocked"
-				res.Code = CodeLedgerInconsistent
-			}
+			res.Status = "blocked"
+			res.Code = CodeLedgerInconsistent
 		} else {
 			res.Diagnostics = append(res.Diagnostics, Diag{
 				CheckID: "revision_checksum",
@@ -118,6 +128,8 @@ func Verify(ctx context.Context, conn *pgx.Conn) (Result, error) {
 				Result:  "fail",
 				Detail:  "revision 0001 success=false",
 			})
+			res.Status = "blocked"
+			res.Code = CodeLedgerInconsistent
 		}
 	}
 
