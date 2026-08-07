@@ -1,3 +1,5 @@
+//go:build proof
+
 package migration
 
 // apply_rollback_test.go — the rollback/restart failpoint matrix. For each

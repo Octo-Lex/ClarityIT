@@ -1,3 +1,5 @@
+//go:build proof
+
 package migration
 
 // apply_cleanup_test.go — cleanup-error matrix + exit-path guarantees. Proves

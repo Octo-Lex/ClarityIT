@@ -1,3 +1,5 @@
+//go:build proof
+
 package migration
 
 // apply_p3_rollback_test.go — P3 adoption rollback matrix via pre-opened

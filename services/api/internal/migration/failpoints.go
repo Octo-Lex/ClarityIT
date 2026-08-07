@@ -53,27 +53,3 @@ var ActiveFailpointController FailpointController = InertFailpoints{}
 func hitFailpoint(ctx context.Context, fp Failpoint) error {
 	return ActiveFailpointController.Hit(ctx, fp)
 }
-
-// MapFailpoint is a simple test controller that injects errors at specific
-// failpoints via a map. Tests construct it with the failpoints to trigger.
-type MapFailpoint struct {
-	// Errors maps failpoint -> error. When Hit is called for a failpoint in the
-	// map, it returns the error (and optionally removes it for one-shot behavior).
-	Errors map[Failpoint]error
-	// Repeat, when true, keeps the error in the map (repeats on every Hit).
-	// When false (default), the error is removed after the first hit (one-shot).
-	Repeat bool
-}
-
-func (m *MapFailpoint) Hit(_ context.Context, fp Failpoint) error {
-	if m.Errors == nil {
-		return nil
-	}
-	if err, ok := m.Errors[fp]; ok {
-		if !m.Repeat {
-			delete(m.Errors, fp)
-		}
-		return err
-	}
-	return nil
-}
