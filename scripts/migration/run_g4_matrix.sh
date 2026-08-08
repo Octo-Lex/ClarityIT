@@ -18,7 +18,7 @@
 # binds the implementation SHA via ldflags, and runs each row against clean
 # isolated PostgreSQL 16 containers. The workflow version (.github/workflows/
 # g4-proof.yml) runs the same rows on Ubuntu CI.
-set -euo pipefail
+set -uo pipefail  # NOT -e: individual row failures should not abort the whole matrix.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
@@ -57,12 +57,16 @@ start_pg() {
 		-e POSTGRES_DB=clarityit \
 		-e POSTGRES_USER=postgres \
 		-p "${port}:5432" \
-		"$PG_IMAGE" >/dev/null
-	for i in $(seq 1 40); do
-		docker exec "$name" pg_isready -U postgres -d clarityit >/dev/null 2>&1 && return 0
+		"$PG_IMAGE" >/dev/null 2>&1 || return 1
+	# Wait for readiness (up to 60 seconds).
+	local i
+	for i in $(seq 1 60); do
+		if docker exec "$name" pg_isready -U postgres -d clarityit >/dev/null 2>&1; then
+			return 0
+		fi
 		sleep 1
 	done
-	echo "ERROR: $name did not become ready" >&2
+	echo "ERROR: $name did not become ready after 60s" >&2
 	return 1
 }
 
