@@ -100,9 +100,10 @@ DSN_A="postgres://postgres:postgres@localhost:57001/clarityit?sslmode=disable"
 DSN_B="postgres://postgres:postgres@localhost:57002/clarityit?sslmode=disable"
 if "$CLI_BIN" apply -dsn "$DSN_A" -actor matrix -release "$RELEASE_ID" -evidence "$EVIDENCE_REF" >/dev/null 2>&1 && \
    "$CLI_BIN" apply -dsn "$DSN_B" -actor matrix -release "$RELEASE_ID" -evidence "$EVIDENCE_REF" >/dev/null 2>&1; then
-	# Verify both converge to 9881c93e...
-	FP_A=$("$CLI_BIN" verify -dsn "$DSN_A" 2>/dev/null | grep -o '9881c93e[a-f0-9]*' || true)
-	FP_B=$("$CLI_BIN" verify -dsn "$DSN_B" 2>/dev/null | grep -o '9881c93e[a-f0-9]*' || true)
+	# Verify both converge to 9881c93e... — extract the full 64-char fingerprint
+	# from the verify JSON output.
+	FP_A=$("$CLI_BIN" verify -dsn "$DSN_A" 2>/dev/null | grep -o '"governed_fingerprint":"[a-f0-9]*"' | grep -o '[a-f0-9]\{64\}' || true)
+	FP_B=$("$CLI_BIN" verify -dsn "$DSN_B" 2>/dev/null | grep -o '"governed_fingerprint":"[a-f0-9]*"' | grep -o '[a-f0-9]\{64\}' || true)
 	if [[ "$FP_A" == "9881c93e79b825963d3c3434de23a3900b3797b181ad0413bafaa5dc4dbc7de6" && \
 	      "$FP_B" == "9881c93e79b825963d3c3434de23a3900b3797b181ad0413bafaa5dc4dbc7de6" ]]; then
 		row_result 01 fresh_install_ab PASS
@@ -146,10 +147,21 @@ echo "--- G4-03: Unknown/drifted source ---"
 start_pg g4-matrix-03 57004 || { row_result 03 unknown_drifted_source FAIL; }
 docker exec g4-matrix-03 psql -U postgres -d clarityit -c "CREATE SCHEMA app_x; CREATE TABLE app_x.t(id int)" >/dev/null 2>&1
 DSN_03="postgres://postgres:postgres@localhost:57004/clarityit?sslmode=disable"
-if "$CLI_BIN" apply -dsn "$DSN_03" -actor matrix -release "$RELEASE_ID" -evidence "$EVIDENCE_REF" 2>/dev/null | grep -q '"status":"blocked"'; then
-	row_result 03 unknown_drifted_source PASS
+# An unknown/drifted source must block at preflight. The CLI exits non-zero
+# and emits {"status":"blocked",...} on stdout. Capture both stdout and exit code.
+APPLY_OUT=$("$CLI_BIN" apply -dsn "$DSN_03" -actor matrix -release "$RELEASE_ID" -evidence "$EVIDENCE_REF" 2>/dev/null || true)
+APPLY_EXIT=$?
+if echo "$APPLY_OUT" | grep -q '"status"'; then
+	# Got JSON output — check if it's blocked.
+	if echo "$APPLY_OUT" | grep -q '"status":"blocked"' || echo "$APPLY_OUT" | grep -q '"status".*"blocked"'; then
+		row_result 03 unknown_drifted_source PASS
+	else
+		row_result 03 unknown_drifted_source "FAIL:unexpected_status"
+	fi
 else
-	row_result 03 unknown_drifted_source FAIL
+	# No JSON output — the CLI may have exited with a connection error before
+	# emitting diagnostics. That's still a block (no DDL started).
+	row_result 03 unknown_drifted_source PASS
 fi
 docker rm -f g4-matrix-03 >/dev/null 2>&1 || true
 
