@@ -240,22 +240,21 @@ func Apply(ctx context.Context, pool *pgxpool.Pool, opts ApplyOptions) ApplyResu
 		return res
 	}
 
-	// ddl_started flips to true immediately before the first frozen body is
-	// submitted. Role normalization + metadata binding happen BEFORE this point
-	// and are not DDL. This is the real DDL-start state the CLI emits.
-	res.DDLStarted = true
-
-	// Execute the path-specific artifact chain.
+	// Execute the path-specific artifact chain. The DDLStarted flag is set by
+	// execFreshChain/execAdoption via the *bool pointer, flipped only
+	// immediately before execSimpleProtocolDrained submits the first artifact
+	// body. A pre-body failure (SET ROLE NONE, Transform, set_config) leaves it
+	// false.
 	switch pf.Path {
 	case PathInstall:
-		if err := execFreshChain(ctx, tx); err != nil {
+		if err := execFreshChain(ctx, tx, &res.DDLStarted); err != nil {
 			res.Err = fmt.Errorf("fresh chain: %w", err)
 			res.CompletedAt = time.Now()
 			res.ExecutionMs = time.Since(res.StartedAt).Milliseconds()
 			return res
 		}
 	case PathAdopt:
-		if err := execAdoption(ctx, tx, producingCommit); err != nil {
+		if err := execAdoption(ctx, tx, producingCommit, &res.DDLStarted); err != nil {
 			res.Err = fmt.Errorf("adoption: %w", err)
 			res.CompletedAt = time.Now()
 			res.ExecutionMs = time.Since(res.StartedAt).Milliseconds()
@@ -416,9 +415,10 @@ func Apply(ctx context.Context, pool *pgxpool.Pool, opts ApplyOptions) ApplyResu
 }
 
 // execFreshChain executes the fresh-install chain with SET ROLE NONE boundary
-// normalization before each artifact body. ddl_started is implicitly true
-// (the caller has already committed to DDL by invoking the executor).
-func execFreshChain(ctx context.Context, tx pgx.Tx) error {
+// normalization before each artifact body. ddlStarted is set to true only
+// immediately before the first execSimpleProtocolDrained submits SQL, via the
+// *bool pointer. A pre-body failure leaves it false.
+func execFreshChain(ctx context.Context, tx pgx.Tx, ddlStarted *bool) error {
 	// Map each artifact to its failpoint (hit after the artifact body executes).
 	artifactFailpoints := map[assets.AssetName]Failpoint{
 		assets.AssetRolesBootstrap: FailAfterArtifactRoles,
@@ -444,6 +444,12 @@ func execFreshChain(ctx context.Context, tx pgx.Tx) error {
 		if err != nil {
 			return fmt.Errorf("transform %s: %w", name, err)
 		}
+		// Flip ddl_started to true ONLY now — the SQL body is about to be
+		// submitted. All preceding operations (SET ROLE NONE, boundary check,
+		// Transform) are not DDL.
+		if ddlStarted != nil {
+			*ddlStarted = true
+		}
 		if err := execSimpleProtocolDrained(ctx, tx, string(ts.Body)); err != nil {
 			return fmt.Errorf("exec %s: %w", name, err)
 		}
@@ -459,8 +465,9 @@ func execFreshChain(ctx context.Context, tx pgx.Tx) error {
 
 // execAdoption executes the P3 adoption artifact. The producing commit is bound
 // via parameterized set_config (extended protocol) BEFORE the body; the body
-// (set_config line removed by Transform) runs via simple protocol.
-func execAdoption(ctx context.Context, tx pgx.Tx, producingCommit string) error {
+// (set_config line removed by Transform) runs via simple protocol. ddlStarted
+// is flipped only immediately before the body is submitted.
+func execAdoption(ctx context.Context, tx pgx.Tx, producingCommit string, ddlStarted *bool) error {
 	if producingCommit == "" {
 		return errors.New("adoption requires a producing commit (ldflags-bound)")
 	}
@@ -471,6 +478,11 @@ func execAdoption(ctx context.Context, tx pgx.Tx, producingCommit string) error 
 	ts, err := Transform(assets.AssetAdoptP3)
 	if err != nil {
 		return fmt.Errorf("transform adoption: %w", err)
+	}
+	// Flip ddl_started ONLY now — the SQL body is about to be submitted.
+	// set_config and Transform are metadata binding, not DDL.
+	if ddlStarted != nil {
+		*ddlStarted = true
 	}
 	if err := execSimpleProtocolDrained(ctx, tx, string(ts.Body)); err != nil {
 		return fmt.Errorf("exec adoption body: %w", err)
