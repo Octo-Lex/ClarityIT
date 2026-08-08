@@ -52,11 +52,39 @@ deploy-web:
 deploy-all:
 	cd /opt/clarityit && docker compose up -d --build
 
+# Apply migrations via the supported Go runner (G4).
+# The binary is built with the producing commit bound via ldflags.
+# Never use go run — the commit must be build-bound.
+MIGRATE_BINARY := /tmp/clarity-migrate
+
 # Apply pending migrations
-migrate:
-	for f in /opt/clarityit/migrations/*.sql; do \
-		docker exec -i clarityit-postgres-1 psql -U clarityit -d clarityit < "$$f"; \
-	done
+migrate: migrate-build
+	$(MIGRATE_BINARY) apply \
+		-dsn "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable" \
+		-actor "make-migrate@$$(hostname)" \
+		-release "$$(git rev-parse --short=12 HEAD)" \
+		-evidence "make-migrate-$$(date -u +%Y%m%dT%H%M%SZ)"
+
+# Build the migration runner with the producing commit bound via ldflags
+migrate-build:
+	cd services/api && go build \
+		-ldflags "-X main.ProducingCommit=$$(git rev-parse HEAD) -X main.ReleaseId=$$(git rev-parse --short=12 HEAD)" \
+		-o $(MIGRATE_BINARY) ./cmd/clarity-migrate/
+
+# Verify the current migration state (read-only)
+migrate-verify: migrate-build
+	$(MIGRATE_BINARY) verify \
+		-dsn "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
+
+# Show the current migration plan (read-only)
+migrate-plan: migrate-build
+	$(MIGRATE_BINARY) plan \
+		-dsn "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
+
+# Show the current migration status (read-only)
+migrate-status: migrate-build
+	$(MIGRATE_BINARY) status \
+		-dsn "postgres://clarityit:clarityit@postgres:5432/clarityit?sslmode=disable"
 
 # Live pipeline integration test
 verify-pipeline:
