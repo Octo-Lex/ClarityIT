@@ -138,22 +138,33 @@ func Verify(ctx context.Context, conn *pgx.Conn) (Result, error) {
 	// coexist with the exact governed structural fingerprint (ledger rows are
 	// not part of the structural fingerprint), so this check is independent.
 	var revCount int
-	if err := tx.QueryRow(ctx, `SELECT count(*) FROM platform.schema_revisions`).Scan(&revCount); err == nil {
-		if revCount != 1 {
-			res.Diagnostics = append(res.Diagnostics, Diag{
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM platform.schema_revisions`).Scan(&revCount); err != nil {
+		return Result{
+			Status:     "blocked",
+			Code:       CodeLedgerInconsistent,
+			Phase:      PhaseVerify,
+			DDLStarted:  false,
+			Diagnostics: []Diag{{
 				CheckID: "revision_count",
 				Result:  "fail",
-				Detail:  fmt.Sprintf("expected exactly 1 revision row, found %d (contradictory/extra revision)", revCount),
-			})
-			res.Status = "blocked"
-			res.Code = CodeLedgerInconsistent
-		} else {
-			res.Diagnostics = append(res.Diagnostics, Diag{
-				CheckID: "revision_count",
-				Result:  "pass",
-				Detail:  "exactly 1 revision row (0001)",
-			})
-		}
+				Detail:  "unable to verify revision set",
+			}},
+		}, nil
+	}
+	if revCount != 1 {
+		res.Diagnostics = append(res.Diagnostics, Diag{
+			CheckID: "revision_count",
+			Result:  "fail",
+			Detail:  fmt.Sprintf("expected exactly 1 revision row, found %d (contradictory/extra revision)", revCount),
+		})
+		res.Status = "blocked"
+		res.Code = CodeLedgerInconsistent
+	} else {
+		res.Diagnostics = append(res.Diagnostics, Diag{
+			CheckID: "revision_count",
+			Result:  "pass",
+			Detail:  "exactly 1 revision row (0001)",
+		})
 	}
 
 	return res, nil
