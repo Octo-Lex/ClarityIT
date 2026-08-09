@@ -1,0 +1,488 @@
+--- QUERY 0 (params=None) ---
+SET TRANSACTION READ ONLY
+
+--- QUERY 1 (params=None) ---
+
+    SELECT n.nspname
+    FROM pg_namespace n
+    WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast')
+      AND n.nspname NOT LIKE 'pg_temp_%%'
+      AND n.nspname NOT LIKE 'pg_toast_temp_%%'
+    ORDER BY n.nspname;
+
+
+--- QUERY 2 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, c.relname, c.relkind, c.relpersistence,
+               pg_catalog.format_type(c.reltype, NULL)
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+          AND c.relkind IN ('r','v','m','S','f','p')
+        ORDER BY n.nspname, c.relkind, c.relname;
+        
+
+--- QUERY 3 (params=None) ---
+SELECT version();
+
+--- QUERY 4 (params=None) ---
+SELECT name, setting FROM pg_settings WHERE name IN ('standard_conforming_strings','TimeZone') ORDER BY name;
+
+--- QUERY 5 (params=None) ---
+SELECT extname, extversion FROM pg_extension ORDER BY extname;
+
+--- QUERY 6 (params=None) ---
+SELECT version();
+
+--- QUERY 7 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, c.relname, a.attnum, a.attname,
+               pg_catalog.format_type(a.atttypid, a.atttypmod),
+               a.attnotnull, pg_get_expr(d.adbin, d.adrelid), a.attidentity
+        FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+        WHERE n.nspname = ANY(%s) AND a.attnum > 0 AND NOT a.attisdropped
+          AND c.relkind IN ('r','v','m','f','p')
+        ORDER BY n.nspname, c.relname, a.attnum;
+        
+
+--- QUERY 8 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, c.relname, con.conname, con.contype,
+               pg_get_constraintdef(con.oid, true)
+        FROM pg_constraint con
+        JOIN pg_class c ON c.oid = con.conrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+        ORDER BY n.nspname, c.relname, con.contype, con.conname;
+        
+
+--- QUERY 9 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, c.relname, i.relname,
+               pg_get_indexdef(ix.indexrelid, 0, true),
+               ix.indisunique, ix.indisprimary
+        FROM pg_index ix
+        JOIN pg_class c ON c.oid = ix.indrelid
+        JOIN pg_class i ON i.oid = ix.indexrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+        ORDER BY n.nspname, c.relname, i.relname;
+        
+
+--- QUERY 10 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, c.relname,
+               s.seqtypid::regtype, s.seqstart, s.seqincrement,
+               s.seqmax, s.seqmin, s.seqcache, s.seqcycle
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_sequence s ON s.seqrelid = c.oid
+        WHERE n.nspname = ANY(%s) AND c.relkind = 'S'
+        ORDER BY n.nspname, c.relname;
+        
+
+--- QUERY 11 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, p.proname,
+               pg_get_function_identity_arguments(p.oid),
+               pg_get_functiondef(p.oid)
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = ANY(%s) AND p.prokind IN ('f','p','w')
+        ORDER BY n.nspname, p.proname,
+                 pg_get_function_identity_arguments(p.oid);
+        
+
+--- QUERY 12 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, c.relname, t.tgname, pg_get_triggerdef(t.oid, true)
+        FROM pg_trigger t
+        JOIN pg_class c ON c.oid = t.tgrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s) AND NOT t.tgisinternal
+        ORDER BY n.nspname, c.relname, t.tgname;
+        
+
+--- QUERY 13 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, c.relname, pg_get_viewdef(c.oid, true)
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s) AND c.relkind IN ('v','m')
+        ORDER BY n.nspname, c.relname;
+        
+
+--- QUERY 14 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, c.relname, p.polname, p.polcmd, p.polpermissive,
+               pg_get_expr(p.polqual, p.polrelid),
+               pg_get_expr(p.polwithcheck, p.polrelid),
+               (SELECT array_agg(rolname) FROM pg_roles r2, unnest(p.polroles) AS proid
+                WHERE r2.oid = proid)
+        FROM pg_policy p
+        JOIN pg_class c ON c.oid = p.polrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s)
+        ORDER BY n.nspname, c.relname, p.polname;
+        
+
+--- QUERY 15 (params=[['platform', 'public']]) ---
+
+        SELECT n.nspname, c.relname, c.relrowsecurity, c.relforcerowsecurity
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ANY(%s) AND c.relkind IN ('r','v','m')
+          AND (c.relrowsecurity OR c.relforcerowsecurity)
+        ORDER BY n.nspname, c.relname;
+        
+
+--- QUERY 16 (params=['public', 'schema_migrations']) ---
+SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s);
+
+--- QUERY 17 (params=['platform', 'schema_revisions']) ---
+SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s);
+
+--- QUERY 18 (params=['platform', 'schema_revisions']) ---
+
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = %s
+              AND data_type LIKE '%%timestamp%%'
+            ORDER BY column_name LIMIT 1;
+            
+
+--- QUERY 19 (params=None) ---
+SAVEPOINT migration_state_probe
+
+--- QUERY 20 (params=None) ---
+SELECT count(*), max("applied_at"::text) FROM platform.schema_revisions
+
+--- QUERY 21 (params=None) ---
+RELEASE SAVEPOINT migration_state_probe
+
+--- QUERY 22 (params=None) ---
+
+        SELECT r.rolname, r.rolsuper, r.rolinherit, r.rolcreaterole,
+               r.rolcreatedb, r.rolcanlogin, r.rolreplication, r.rolbypassrls
+        FROM pg_roles r
+        WHERE r.rolname !~ '^pg_'
+        ORDER BY r.rolname;
+        
+
+--- QUERY 23 (params=None) ---
+
+        SELECT r.rolname AS member, r2.rolname AS role_of
+        FROM pg_auth_members m
+        JOIN pg_roles r ON r.oid = m.member
+        JOIN pg_roles r2 ON r2.oid = m.roleid
+        WHERE r.rolname !~ '^pg_' AND r2.rolname !~ '^pg_'
+        ORDER BY member, role_of;
+        
+
+--- QUERY 24 (params=None) ---
+
+        SELECT n.nspname, c.relname, c.relkind,
+               pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace,
+        aclexplode(c.relacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE n.nspname !~ '^(pg_|information_schema|pg_toast)'
+          AND c.relkind IN ('r','v','m','S','f','p')
+        ORDER BY 1,2,3,4,5,6;
+        
+
+--- QUERY 25 (params=None) ---
+
+        SELECT datname, pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_database d,
+        aclexplode(d.datacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE datname !~ '^template'
+        ORDER BY 1,2,3,4;
+        
+
+--- QUERY 26 (params=None) ---
+
+        SELECT n.nspname, pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_namespace n,
+        aclexplode(n.nspacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE n.nspname !~ '^(pg_|information_schema|pg_toast)'
+        ORDER BY 1,2,3,4;
+        
+
+--- QUERY 27 (params=None) ---
+
+        SELECT n.nspname, p.proname,
+               pg_get_function_identity_arguments(p.oid),
+               pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace,
+        aclexplode(p.proacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE n.nspname !~ '^(pg_|information_schema)'
+        ORDER BY 1,2,3,4,5,6;
+        
+
+--- QUERY 28 (params=None) ---
+
+        SELECT n.nspname, t.typname,
+               pg_get_userbyid(a.grantor), pg_get_userbyid(a.grantee),
+               a.privilege_type, a.is_grantable
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace,
+        aclexplode(t.typacl) AS a(grantor, grantee, privilege_type, is_grantable)
+        WHERE n.nspname !~ '^(pg_|information_schema)'
+        ORDER BY 1,2,3,4,5;
+        
+
+--- QUERY 29 (params=None) ---
+
+        SELECT pg_get_userbyid(d.defaclrole), n.nspname, d.defaclobjtype,
+               array_to_string(d.defaclacl, ',')
+        FROM pg_default_acl d
+        LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
+        ORDER BY 1,2,3;
+        
+
+--- QUERY 30 (params=None) ---
+
+        SELECT n.nspname, c.relname, r.rolname
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_roles r ON r.oid = c.relowner
+        WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast')
+          AND n.nspname NOT LIKE 'pg_temp_%%'
+          AND c.relkind IN ('r','v','m','S','f','p')
+        ORDER BY n.nspname, c.relname;
+        
+
+--- QUERY 31 (params=[['platform', 'public'], ['platform', 'public']]) ---
+
+            SELECT n.nspname, c.relname, con.conname
+            FROM pg_constraint con
+            JOIN pg_class c ON c.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_class c2 ON c2.oid = con.confrelid
+            JOIN pg_namespace n2 ON n2.oid = c2.relnamespace
+            WHERE con.contype = 'f' AND n.nspname = ANY(%s)
+              AND n2.nspname <> ANY(%s)
+            ORDER BY 1,2,3;
+            
+
+--- QUERY 32 (params=[['platform', 'public']]) ---
+
+            SELECT n.nspname, c.relname, con.conname, con.contype
+            FROM pg_constraint con
+            JOIN pg_class c ON c.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = ANY(%s) AND NOT con.convalidated
+            ORDER BY 1,2,3;
+            
+
+--- QUERY 33 (params=None) ---
+SELECT count(*) FROM "platform"."migration_runs";
+
+--- QUERY 34 (params=None) ---
+SELECT count(*) FROM "platform"."reconciliation_results";
+
+--- QUERY 35 (params=None) ---
+SELECT count(*) FROM "platform"."schema_revisions";
+
+--- QUERY 36 (params=None) ---
+SELECT count(*) FROM "platform"."source_profiles";
+
+--- QUERY 37 (params=None) ---
+SELECT count(*) FROM "public"."action_outcomes";
+
+--- QUERY 38 (params=None) ---
+SELECT count(*) FROM "public"."agent_effect_results";
+
+--- QUERY 39 (params=None) ---
+SELECT count(*) FROM "public"."agent_evaluation_runs";
+
+--- QUERY 40 (params=None) ---
+SELECT count(*) FROM "public"."agent_evaluation_scenario_results";
+
+--- QUERY 41 (params=None) ---
+SELECT count(*) FROM "public"."agent_identities";
+
+--- QUERY 42 (params=None) ---
+SELECT count(*) FROM "public"."agent_intentions";
+
+--- QUERY 43 (params=None) ---
+SELECT count(*) FROM "public"."agent_runs";
+
+--- QUERY 44 (params=None) ---
+SELECT count(*) FROM "public"."agent_tool_grants";
+
+--- QUERY 45 (params=None) ---
+SELECT count(*) FROM "public"."alerts";
+
+--- QUERY 46 (params=None) ---
+SELECT count(*) FROM "public"."approval_decisions";
+
+--- QUERY 47 (params=None) ---
+SELECT count(*) FROM "public"."approval_policies";
+
+--- QUERY 48 (params=None) ---
+SELECT count(*) FROM "public"."approval_requests";
+
+--- QUERY 49 (params=None) ---
+SELECT count(*) FROM "public"."artifact_document_versions";
+
+--- QUERY 50 (params=None) ---
+SELECT count(*) FROM "public"."artifact_documents";
+
+--- QUERY 51 (params=None) ---
+SELECT count(*) FROM "public"."artifact_meeting_data";
+
+--- QUERY 52 (params=None) ---
+SELECT count(*) FROM "public"."artifact_templates";
+
+--- QUERY 53 (params=None) ---
+SELECT count(*) FROM "public"."artifacts";
+
+--- QUERY 54 (params=None) ---
+SELECT count(*) FROM "public"."asset_actions";
+
+--- QUERY 55 (params=None) ---
+SELECT count(*) FROM "public"."assets";
+
+--- QUERY 56 (params=None) ---
+SELECT count(*) FROM "public"."audit_logs";
+
+--- QUERY 57 (params=None) ---
+SELECT count(*) FROM "public"."bootstrap_lock";
+
+--- QUERY 58 (params=None) ---
+SELECT count(*) FROM "public"."context_bundles";
+
+--- QUERY 59 (params=None) ---
+SELECT count(*) FROM "public"."context_edge_evidence";
+
+--- QUERY 60 (params=None) ---
+SELECT count(*) FROM "public"."context_edges";
+
+--- QUERY 61 (params=None) ---
+SELECT count(*) FROM "public"."context_nodes";
+
+--- QUERY 62 (params=None) ---
+SELECT count(*) FROM "public"."context_relation_reviews";
+
+--- QUERY 63 (params=None) ---
+SELECT count(*) FROM "public"."docs";
+
+--- QUERY 64 (params=None) ---
+SELECT count(*) FROM "public"."idempotency_keys";
+
+--- QUERY 65 (params=None) ---
+SELECT count(*) FROM "public"."incidents";
+
+--- QUERY 66 (params=None) ---
+SELECT count(*) FROM "public"."integration_api_keys";
+
+--- QUERY 67 (params=None) ---
+SELECT count(*) FROM "public"."invitations";
+
+--- QUERY 68 (params=None) ---
+SELECT count(*) FROM "public"."knowledge_chunks";
+
+--- QUERY 69 (params=None) ---
+SELECT count(*) FROM "public"."knowledge_collection_items";
+
+--- QUERY 70 (params=None) ---
+SELECT count(*) FROM "public"."knowledge_collections";
+
+--- QUERY 71 (params=None) ---
+SELECT count(*) FROM "public"."knowledge_items";
+
+--- QUERY 72 (params=None) ---
+SELECT count(*) FROM "public"."mfa_challenges";
+
+--- QUERY 73 (params=None) ---
+SELECT count(*) FROM "public"."mfa_recovery_codes";
+
+--- QUERY 74 (params=None) ---
+SELECT count(*) FROM "public"."object_comments";
+
+--- QUERY 75 (params=None) ---
+SELECT count(*) FROM "public"."object_links";
+
+--- QUERY 76 (params=None) ---
+SELECT count(*) FROM "public"."object_storage_refs";
+
+--- QUERY 77 (params=None) ---
+SELECT count(*) FROM "public"."objects";
+
+--- QUERY 78 (params=None) ---
+SELECT count(*) FROM "public"."outbox_events";
+
+--- QUERY 79 (params=None) ---
+SELECT count(*) FROM "public"."password_reset_tokens";
+
+--- QUERY 80 (params=None) ---
+SELECT count(*) FROM "public"."permissions";
+
+--- QUERY 81 (params=None) ---
+SELECT count(*) FROM "public"."platform_roles";
+
+--- QUERY 82 (params=None) ---
+SELECT count(*) FROM "public"."proxmox_mutation_windows";
+
+--- QUERY 83 (params=None) ---
+SELECT count(*) FROM "public"."recommendation_evidence";
+
+--- QUERY 84 (params=None) ---
+SELECT count(*) FROM "public"."refresh_tokens";
+
+--- QUERY 85 (params=None) ---
+SELECT count(*) FROM "public"."remediation_proposals";
+
+--- QUERY 86 (params=None) ---
+SELECT count(*) FROM "public"."remediation_steps";
+
+--- QUERY 87 (params=None) ---
+SELECT count(*) FROM "public"."role_permissions";
+
+--- QUERY 88 (params=None) ---
+SELECT count(*) FROM "public"."roles";
+
+--- QUERY 89 (params=None) ---
+SELECT count(*) FROM "public"."saved_knowledge_answers";
+
+--- QUERY 90 (params=None) ---
+SELECT count(*) FROM "public"."storage_objects";
+
+--- QUERY 91 (params=None) ---
+SELECT count(*) FROM "public"."team_access_grants";
+
+--- QUERY 92 (params=None) ---
+SELECT count(*) FROM "public"."team_memberships";
+
+--- QUERY 93 (params=None) ---
+SELECT count(*) FROM "public"."teams";
+
+--- QUERY 94 (params=None) ---
+SELECT count(*) FROM "public"."tool_registry";
+
+--- QUERY 95 (params=None) ---
+SELECT count(*) FROM "public"."user_mfa_factors";
+
+--- QUERY 96 (params=None) ---
+SELECT count(*) FROM "public"."user_platform_roles";
+
+--- QUERY 97 (params=None) ---
+SELECT count(*) FROM "public"."user_sessions";
+
+--- QUERY 98 (params=None) ---
+SELECT count(*) FROM "public"."user_webauthn_credentials";
+
+--- QUERY 99 (params=None) ---
+SELECT count(*) FROM "public"."users";
+
+--- QUERY 100 (params=None) ---
+SELECT count(*) FROM "public"."work_items";

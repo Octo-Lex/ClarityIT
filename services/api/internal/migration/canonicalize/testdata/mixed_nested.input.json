@@ -1,0 +1,20 @@
+{
+  "schema": "public",
+  "Relations": [
+    {
+      "Name": "z",
+      "id": 2
+    },
+    {
+      "Name": "a",
+      "id": 1
+    }
+  ],
+  "flags": {
+    "nullable": true,
+    "pk": false,
+    "note": null
+  },
+  "count": 7,
+  "tag": "café 😀 <tag>"
+}

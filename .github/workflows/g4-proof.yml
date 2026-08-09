@@ -1,0 +1,142 @@
+# .github/workflows/g4-proof.yml — the G4 proof matrix (non-blocking).
+#
+# Runs all 11 G4-AUTHORIZATION-AND-PLAN.md §4 evidence rows on Ubuntu CI with
+# the pinned PostgreSQL 16 image and Go 1.25. This workflow is NON-BLOCKING:
+# making it a required status check is G5 and remains unauthorized.
+#
+# The workflow also runs the Python governed_fingerprint/capture_schema oracle
+# as cross-validation. The retained run ID is the evidence of record for the
+# eventual G4-APPROVALS.md receipt.
+#
+# Triggers: push to wp00/g4-migration-runner + workflow_dispatch.
+name: G4 Proof Matrix
+
+on:
+  push:
+    branches: [wp00/g4-migration-runner]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PG_IMAGE: postgres@sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382
+  GO_VERSION: "1.25"
+
+jobs:
+  g4-matrix:
+    name: G4 Evidence Matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          working-directory: services/api
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies (oracle)
+        run: pip install psycopg2-binary
+
+      - name: Pull pinned PostgreSQL image
+        run: docker pull ${{ env.PG_IMAGE }}
+
+      - name: Build clarity-migrate CLI (ldflags-bound)
+        working-directory: services/api
+        run: |
+          IMPL_SHA=$(git rev-parse HEAD)
+          RELEASE_ID="g4-proof-${IMPL_SHA:0:12}"
+          go build -ldflags "-X main.ProducingCommit=${IMPL_SHA} -X main.ReleaseID=${RELEASE_ID}" \
+            -o /tmp/clarity-migrate ./cmd/clarity-migrate/
+          echo "Built CLI with commit=${IMPL_SHA} release=${RELEASE_ID}"
+
+      - name: Run G4 evidence matrix
+        env:
+          CLARITY_MIGRATE: /tmp/clarity-migrate
+        run: |
+          bash scripts/migration/run_g4_matrix.sh 2>&1 | tee g4-matrix-output.txt
+          # Capture the exit code.
+          MATRIX_EXIT=${PIPESTATUS[0]}
+          echo "G4_MATRIX_EXIT=${MATRIX_EXIT}" >> $GITHUB_ENV
+          exit $MATRIX_EXIT
+
+      - name: Upload matrix evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g4-matrix-evidence
+          path: |
+            g4-matrix-output.txt
+          retention-days: 30
+
+      - name: Upload sanitized logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g4-sanitized-logs
+          path: |
+            g4-matrix-output.txt
+          retention-days: 30
+
+  # Separate job for the Python oracle cross-validation.
+  g4-oracle:
+    name: G4 Python Oracle
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install psycopg2-binary
+
+      - name: Pull pinned PostgreSQL image
+        run: docker pull ${{ env.PG_IMAGE }}
+
+      - name: Oracle — governed fingerprint fresh install
+        run: |
+          # Start a fresh PG16 container and apply the full G3 chain.
+          docker run -d --name oracle-fresh \
+            -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=clarityit -e POSTGRES_USER=postgres \
+            -p 58001:5432 ${{ env.PG_IMAGE }}
+          for i in $(seq 1 40); do
+            docker exec oracle-fresh pg_isready -U postgres -d clarityit >/dev/null 2>&1 && break
+            sleep 1
+          done
+          for f in migrations/v2/bootstrap/0000_roles.sql migrations/v2/bootstrap/0000_platform.sql \
+                   migrations/v2/baseline/0001_reconciled.sql migrations/v2/baseline/0001_seed.sql; do
+            docker exec -i oracle-fresh psql -U postgres -d clarityit -v ON_ERROR_STOP=1 -q < "$f"
+          done
+          # Run the Python governed_fingerprint oracle.
+          python3 -c "
+          import sys, json
+          sys.path.insert(0, 'scripts/migration')
+          sys.path.insert(0, 'scripts/profile')
+          import psycopg2
+          from governed_fingerprint import governed_capture, governed_fingerprint
+          conn = psycopg2.connect(host='localhost', port=58001, dbname='clarityit', user='postgres', password='postgres', options='-c default_transaction_read_only=on')
+          cur = conn.cursor(); cur.execute('SET TRANSACTION READ ONLY')
+          signed = json.load(open('migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json'))
+          control = json.load(open('migrations/v2/manifests/CONTROL-SCHEMA-MANIFEST.json'))
+          cap = governed_capture(cur, signed, control)
+          fp = governed_fingerprint(cap)
+          print(f'PYTHON_ORACLE_GOVERNED_FP: {fp}')
+          assert fp == '9881c93e79b825963d3c3434de23a3900b3797b181ad0413bafaa5dc4dbc7de6', f'MISMATCH: {fp}'
+          print('PYTHON_ORACLE: PASS')
+          "
+          docker rm -f oracle-fresh >/dev/null 2>&1

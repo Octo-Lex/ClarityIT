@@ -1,0 +1,32 @@
+name: G3 Proof Matrix
+
+on:
+  push:
+    branches:
+      - wp00/g3-reconciled-baseline-recovery
+  workflow_dispatch:
+
+jobs:
+  g3-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install psycopg2-binary
+
+      - name: Static + unit tests
+        run: |
+          python3 scripts/migration/generate_g3.py --check
+          python3 -m unittest scripts/migration/test_generate_g3.py -v
+          python3 scripts/migration/verify_g3.py static
+
+      - name: Full live matrix (two fresh + P3 adopt + drift + atomicity)
+        run: bash scripts/migration/validate_g3.sh live

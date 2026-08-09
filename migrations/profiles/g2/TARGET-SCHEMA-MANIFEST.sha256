@@ -1,0 +1,9 @@
+# Detached checksum for the G2 target manifest.
+# CI (validate_g2.sh Step 0) ASSERTS the committed Git blob's SHA-256 against
+# the value below — read via `git cat-file blob`, so it is the repository
+# artifact, not a platform-specific working-tree representation. Fail-closed.
+#
+# This is the authoritative identity. The receipt (G2-APPROVALS.md) must cite
+# exactly this value; a mismatch fails CI.
+TARGET-SCHEMA-MANIFEST.json:1f6e31422461173cd4b4671417809f8b819bad493efec2fb0a5cdd2783d37a63
+TARGET-SCHEMA-MANIFEST.json:size:284064

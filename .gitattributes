@@ -2,3 +2,23 @@
 docs/v2/** text eol=lf
 docs/v2/**/*.png binary
 docs/v2/**/*.docx binary
+
+# The G2 target manifest and profile fixtures carry a receipt-cited SHA-256.
+# Pin LF so the working-tree bytes equal the committed blob bytes on every
+# platform (no CRLF expansion), making the cited digest match the artifact
+# CI tests. Without this, Windows checkouts read a different digest than the
+# repository blob, and receipts can silently cite the wrong bytes.
+migrations/profiles/g2/** text eol=lf
+
+# G3 checksums and composite identities are computed from repository bytes.
+migrations/legacy/v1/** text eol=lf
+migrations/v2/** text eol=lf
+scripts/migration/** text eol=lf
+docs/migration/wp00/g3/** text eol=lf
+
+# The frozen legacy source SQL files (migrations/0NN_*.sql) and the P3 fixture
+# are G3 inputs: the legacy archive is byte-copied from the signed G2 blobs and
+# the P3 fixture is the adoption source.  Pin LF so Windows working-tree bytes
+# equal the committed blobs (no autocrlf CRLF expansion).
+migrations/0[0-4][0-9]_*.sql text eol=lf
+migrations/profiles/p3/** text eol=lf

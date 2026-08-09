@@ -1,0 +1,82 @@
+{
+  "adoption": {
+    "adoption_sql_sha256": "a89ab852b7add6e130bc9ed941caa4329f3024a5c1d3cabd7b25ba2f89a64359",
+    "adoption_sql_size": 50187,
+    "baseline_checksum": "1021adefe8b5edaae13010a713cdde594f084a66b9d4012940603ee4a94e0508",
+    "description": "P3 approved-source adoption artifact; distinct from fresh-install composite.",
+    "g1_approval_ref": "3b4a6fdeb35473e5f73ca74bafa479bd2648fb10",
+    "p3_appfn_body_digest": "143cc88d07fa638c9e4d2a515140b987db210c6f381537ed7d6e75dff664f0f8",
+    "p3_appfn_sig_digest": "53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0",
+    "p3_column_digest": "d9f5770ec46f18cb19c0037241a183667731914084a71f1c27a481a16ea08b0d",
+    "p3_constraint_digest": "87372790e05c745ee3867cfe89d06df1017c9247615f0b7d98b8d55eba99fdf3",
+    "p3_golden_fingerprint": "cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b",
+    "p3_index_digest": "6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3",
+    "p3_profile_id": "7c5cb0b9-1fb4-540d-9433-f0196ff6f7bb",
+    "p3_sequence_digest": "1d5f4ddaff8fd246b75c680cff3323a21452227406f593ad198039a3387d9f52",
+    "p3_source_commit": "29c4cdcb4c7bd9f13209f5627b55f4fabbd08a33",
+    "p3_trigger_digest": "b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333"
+  },
+  "artifact": "ClarityIT WP-00 G3 reconciled baseline (A4)",
+  "components": {
+    "migrations/legacy/v1/SHA256SUMS": {
+      "sha256": "f20660566fef4be7974b72e6159f40c9b7af9fe1f9325837a89bd43d6c845e7c",
+      "size": 4181
+    },
+    "migrations/v2/baseline/0001_reconciled.sql": {
+      "sha256": "1021adefe8b5edaae13010a713cdde594f084a66b9d4012940603ee4a94e0508",
+      "size": 84868
+    },
+    "migrations/v2/baseline/0001_seed.sql": {
+      "sha256": "afc923bd77172810dfbea9ab21c5e4244050e51b52686a25203356764a78d990",
+      "size": 2290
+    },
+    "migrations/v2/bootstrap/0000_platform.sql": {
+      "sha256": "3e3ace0d2bbb9378c31f012bf85e56a8657ffec37622d6216bbdff882768fbec",
+      "size": 4989
+    },
+    "migrations/v2/bootstrap/0000_roles.sql": {
+      "sha256": "a6fb24da88c1d265d9b511745198d333dfe357027343310e07206f415af53163",
+      "size": 4784
+    },
+    "migrations/v2/manifests/CONTROL-SCHEMA-MANIFEST.json": {
+      "sha256": "3fd65e917ded8b7d59a1f42051b69f41e4b5c24f583f9524deaccdfdfb1add66",
+      "size": 7058
+    }
+  },
+  "composite": {
+    "algorithm": "SHA-256(domain + repeated uint32be(label_len), label, uint64be(data_len), data)",
+    "component_order": [
+      "product_manifest_blob_sha256",
+      "control_manifest",
+      "baseline_sql",
+      "seed_sql",
+      "role_bootstrap_sql",
+      "legacy_checksum_inventory"
+    ],
+    "domain": "clarityit-g3-composite-v1\\0",
+    "sha256": "8af2c9f55e9f8661f111d90abf4f6037dafc9db7c9a3971665b9748d37b34084"
+  },
+  "counts": {
+    "application_functions": 10,
+    "canonical_permissions": 7,
+    "legacy_migrations": 40,
+    "platform_tables": 4,
+    "product_tables": 64
+  },
+  "database_name": "clarityit",
+  "format_version": 1,
+  "frozen_g2": {
+    "commit": "f04f94faad0105d1c3274e9c7974d44f936a0d28",
+    "manifest_blob_sha256": "1f6e31422461173cd4b4671417809f8b819bad493efec2fb0a5cdd2783d37a63",
+    "manifest_blob_size": 284064,
+    "manifest_path": "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json"
+  },
+  "generator": "g3-baseline-generator-v1",
+  "governed_fingerprint": {
+    "algorithm": "clarityit-g3-governed-v1",
+    "description": "Deterministic projection over the signed G2 contract: governed product+platform objects, five target roles/memberships, closed-inventory grants (excluding grantor + extension objects), projected ownership (including database owner), effective default privileges, and the extension-owner invariant (boolean, not name). Fresh installs and P3-adopted databases converge on this fingerprint.",
+    "domain": "clarityit-g3-governed-v1\\0",
+    "target_sha256": "9881c93e79b825963d3c3434de23a3900b3797b181ad0413bafaa5dc4dbc7de6"
+  },
+  "postgres_major": 16
+}
