@@ -1,11 +1,11 @@
 # ClarityIT v2 Project Completion Authority
 
 **Status:** Current authoritative project handoff
-**Snapshot date:** 5 August 2026
-**Integrated baseline:** `wp00/g2-schema-decisions` at the commit containing this record, descended from `ac7222737e14796174ed78420f1f388e6c21170b`
-**Current completed boundary:** WP-00 G3 closed, signed, and integrated; PR #13 authority/architecture update integrated
-**Current authorized activity:** G4 Go migration runner implementation under `G4-AUTH-2026-08-05`; G4 is not accepted
-**Next gate:** G4 acceptance; G5 remains unauthorized
+**Snapshot date:** 10 August 2026
+**Integrated baseline:** `main` at `b31a7c5cd0ba132cb179db5751e8e2b8f339639f`, descended from G4 implementation squash `f769cd3815ea08194b56c267cfa3b30fb7a12fd9`
+**Current completed boundary:** WP-00 G4 accepted, signed, and integrated; Go migration runner on `main`
+**Current authorized activity:** G5 authorization (separately governed); G4 acceptance receipt recorded
+**Next gate:** G5 authorization; G5 remains not started until separately authorized
 
 ## 1. Purpose
 
@@ -133,8 +133,8 @@ test does not skip an earlier decision, and code presence does not close a gate.
 | G1 — profiles and restore | **Closed**, 2026-08-01 | [`migrations/profiles/G1-APPROVALS.md`](../../migrations/profiles/G1-APPROVALS.md), closure commit `0dd21d8` | Development-only trust exception remains in force |
 | G2 — schema decisions and target | **Closed**, 2026-08-02 | [`migrations/profiles/g2/G2-APPROVALS.md`](../../migrations/profiles/g2/G2-APPROVALS.md), signed commit `f04f94f...` | Target manifest is a read-only G3 input |
 | G3 — reconciled baseline | **Closed, signed, integrated**, 2026-08-04 | [G3 approval receipt](../migration/wp00/g3/G3-APPROVALS.md), signed tip `97f83e4...`, authority integration root `ac722273...` | Preserve identities and ancestry |
-| G4 — Go migration runner | **Authorized to implement; not accepted**, 2026-08-05 | [G4 authorization and package plan](../migration/wp00/g4/G4-AUTHORIZATION-AND-PLAN.md), `G4-AUTH-2026-08-05` | Implement only the bounded plan; Database + Backend acceptance receipt required; no G5 work |
-| G5 — blocking CI matrix | **Not started** | WP-00 WS5/G5 contract | Begins only after G4 acceptance; existing green CI does not by itself pass G5 |
+| G4 — Go migration runner | **Accepted, signed, integrated**, 2026-08-10 | [G4 approval receipt](../migration/wp00/g4/G4-APPROVALS.md), implementation squash `f769cd3815ea08194b56c267cfa3b30fb7a12fd9`, authority tip `b31a7c5cd0ba132cb179db5751e8e2b8f339639f`, Linux CI run `31336112238` | G5 now separately governable; no G5 work authorized by this acceptance |
+| G5 — blocking CI matrix | **Not started** | WP-00 WS5/G5 contract | Begins only after separate G5 authorization; existing green G4-proof CI does not by itself pass G5 |
 | G6 — WP-00 acceptance | **Not started** | WP-00 AC-00-01 through AC-00-30 and signed A11 evidence | No conditional or partial acceptance |
 
 The immediate technical sequence is G4 implementation and acceptance, then a
@@ -166,7 +166,7 @@ later package requires its own approval and package plan before implementation.
 
 | Release | Work packages | Required outcome | Current status |
 |---|---|---|---|
-| Foundation | WP-00, WP-01 | Reproducible migration foundation and authoritative kernel foundation | WP-00 G4 authorized; not accepted |
+| Foundation | WP-00, WP-01 | Reproducible migration foundation and authoritative kernel foundation | WP-00 G4 accepted and integrated |
 | R1 — Verified VM Recovery | WP-02, WP-03 | One governed `compute.virtual_machine.start` lineage on one enrolled non-production VM, independently verified and human-accepted | Not started |
 | R2 — Private and Reusable Operations | WP-04, WP-05 | Private-zone execution plus reviewed knowledge and skills | Not started; blocked by R1 |
 | R3 — Evented and Project Work | WP-06, WP-07 | Governed Signals, Routines, Projects, and software-delivery contexts | Not started |
