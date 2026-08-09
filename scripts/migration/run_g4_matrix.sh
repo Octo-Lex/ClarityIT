@@ -120,25 +120,26 @@ echo "--- G4-02: Approved P3 adoption ---"
 docker rm -f g4-matrix-02 >/dev/null 2>&1 || true
 docker run -d --name g4-matrix-02 \
 	-e POSTGRES_PASSWORD=clarityit -e POSTGRES_DB=clarityit -e POSTGRES_USER=clarityit \
-	-p 57003:5432 "$PG_IMAGE" >/dev/null
-for i in $(seq 1 40); do docker exec g4-matrix-02 pg_isready -U clarityit -d clarityit >/dev/null 2>&1 && break; sleep 1; done
+	-p 57003:5432 "$PG_IMAGE" >/dev/null 2>&1
+# Wait for readiness (up to 60s, same as start_pg).
+for i in $(seq 1 60); do docker exec g4-matrix-02 pg_isready -U clarityit -d clarityit >/dev/null 2>&1 && break; sleep 1; done
+sleep 2  # extra margin for the pinned image
 # Apply P3 schema + seed (the cedf689d source shape).
 docker exec -i g4-matrix-02 psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 -q < migrations/profiles/p3/schema.sql >/dev/null 2>&1
 docker exec -i g4-matrix-02 psql -U clarityit -d clarityit -v ON_ERROR_STOP=1 -q < migrations/profiles/p3/seed.sql >/dev/null 2>&1
 DSN_P3="postgres://clarityit:clarityit@localhost:57003/clarityit?sslmode=disable"
-if "$CLI_BIN" apply -dsn "$DSN_P3" -actor matrix -release "$RELEASE_ID" -evidence "$EVIDENCE_REF" >/dev/null 2>&1; then
+# Capture the apply output (the CLI exits non-zero after adoption because the
+# pool's clarityit credentials change; the apply itself may have succeeded).
+APPLY_02_OUT=$("$CLI_BIN" apply -dsn "$DSN_P3" -actor matrix -release "$RELEASE_ID" -evidence "$EVIDENCE_REF" 2>/dev/null || true)
+# Check if adoption succeeded by verifying via docker exec (local trust auth).
+FP_02=$(docker exec -u postgres g4-matrix-02 psql -U clarityit -d clarityit -tAc \
+	"SELECT left(checksum,12) FROM platform.schema_revisions WHERE version='0001'" 2>/dev/null || true)
+if [[ "$FP_02" == "1021adefe8b5" ]]; then
+	row_result 02 approved_p3_adoption PASS
+elif echo "$APPLY_02_OUT" | grep -q '"governed_fingerprint":"9881c93e'; then
 	row_result 02 approved_p3_adoption PASS
 else
-	# P3 adoption changes clarityit credentials; apply failure may be expected
-	# on the no-op rerun. Check if the first apply succeeded by verifying
-	# via docker exec.
-	FP=$(docker exec -u postgres g4-matrix-02 psql -U clarityit -d clarityit -tAc \
-		"SELECT left(checksum,12) FROM platform.schema_revisions WHERE version='0001'" 2>/dev/null || true)
-	if [[ "$FP" == "1021adefe8b5" ]]; then
-		row_result 02 approved_p3_adoption PASS
-	else
-		row_result 02 approved_p3_adoption FAIL
-	fi
+	row_result 02 approved_p3_adoption "FAIL:checksum=${FP_02:-none}"
 fi
 docker rm -f g4-matrix-02 >/dev/null 2>&1 || true
 
