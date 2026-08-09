@@ -37,7 +37,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          working-directory: services/api
+          go-version-file: services/api/go.mod
 
       - name: Set up Python
         uses: actions/setup-python@v5
