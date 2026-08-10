@@ -149,16 +149,16 @@ func runApply(ctx context.Context, dsn, actor, releaseID, evidenceRef string) {
 		statusStr = "no_op"
 	}
 	out := migration.Result{
-		Status:    statusStr,
-		Code:      res.Code,
-		Phase:     migration.PhaseApply,
+		Status:     statusStr,
+		Code:       res.Code,
+		Phase:      migration.PhaseApply,
 		DDLStarted: res.DDLStarted,
-		Class:     res.Class,
-		Path:      res.Path,
+		Class:      res.Class,
+		Path:       res.Path,
 		GovernedFP: res.GovernedFingerprint,
-		RunID:     res.RunID,
+		RunID:      res.RunID,
 		TargetVersion: "0001",
-		DurationMs: res.ExecutionMs,
+		DurationMs:     res.ExecutionMs,
 	}
 	if res.Err != nil {
 		out.Status = "blocked"
