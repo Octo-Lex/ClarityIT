@@ -34,10 +34,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: services/api/go.sum
 
       - name: Verify formatting
         run: |
-          files=$(gofmt -l services/api)
+          files=$(find services/api -type f -name '*.go' -print0 | xargs -0 gofmt -l)
           if [ -n "$files" ]; then
             echo "gofmt required:" >&2
             echo "$files" >&2
@@ -76,6 +77,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: services/api/go.sum
 
       - name: Pull pinned PostgreSQL image
         run: docker pull ${{ env.PG_IMAGE }}
@@ -169,7 +171,7 @@ jobs:
       - name: Verify G2 grant inventory and receipt/blob binding
         run: |
           python3 - <<'PY' 2>&1 | tee -a g5-artifact-audit.txt
-          import hashlib, json, re, subprocess, sys
+          import hashlib, json, re, subprocess
           manifest_path = "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json"
           checksum_path = "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.sha256"
           receipt_path = "migrations/profiles/g2/G2-APPROVALS.md"
