@@ -36,15 +36,31 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: services/api/go.sum
 
-      - name: Verify formatting
+      - name: Verify formatting of changed Go files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
-          files=$(find services/api -type f -name '*.go' -print0 | xargs -0 gofmt -l)
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_BASE_SHA" ]; then
+            base="$PR_BASE_SHA"
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$PUSH_BEFORE_SHA" ] && ! echo "$PUSH_BEFORE_SHA" | grep -q '^0\{40\}$'; then
+            base="$PUSH_BEFORE_SHA"
+          else
+            base=$(git rev-parse HEAD^)
+          fi
+          mapfile -t go_files < <(git diff --name-only "$base" HEAD -- 'services/api/**/*.go' 'services/api/*.go' | sort -u)
+          if [ "${#go_files[@]}" -eq 0 ]; then
+            echo "BACKEND-STATIC gofmt PASS: no changed Go files"
+            exit 0
+          fi
+          files=$(gofmt -l "${go_files[@]}")
           if [ -n "$files" ]; then
-            echo "gofmt required:" >&2
+            echo "gofmt required for changed Go files:" >&2
             echo "$files" >&2
             exit 1
           fi
-          echo "BACKEND-STATIC gofmt PASS"
+          echo "BACKEND-STATIC gofmt PASS: ${#go_files[@]} changed Go file(s)"
 
       - name: Vet and build API
         working-directory: services/api
