@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -81,7 +82,7 @@ func TestRealClientSanitizesSecretsInErrors(t *testing.T) {
 	client := NewRealProxmoxClient(ts.URL, "root@pam!test", secret, false)
 	_, err := client.ListNodes(context.Background())
 	if err == nil { t.Fatal("expected error") }
-	if contains(err.Error(), secret) { t.Error("secret leaked in error message") }
+	if strings.Contains(err.Error(), secret) { t.Error("secret leaked in error message") }
 }
 
 func TestRealClientAPIError(t *testing.T) {
@@ -106,15 +107,4 @@ func TestRealClientInterfaceHasNoMutationMethods(t *testing.T) {
 	// v1.0: ProxmoxClient now has controlled mutation methods (StartVM, ShutdownVM, StopVM, SnapshotVM)
 	// Forbidden mutations (delete, migrate, clone, etc.) are verified in readonly_test.go
 	var _ ProxmoxClient = (*RealProxmoxClient)(nil)
-}
-
-func contains(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(sub) == 0 || containsHelper(s, sub))
-}
-
-func containsHelper(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub { return true }
-	}
-	return false
 }
