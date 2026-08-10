@@ -18,6 +18,9 @@ env:
   PG_IMAGE: postgres@sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382
   GO_VERSION: "1.25"
   PYTHON_VERSION: "3.12"
+  # Pull-request workflows normally checkout GitHub's synthetic merge ref.
+  # G5 evidence must instead bind the exact candidate implementation head.
+  CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   backend-static:
@@ -29,6 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.CANDIDATE_SHA }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -42,6 +46,7 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_BASE_SHA" ]; then
             base="$PR_BASE_SHA"
           elif [ "$EVENT_NAME" = "push" ] && [ -n "$PUSH_BEFORE_SHA" ] && ! echo "$PUSH_BEFORE_SHA" | grep -q '^0\{40\}$'; then
@@ -73,6 +78,7 @@ jobs:
         working-directory: services/api
         run: |
           IMPL_SHA=$(git rev-parse HEAD)
+          test "$IMPL_SHA" = "$CANDIDATE_SHA"
           RELEASE_ID="g5-${IMPL_SHA:0:12}"
           go build -ldflags "-X main.ProducingCommit=${IMPL_SHA} -X main.ReleaseID=${RELEASE_ID}" \
             -o /tmp/clarity-migrate ./cmd/clarity-migrate/
@@ -88,6 +94,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.CANDIDATE_SHA }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -100,10 +107,12 @@ jobs:
 
       - name: Run accepted G4 regression matrix
         run: |
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           set -o pipefail
           bash scripts/migration/run_g4_matrix.sh 2>&1 | tee g5-db-foundation.txt
           rc=${PIPESTATUS[0]}
           test "$rc" -eq 0
+          grep -q "^Implementation SHA: ${CANDIDATE_SHA}$" g5-db-foundation.txt
           grep -q '^G4-01 fresh_install_ab PASS$' g5-db-foundation.txt
           grep -q '^G4-02 approved_p3_adoption PASS$' g5-db-foundation.txt
           grep -q '^G4-03 unknown_drifted_source PASS$' g5-db-foundation.txt
@@ -125,7 +134,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: g5-db-foundation-${{ github.sha }}
+          name: g5-db-foundation-${{ env.CANDIDATE_SHA }}
           path: g5-db-foundation.txt
           retention-days: 30
 
@@ -138,6 +147,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.CANDIDATE_SHA }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -146,6 +156,7 @@ jobs:
 
       - name: Validate frozen legacy classification fixture
         run: |
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           set -o pipefail
           python3 scripts/migration/validate_g5_historical_truth.py 2>&1 | tee g5-historical-truth.txt
           grep -q '^HISTORICAL-TRUTH PASS: 5 / 5; zero authoritative promotions$' g5-historical-truth.txt
@@ -154,7 +165,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: g5-historical-truth-${{ github.sha }}
+          name: g5-historical-truth-${{ env.CANDIDATE_SHA }}
           path: g5-historical-truth.txt
           retention-days: 30
 
@@ -167,6 +178,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.CANDIDATE_SHA }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -175,6 +187,7 @@ jobs:
 
       - name: Verify G3 generated artifacts and static contract
         run: |
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           set -o pipefail
           {
             python3 scripts/migration/generate_g3.py --check
@@ -242,7 +255,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: g5-artifact-audit-${{ github.sha }}
+          name: g5-artifact-audit-${{ env.CANDIDATE_SHA }}
           path: g5-artifact-audit.txt
           retention-days: 30
 
@@ -265,7 +278,7 @@ jobs:
         run: |
           cat > g5-results.json <<EOF
           {
-            "candidate_sha": "${GITHUB_SHA}",
+            "candidate_sha": "${CANDIDATE_SHA}",
             "backend_static": "${BACKEND_STATIC}",
             "db_foundation_matrix": "${DB_FOUNDATION}",
             "historical_truth": "${HISTORICAL_TRUTH}",
@@ -279,12 +292,12 @@ jobs:
           test "$DB_FOUNDATION" = success
           test "$HISTORICAL_TRUTH" = success
           test "$ARTIFACT_AUDIT" = success
-          echo "G5 FOUNDATION GATE PASS"
+          echo "G5 FOUNDATION GATE PASS candidate=${CANDIDATE_SHA}"
 
       - name: Upload G5 summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: g5-results-${{ github.sha }}
+          name: g5-results-${{ env.CANDIDATE_SHA }}
           path: g5-results.json
           retention-days: 30
