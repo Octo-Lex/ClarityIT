@@ -1,0 +1,272 @@
+# WP-00 G5 — blocking foundation gate.
+#
+# G5 promotes the accepted WP-00 foundation evidence into a merge-enforcement
+# contract. It does not change G4 runner semantics and does not authorize G6.
+name: WP-00 G5 Foundation Gate
+
+on:
+  push:
+    branches: [main, wp00/g5-blocking-ci]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PG_IMAGE: postgres@sha256:7a396fd264a2067788b6551122b50f162bf6136312c7fc9d74381cb92c648382
+  GO_VERSION: "1.25"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  backend-static:
+    name: G5 backend-static
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Verify formatting
+        run: |
+          files=$(gofmt -l services/api)
+          if [ -n "$files" ]; then
+            echo "gofmt required:" >&2
+            echo "$files" >&2
+            exit 1
+          fi
+          echo "BACKEND-STATIC gofmt PASS"
+
+      - name: Vet and build API
+        working-directory: services/api
+        run: |
+          go vet ./...
+          go build ./...
+          echo "BACKEND-STATIC vet-build PASS"
+
+      - name: Build migration CLI with candidate SHA
+        working-directory: services/api
+        run: |
+          IMPL_SHA=$(git rev-parse HEAD)
+          RELEASE_ID="g5-${IMPL_SHA:0:12}"
+          go build -ldflags "-X main.ProducingCommit=${IMPL_SHA} -X main.ReleaseID=${RELEASE_ID}" \
+            -o /tmp/clarity-migrate ./cmd/clarity-migrate/
+          /tmp/clarity-migrate --help >/dev/null 2>&1 || true
+          echo "BACKEND-STATIC cli-build PASS commit=${IMPL_SHA}"
+
+  db-foundation-matrix:
+    name: G5 database foundation matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Pull pinned PostgreSQL image
+        run: docker pull ${{ env.PG_IMAGE }}
+
+      - name: Run accepted G4 regression matrix
+        run: |
+          set -o pipefail
+          bash scripts/migration/run_g4_matrix.sh 2>&1 | tee g5-db-foundation.txt
+          rc=${PIPESTATUS[0]}
+          test "$rc" -eq 0
+          grep -q '^G4-01 fresh_install_ab PASS$' g5-db-foundation.txt
+          grep -q '^G4-02 approved_p3_adoption PASS$' g5-db-foundation.txt
+          grep -q '^G4-03 unknown_drifted_source PASS$' g5-db-foundation.txt
+          grep -q '^G4-04 packaged_checksum_mutation PASS$' g5-db-foundation.txt
+          grep -q '^G4-05 advisory_lock_contention PASS$' g5-db-foundation.txt
+          grep -q '^G4-06 tx_failure_rerun PASS$' g5-db-foundation.txt
+          grep -q '^G4-07 nontransactional_path PASS:path_absent$' g5-db-foundation.txt
+          grep -q '^G4-08 verify_mode PASS$' g5-db-foundation.txt
+          grep -q '^G4-09 privilege_boundary PASS$' g5-db-foundation.txt
+          grep -q '^G4-10 legacy_exclusion PASS$' g5-db-foundation.txt
+          grep -q '^G4-11 evidence_hygiene PASS$' g5-db-foundation.txt
+          grep -q '^ALL G4 EVIDENCE ROWS PASS$' g5-db-foundation.txt
+          echo "DB-FRESH PASS"
+          echo "DB-ADOPT-P3 PASS"
+          echo "DB-NEGATIVE PASS"
+          echo "DB-RESTART-LOCK PASS"
+
+      - name: Upload database foundation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g5-db-foundation-${{ github.sha }}
+          path: g5-db-foundation.txt
+          retention-days: 30
+
+  historical-truth:
+    name: G5 historical-truth
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Validate frozen legacy classification fixture
+        run: |
+          set -o pipefail
+          python3 scripts/migration/validate_g5_historical_truth.py 2>&1 | tee g5-historical-truth.txt
+          grep -q '^HISTORICAL-TRUTH PASS: 5 / 5; zero authoritative promotions$' g5-historical-truth.txt
+
+      - name: Upload historical-truth evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g5-historical-truth-${{ github.sha }}
+          path: g5-historical-truth.txt
+          retention-days: 30
+
+  artifact-audit:
+    name: G5 artifact-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Verify G3 generated artifacts and static contract
+        run: |
+          set -o pipefail
+          {
+            python3 scripts/migration/generate_g3.py --check
+            python3 -m unittest scripts/migration/test_generate_g3.py -v
+            python3 scripts/migration/verify_g3.py static
+            grep -v '^#' migrations/v2/manifests/SHA256SUMS | grep -v '^$' | sha256sum -c -
+            (cd migrations/legacy/v1 && grep -v '^#' SHA256SUMS | grep -v '^$' | sha256sum -c -)
+          } 2>&1 | tee g5-artifact-audit.txt
+
+      - name: Verify G2 grant inventory and receipt/blob binding
+        run: |
+          python3 - <<'PY' 2>&1 | tee -a g5-artifact-audit.txt
+          import hashlib, json, re, subprocess, sys
+          manifest_path = "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.json"
+          checksum_path = "migrations/profiles/g2/TARGET-SCHEMA-MANIFEST.sha256"
+          receipt_path = "migrations/profiles/g2/G2-APPROVALS.md"
+
+          proc = subprocess.run(["python3", "scripts/profile/generate_g2_grants.py"], capture_output=True, text=True)
+          if proc.returncode != 0:
+              print(proc.stderr)
+              raise SystemExit("ARTIFACT-AUDIT FAIL: G2 grant generator")
+          generated = json.loads(proc.stdout)["target_grants"]
+          committed_doc = json.load(open(manifest_path, encoding="utf-8"))
+          committed = committed_doc["target_grants"]
+          if json.dumps(generated, sort_keys=True, ensure_ascii=False) != json.dumps(committed, sort_keys=True, ensure_ascii=False):
+              raise SystemExit("ARTIFACT-AUDIT FAIL: generated G2 grants differ from committed manifest")
+
+          blob = subprocess.run(["git", "cat-file", "blob", f"HEAD:{manifest_path}"], capture_output=True, check=True).stdout
+          actual_sha = hashlib.sha256(blob).hexdigest()
+          actual_size = len(blob)
+          checksum = open(checksum_path, encoding="utf-8").read()
+          m_sha = re.search(r"^[^:\s]+:([0-9a-f]{64})\s*$", checksum, re.M)
+          m_size = re.search(r"^[^:\s]+:size:(\d+)\s*$", checksum, re.M)
+          if not m_sha or not m_size:
+              raise SystemExit("ARTIFACT-AUDIT FAIL: malformed G2 checksum file")
+          expected_sha, expected_size = m_sha.group(1), int(m_size.group(1))
+
+          receipt = open(receipt_path, encoding="utf-8").read()
+          block_match = re.search(r"```g2-receipt-identity\n(.*?)\n```", receipt, re.S)
+          if not block_match:
+              raise SystemExit("ARTIFACT-AUDIT FAIL: G2 receipt identity block missing")
+          fields = {}
+          for line in block_match.group(1).splitlines():
+              if ":" in line:
+                  k, _, v = line.partition(":")
+                  fields[k.strip()] = v.strip()
+          receipt_sha = fields.get("manifest_blob_sha256", "").lower()
+          try:
+              receipt_size = int(fields.get("manifest_blob_size", "-1"))
+          except ValueError:
+              receipt_size = -1
+
+          if not (actual_sha == expected_sha == receipt_sha and actual_size == expected_size == receipt_size):
+              raise SystemExit(
+                  "ARTIFACT-AUDIT FAIL: G2 receipt/checksum/blob mismatch: "
+                  f"blob={actual_sha}/{actual_size} checksum={expected_sha}/{expected_size} receipt={receipt_sha}/{receipt_size}"
+              )
+          print(f"G2-GRANT-INV PASS: {len(committed['tables'])} tables")
+          print(f"G2-RECEIPT-BIND PASS: {actual_sha} / {actual_size}")
+          PY
+          grep -q '^G2-RECEIPT-BIND PASS:' g5-artifact-audit.txt
+          echo "ARTIFACT-AUDIT PASS" | tee -a g5-artifact-audit.txt
+
+      - name: Upload artifact-audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g5-artifact-audit-${{ github.sha }}
+          path: g5-artifact-audit.txt
+          retention-days: 30
+
+  foundation-gate:
+    name: G5 Foundation Gate
+    if: always()
+    needs:
+      - backend-static
+      - db-foundation-matrix
+      - historical-truth
+      - artifact-audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce fail-closed fan-in
+        env:
+          BACKEND_STATIC: ${{ needs.backend-static.result }}
+          DB_FOUNDATION: ${{ needs.db-foundation-matrix.result }}
+          HISTORICAL_TRUTH: ${{ needs.historical-truth.result }}
+          ARTIFACT_AUDIT: ${{ needs.artifact-audit.result }}
+        run: |
+          cat > g5-results.json <<EOF
+          {
+            "candidate_sha": "${GITHUB_SHA}",
+            "backend_static": "${BACKEND_STATIC}",
+            "db_foundation_matrix": "${DB_FOUNDATION}",
+            "historical_truth": "${HISTORICAL_TRUTH}",
+            "artifact_audit": "${ARTIFACT_AUDIT}",
+            "backend_integration_context": "Backend (Go) is separately required by G5 enforcement",
+            "context_dead_letter_context": "covered by the separately required Backend (Go) suite"
+          }
+          EOF
+          cat g5-results.json
+          test "$BACKEND_STATIC" = success
+          test "$DB_FOUNDATION" = success
+          test "$HISTORICAL_TRUTH" = success
+          test "$ARTIFACT_AUDIT" = success
+          echo "G5 FOUNDATION GATE PASS"
+
+      - name: Upload G5 summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g5-results-${{ github.sha }}
+          path: g5-results.json
+          retention-days: 30
