@@ -4,9 +4,9 @@
 **Version:** 0.1  
 **Status:** Authorized package plan; implementation authority activates when this plan is integrated to `main`  
 **Authorization ID:** `WP01-AUTH-2026-08-12`  
-**Authorization date:** 12 August 2026  
+**Authorization date:** 12 August 2026 (project local time, UTC+03:00)  
 **Package baseline:** `main@e13c8b734b39afb32ff5e3e4a7281543f33d8a1f`  
-**Entry condition:** WP-00 G6 accepted; AC-00-01 through AC-00-30 PASS; A1-A7 complete; unresolved Sev1/Sev2 = 0  
+**Entry condition:** WP-00 G6 accepted; AC-00-01 through AC-00-30 PASS; A1-A7 complete; unresolved Sev1/Sev2 = 0; closure recorded by [`docs/migration/wp00/g6/G6-EVIDENCE-CROSSWALK.md`](../migration/wp00/g6/G6-EVIDENCE-CROSSWALK.md) and [`docs/migration/wp00/g6/G6-APPROVALS.md`](../migration/wp00/g6/G6-APPROVALS.md)  
 **Final gate:** RG-01 — Authoritative Kernel Foundation acceptance
 
 > **Package decision:** WP-01 establishes the canonical v2 domain, truth, authority, persistence, evidence, context, trust, isolation, and compatibility foundation alongside the stabilized v1 spine. It MUST NOT perform a live consequential provider mutation. Execution semantics are proven with deterministic fake/no-op fixtures only. The first real provider-neutral mutation remains WP-02.
@@ -32,7 +32,7 @@ This plan does not modify higher semantic authorities. If implementation conveni
 | 5 | Native Pattern Specification v0.1 | `ClarityIT_v2_Native_Pattern_Specification_v0.1.md`, blob `00ce72fab791e8b959549b4845d40b4a48954044` | WP-01-owned P-02, P-03, P-05, P-06, P-08, P-09, P-10, P-11, P-18 and required skeletons |
 | 6 | Environment Trust and Evidence Custody Profile v0.1 | `ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md`, blob `8a6d28d538fd0d5525114958329b0592829806a9` | Development trust/custody placement and production non-promotion boundary |
 | 7 | Delivery Roadmap v0.2 | `ClarityIT_v2_Delivery_Roadmap_v0.2.md`, blob `89911eb29972d813d75f22d98cf239d2b61784b6` | WP-01 scope, RG-01 and sequencing |
-| 8 | WP-00 final evidence | `main@e13c8b734b39afb32ff5e3e4a7281543f33d8a1f` | Accepted migration/CI foundation |
+| 8 | WP-00 final evidence | `main@e13c8b734b39afb32ff5e3e4a7281543f33d8a1f`; [`G6-EVIDENCE-CROSSWALK.md`](../migration/wp00/g6/G6-EVIDENCE-CROSSWALK.md); [`G6-APPROVALS.md`](../migration/wp00/g6/G6-APPROVALS.md) | Accepted migration/CI foundation: AC-00 30/30 PASS, A1-A7 complete, Sev1/Sev2=0 |
 | 9 | This plan | This file after integration | WP-01 execution and closure contract |
 
 ### 1.2 Frozen WP-00 inputs
@@ -73,7 +73,7 @@ WP-01 SHALL implement or establish:
 5. policy evaluation, approval separation, grant lifecycle, separation of duties, replay protection and exact scope validation;
 6. an Effect Broker skeleton as the sole dispatch API, with deterministic fake/no-op route/capability fixtures for tests only;
 7. versioned verifier contracts plus deterministic read-only verifier fixtures proving passed/failed/inconclusive semantics;
-8. evidence manifests for synthetic happy, blocked, rejected, failed, unknown, inconclusive, superseded and successor lineages;
+8. evidence manifests for synthetic happy, blocked, rejected, failed, cancelled, unknown, inconclusive, superseded, compensation-required, compensated and successor lineages;
 9. transactional outbox/inbox, replay, duplicate delivery, restart and lease-loss semantics;
 10. Resource-aware bounded context and deterministic overlay composition with monotonic tightening, anti-shadowing, provenance, screening, omissions and topology limits;
 11. trust schemas/policy evaluation for workload identity, route binding, secret references and destination-bound credential-broker entitlements, without a live credential-injecting connector;
@@ -248,7 +248,7 @@ Deliver:
 - synthetic result-state mismatch and health-failure paths;
 - successor relations `corrects`, `retries_after_safe_failure`, `reconciles_unknown`, `compensates`;
 - blind retry rejection after ambiguous submission;
-- EvidenceManifests for happy, blocked, rejected, failed, unknown, inconclusive, superseded and successor lineages;
+- EvidenceManifests for happy, blocked, rejected, failed, cancelled, unknown, inconclusive, superseded, compensation-required, compensated and successor lineages;
 - immutable artifact refs/digests/redaction metadata;
 - independent reviewer reconstruction fixture.
 
@@ -314,7 +314,7 @@ Deliver:
 - fresh/P2/P3 migration regression;
 - required CI green;
 - secret/isolation evidence;
-- synthetic lineage reconstruction;
+- synthetic lineage reconstruction including cancelled, compensation-required and compensated paths;
 - zero unresolved Sev1/Sev2 defects;
 - **A9 — RG-01 Release Evidence Manifest**, binding A1-A8 and exact commits/runs/digests;
 - Architecture, Backend, Database, Security and Quality decisions; Product participates where product semantics are affected.
@@ -388,7 +388,7 @@ RG-01 is unconditional. Every criterion below must be evidenced PASS.
 - **AC-01-29:** executor flags, agent conclusions and UI/projection state are rejected as Verification inputs.
 - **AC-01-30:** Accepted requires passed Verification and identified accountable human OutcomeDecision.
 - **AC-01-31:** ambiguous synthetic submission enters `outcome_unknown`; no blind automatic resubmission occurs.
-- **AC-01-32:** evidence manifests reconstruct happy, blocked, rejected, failed, unknown, inconclusive, superseded and successor lineages with immutable digests/redaction metadata.
+- **AC-01-32:** evidence manifests reconstruct happy, blocked, rejected, failed, cancelled, unknown, inconclusive, superseded, compensation-required, compensated and successor lineages with immutable digests/redaction metadata.
 
 ### Context, trust and secrets
 
@@ -423,10 +423,10 @@ RG-01 is unconditional. Every criterion below must be evidenced PASS.
 | KT-09 provider running/health Verification fails | Required synthetic |
 | KT-10 verifier unavailable | Required synthetic; inconclusive unless exact spec defines failure |
 | KT-11 cancellation boundary | Required synthetic |
-| KT-12 correction/compensation successor | Required |
+| KT-12 correction/compensation successor | Required, including compensation-required and compensated lineage evidence |
 | KT-13 Site Runtime disconnection | **Deferred to WP-04.** WP-01 only proves an unavailable/unimplemented site route cannot authorize/dispatch; it makes no local polling/spool claim. |
 | KT-14 secret scan | Required; no real provider secret is introduced |
-| KT-15 evidence reconstruction | Required synthetic |
+| KT-15 evidence reconstruction | Required synthetic across every required terminal lineage |
 | KT-16 historical truth | Required |
 
 ### 8.2 Native Pattern criteria
@@ -502,7 +502,7 @@ WP-01 MAY add a fail-closed `WP-01 Kernel Gate` once stable. It may not replace/
 | A3 | Transition/Concurrency/Provenance Evidence | legal/illegal matrix, conflicts, successor immutability, projection rebuild |
 | A4 | Persistence/Messaging/Recovery Evidence | outbox atomicity, inbox dedupe, replay/restart/lease-loss |
 | A5 | Packet/Authority/Broker/Idempotency Evidence | packet digest, decision separation, scope negatives, one-attempt proof, `LIVE_PROVIDER_MUTATIONS=0` |
-| A6 | Verification/Outcome/Successor/Evidence Pack | pass/fail/inconclusive, human acceptance, unknown/reconcile, successor lineages, manifests |
+| A6 | Verification/Outcome/Successor/Evidence Pack | pass/fail/inconclusive, human acceptance, unknown/reconcile, cancelled, compensation-required, compensated, successor lineages and manifests |
 | A7 | Context/Anti-Shadowing/Trust/Isolation Evidence | overlay digest, relaxation/collision negatives, limits, secret scan, isolation matrix |
 | A8 | Compatibility/Historical-Truth Evidence | mappings, zero promoted legacy truth, one-writer proof, P2/P3/fresh regression |
 | A9 | RG-01 Release Evidence Manifest | exact commits/runs/digests, AC crosswalk, A1-A8 digests, defect disposition, approvals |
@@ -596,7 +596,7 @@ RG-01 closes only when:
 6. final candidate is green under all four accepted required contexts and any adopted WP-01 gate;
 7. secret scan and workspace-isolation matrix pass;
 8. historical mapping creates zero passed Verifications and zero Accepted from legacy claims;
-9. synthetic happy/blocked/failed/unknown/inconclusive/successor manifests reconstruct;
+9. synthetic happy, blocked, rejected, failed, cancelled, unknown, inconclusive, superseded, compensation-required, compensated and successor manifests reconstruct;
 10. `LIVE_PROVIDER_MUTATIONS=0` is evidenced;
 11. unresolved Sev1/Sev2 = 0;
 12. Architecture, Backend, Database, Security and Quality record approval; delegated role-based assessment is identified transparently if used.
