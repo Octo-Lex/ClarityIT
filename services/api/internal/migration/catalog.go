@@ -64,7 +64,7 @@ const (
 	P2SuccessorFingerprint = "57c2b64597f8df459043681a4faaf3c789e0eb17883d3ea9585dffac654121cb"
 
 	// P2 adoption artifact SHA-256 (migrations/v2/adoption/0001_adopt_p2.sql).
-	P2AdoptionArtifactSHA256 = "e866613c737ed157c497bc688615f893cc64bf6f43a89cc4e1922f4c2c8cde18"
+	P2AdoptionArtifactSHA256 = "d98f67cde22de734a791dfb81a82c40727a510ee6fd5333a213b89bb8672b70c"
 
 	// Baseline SQL checksum — the revision-0001 checksum recorded by both the
 	// seed artifact and the adoption artifact (they converge on this value).
