@@ -63,19 +63,29 @@ WP-01 consumes these as foundation identities; it does not rewrite them.
 
 ## 5. G0 contract set
 
-The following exact branch blobs form the G0 contract candidate:
+The following exact branch blobs form the final G0 contract candidate:
 
 | Artifact | Blob SHA | Purpose |
 |---|---|---|
-| `docs/v2/ClarityIT_v2_Context_Overlay_Contract_v0.1.md` | `6f789efa183b9c93f75dbcdbc2cb8bf0ff7e7fea` | deterministic bounded context, overlays, anti-shadowing, screening, digest, isolation |
+| `docs/v2/ClarityIT_v2_Context_Overlay_Contract_v0.1.md` | `4e064be888de5af27b448dc4086c2a2b5299b2bc` | deterministic bounded context, complete authoritative namespace anti-shadowing, bound same-layer precedence policy, screening, digest and isolation |
 | `docs/v2/wp01/g0/WP01-G0-OBJECT-OWNERSHIP-AND-PROHIBITED-WRITES.md` | `57d86c75305d440efb8aed5f0bf99d701decebb1` | single authoritative owner per object family; deny bypass writers |
-| `docs/v2/wp01/g0/WP01-G0-STATE-AND-REASON-CODE-APPLICABILITY.md` | `feb520eb0eb8fc754d0315900634ad3111da423f` | exact Kernel states/transitions/reason families; no invented transition edges |
+| `docs/v2/wp01/g0/WP01-G0-STATE-AND-REASON-CODE-APPLICABILITY.md` | `93ebb8dfac86979a305450caa2b6ab2791d283fb` | exact Kernel states/transitions/reason families; pre-dispatch expiry only; unresolved reconciliation is evidence-only/no state transition |
 | `docs/v2/wp01/g0/WP01-G0-CONFORMANCE-APPLICABILITY.md` | `387dfcd08146ea5957f34afa8bdaede495f93e61` | K/KT/Native Pattern required vs deferred scope |
 | `docs/v2/wp01/g0/WP01-G0-ADDITIVE-MIGRATION-DESIGN.md` | `83081c702caa8e80c26e260436d122d8e92a0115` | Phase-2 expand and post-0001 forward-series design |
 
 This A1 file is the sixth G0 artifact and binds the set after its own integration.
 
-## 6. Runner observation bound into migration design
+## 6. Review hardening applied before freeze
+
+The G0 set was semantically reviewed against the ratified Kernel and Native Pattern authorities. The final candidate explicitly incorporates these corrections:
+
+- every canonical authoritative Kernel/Compatibility namespace is reserved against lower-authority context shadowing;
+- same-layer precedence and its governing policy/version are bound semantic inputs to Context Bundle composition/digest evidence;
+- proposed packet expiry is legal only before dispatch has begun;
+- unresolved `outcome_unknown` reconciliation appends evidence without a self-transition or duplicate state-transition outbox event;
+- draft/grant/attempt transitions remain exact to Kernel v0.1 with no invented edges.
+
+## 7. Runner observation bound into migration design
 
 At the package baseline:
 
@@ -86,7 +96,7 @@ At the package baseline:
 
 G0 therefore authorizes G1 to add the **smallest forward-series extension inside the existing migration package**, while leaving `0001` classification/artifacts/identities behaviorally unchanged. A parallel runner is prohibited.
 
-## 7. Frozen WP-01 semantic decisions
+## 8. Frozen WP-01 semantic decisions
 
 Implementation SHALL preserve:
 
@@ -107,12 +117,14 @@ Implementation SHALL preserve:
 15. workspace scope is mandatory server-side.
 16. context/projections/caches/search are derived and rebuildable.
 17. overlay policy only tightens authority.
-18. lower-authority content cannot shadow reserved authoritative namespaces.
+18. lower-authority content cannot shadow any canonical authoritative namespace.
 19. historical truth remains weaker unless current evidence establishes stronger truth.
 20. exactly one authoritative writer exists per object family.
-21. WP-01 performs zero live provider mutations.
+21. packet expiry is pre-dispatch only; execution lineage cannot be rewritten after dispatch begins.
+22. unresolved reconciliation does not create a duplicate state transition.
+23. WP-01 performs zero live provider mutations.
 
-## 8. G0 scope boundary
+## 9. G0 scope boundary
 
 G0 contains contracts/evidence only. It does not create kernel schema, activate feature flags, call providers, add provider credentials, alter the migration database, or start WP-02.
 
@@ -124,7 +136,7 @@ After G0 integration, G1 may implement:
 - canonical object tables and inbox/outbox/mapping foundations;
 - A2 migration/schema evidence.
 
-## 9. Required CI inherited unchanged
+## 10. Required CI inherited unchanged
 
 All WP-01 integrations retain:
 
@@ -135,7 +147,7 @@ All WP-01 integrations retain:
 
 G0 does not weaken or replace them.
 
-## 10. G0 acceptance check
+## 11. G0 acceptance check
 
 WP01-G0 is ready to close when:
 
