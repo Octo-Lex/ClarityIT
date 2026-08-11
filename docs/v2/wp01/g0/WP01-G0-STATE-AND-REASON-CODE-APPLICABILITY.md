@@ -24,10 +24,10 @@ Required semantics:
 | From | To | WP-01 disposition |
 |---|---|---|
 | draft | proposed | legal when packet canonicalization, integrity and proposal prerequisites pass |
-| draft | withdrawn | legal if product/kernel command permits withdrawal before proposal |
 | proposed | superseded | legal only through an immutable successor relationship; proposed bytes remain unchanged |
-| proposed | withdrawn | legal where policy/domain permits; does not erase proposal history |
+| proposed | withdrawn | legal proposer withdrawal before execution; does not erase proposal history |
 | proposed | expired | legal on governed validity expiry |
+| draft | withdrawn/superseded/expired | **illegal** under Kernel v0.1; draft may only transition by propose |
 | proposed | proposed with modified bound bytes | **illegal**; material change requires successor |
 | terminal packet state | mutation back to draft/proposed | **illegal** |
 
@@ -43,20 +43,20 @@ Canonical states:
 - `revoked`
 - `expired`
 
-There is **no `released` state**.
+There is **no `released` state**. `release` is the Kernel transition action that returns a safe unconsumed reservation to `issued`.
 
 | From | To | WP-01 disposition |
 |---|---|---|
 | issued | reserved | legal only for exact matching broker preflight/attempt reservation |
 | issued | revoked | legal by authoritative revoke command |
 | issued | expired | legal when validity expires |
-| reserved | consumed | legal once the authorized logical use is consumed under exact grant-use semantics |
-| reserved | issued | legal reservation release only when submission is provably absent and retry policy permits reuse |
-| reserved | revoked | legal where revoke semantics allow it; future dispatch blocked |
-| reserved | expired | legal when validity expires; future dispatch blocked |
-| consumed/revoked/expired | issued/reserved | **illegal** |
+| reserved | consumed | legal once provider submission begins or may have begun under exact grant-use semantics |
+| reserved | issued | legal `release` only when submission is provably absent and retry policy permits reuse |
+| reserved | revoked | legal; future dispatch blocked |
+| reserved | expired | **illegal** under the Kernel v0.1 transition table; expiry is an allowed transition from `issued`, not an invented reserved-state edge |
+| consumed/revoked/expired | any nonterminal state | **illegal** |
 
-Reservation/release must not enable blind retry after ambiguous submission.
+Reservation/release must not enable blind retry after ambiguous submission. Once submission begins, the grant is consumed; ambiguity never returns it to `issued`.
 
 ## 4. ExecutionAttempt
 
@@ -98,13 +98,12 @@ running
   -> outcome_unknown
 outcome_unknown
   -> submitted
-  -> running
   -> provider_completed
   -> provider_failed
   -> outcome_unknown
 ```
 
-`provider_completed`, `provider_failed`, `blocked` and `cancelled` are terminal for that attempt. Reconciliation of `outcome_unknown` updates that same attempt according to observed provider truth; it does not silently create a blind retry.
+`provider_completed`, `provider_failed`, `blocked` and `cancelled` are terminal for that attempt. Kernel v0.1 permits `outcome_unknown` reconciliation to submitted/completed/failed or remaining terminal-unknown; it does **not** introduce a direct `outcome_unknown -> running` edge. Reconciliation updates that same attempt according to observed provider truth and never silently creates a blind retry.
 
 WP-01 uses deterministic fake/no-op execution to exercise these states. No real provider mutation occurs.
 
@@ -146,7 +145,13 @@ First-release `accepted` requires the exact prerequisite passed Verification plu
 
 Case lifecycle/status is a **projection over typed authoritative records**, not a substitute state machine that may override packet/attempt/Verification/outcome truth.
 
-The projection must be rebuildable from PostgreSQL and preserve source class, causal ordering and unknown/inconclusive states.
+The Kernel v0.1 projection sequence is:
+
+```text
+open -> investigating -> decision_pending -> authorized -> executing -> verifying -> outcome_pending -> accepted | correction_required | closed
+```
+
+The projection must be rebuildable from PostgreSQL and preserve source class, causal ordering and unknown/inconclusive states rather than collapsing them into success.
 
 ## 8. Successor lineage types
 
@@ -271,4 +276,4 @@ A3/A4/A5/A6 evidence must include the exact state/reason matrices exercised, exp
 
 ## 12. Change control
 
-New semantic states, removal of `outcome_unknown`/`inconclusive`, reclassification of provider claims as Verification, a `released` AuthorityGrant state, or a transition that weakens immutable-successor semantics requires a governed semantic successor; it is not a routine implementation detail.
+New semantic states, an additional transition edge not permitted by Kernel v0.1, removal of `outcome_unknown`/`inconclusive`, reclassification of provider claims as Verification, a `released` AuthorityGrant state, or a transition that weakens immutable-successor semantics requires a governed semantic successor; it is not a routine implementation detail.
