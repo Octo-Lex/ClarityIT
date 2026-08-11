@@ -97,6 +97,17 @@ func GovernedCapture(ctx context.Context, q pgxQuerier, signed *SignedG2Manifest
 	if err != nil {
 		return nil, err
 	}
+	// The signed G2 product contract is column-order independent.
+	// G3 fresh installs already emit these tables in column-name order;
+	// normalize inherited P1/P2 attnum order to that same canonical order.
+	// Only sort signed product tables — leave platform tables untouched.
+	for tableKey := range signed.Tables {
+		if colList, ok := columns[tableKey]; ok {
+			sort.Slice(colList, func(i, j int) bool {
+				return colList[i].Name < colList[j].Name
+			})
+		}
+	}
 	constraints, err := queryConstraints(ctx, q)
 	if err != nil {
 		return nil, err
