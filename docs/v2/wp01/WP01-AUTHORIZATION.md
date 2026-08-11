@@ -1,14 +1,14 @@
 # WP-01 Authorization and Authority-Set Ratification
 
 **Authorization ID:** `WP01-AUTH-2026-08-12`  
-**Date:** 12 August 2026  
+**Date:** 12 August 2026 (project local time, UTC+03:00)  
 **Package:** WP-01 — Authoritative Kernel Foundation  
 **Baseline:** `main@e13c8b734b39afb32ff5e3e4a7281543f33d8a1f`  
 **Status:** **AUTHORIZED FOR PACKAGE-PLAN CREATION; IMPLEMENTATION ACTIVATES WHEN THE WP-01 PLAN IS INTEGRATED**
 
 ## 1. Authorization
 
-The client explicitly authorized WP-01 on 12 August 2026 and directed creation of the package plan.
+The client explicitly authorized WP-01 on 12 August 2026 in the project timezone (UTC+03:00) and directed creation of the package plan. GitHub commit/review metadata is recorded in UTC and may therefore display 11 August 2026 for commits created shortly after local midnight; that UTC rendering does not predate the client authorization.
 
 This authorization permits:
 
@@ -33,7 +33,7 @@ For WP-01 implementation and RG-01 acceptance, the following exact repository ar
 | Native Pattern Specification v0.1 | `docs/v2/ClarityIT_v2_Native_Pattern_Specification_v0.1.md`, blob `00ce72fab791e8b959549b4845d40b4a48954044` | Ratified for the WP-01-owned patterns and skeletons named by the roadmap/plan |
 | Delivery Roadmap v0.2 | `docs/v2/ClarityIT_v2_Delivery_Roadmap_v0.2.md`, blob `89911eb29972d813d75f22d98cf239d2b61784b6` | Ratified for WP-01 boundary, RG-01 and sequencing only |
 | Environment Trust and Evidence Custody Profile v0.1 | `docs/v2/ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md`, blob `8a6d28d538fd0d5525114958329b0592829806a9` | Existing adopted development trust/custody profile remains in force |
-| WP-00 final evidence | `main@e13c8b734b39afb32ff5e3e4a7281543f33d8a1f` | Accepted immutable foundation input |
+| WP-00 final evidence | `main@e13c8b734b39afb32ff5e3e4a7281543f33d8a1f`; [`G6-EVIDENCE-CROSSWALK.md`](../../migration/wp00/g6/G6-EVIDENCE-CROSSWALK.md); [`G6-APPROVALS.md`](../../migration/wp00/g6/G6-APPROVALS.md) | Accepted immutable foundation input: AC-00 30/30 PASS, A1-A7 complete, Sev1/Sev2=0 |
 
 This ratification is **bounded to WP-01**. It does not silently approve future WP-02 through WP-10 implementation, nor does it prevent a later formally governed successor revision to any authority.
 
