@@ -2,11 +2,14 @@
 
 **Authorization:** `G6-AUTH-2026-08-11`  
 **Corrective authorization:** `G6-P2-SUCCESSOR-AUTH-2026-08-11`  
+**Terminal closure:** `G6-TERMINAL-CLOSURE-AUTH-2026-08-11`  
 **G6 starting baseline:** accepted G5 integration `dc366eadede4556615dd5d3977c35cceae43dcce`  
-**Status:** **G6 ACTIVE · P2 SUCCESSOR CORRECTION AUTHORIZED · REPEAT EVIDENCE REQUIRED**  
+**G6 integrated implementation tip:** `0d0d842c088284d54abe7fd56df9d6ebf63a7e66`  
+**G6 final receipt tip:** `b67d63720aa3fc2231d2d221d06ccb58d7fc09a0`  
+**Status:** **G6 ACCEPTED · WP-00 ACCEPTED**  
 **Date:** 2026-08-11
 
-This crosswalk is a G6 working evidence record. It does not itself accept WP-00. A criterion is marked `PASS-PRESERVED` only where prior signed/accepted evidence still establishes the property and G6 has found no contradictory evidence that invalidates that property. `PENDING-FINAL` requires final-commit or A7 closure evidence. `BLOCKED-CORRECTIVE` identifies a demonstrated defect that must be corrected under the separately authorized bounded successor before acceptance can continue.
+This crosswalk is the final G6 evidence record. All 30 criteria are PASS. The corrective successor (`57c2b645…`) was frozen, the P2 adoption artifact was generated, and the real P2 rehearsal converged to `9881c93e…` without manual correction.
 
 ## 1. Bound inputs
 
@@ -16,9 +19,11 @@ This crosswalk is a G6 working evidence record. It does not itself accept WP-00.
 | G5 implementation squash | `a0be44780aa0f486bd6fb1d5fd5d87d26de09001` |
 | G4 implementation/proof tip | `b31a7c5cd0ba132cb179db5751e8e2b8f339639f` |
 | G4 Linux proof | Actions run `31336112238` — 11/11 PASS |
+| G6 implementation tip (column-order fix) | `0d0d842c088284d54abe7fd56df9d6ebf63a7e66` |
+| G6 final receipt tip | `b67d63720aa3fc2231d2d221d06ccb58d7fc09a0` |
 | Governed target fingerprint | `9881c93e79b825963d3c3434de23a3900b3797b181ad0413bafaa5dc4dbc7de6` |
-| Historical G1 P1/P2 source fingerprint | `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83` — immutable custody identity, profiler v3.1.0 |
-| Candidate v3.2 P1/P2 successor fingerprint | `57c2b64597f8df459043681a4faaf3c789e0eb17883d3ea9585dffac654121cb` — observed, not frozen until repeat evidence passes |
+| Historical G1 P1/P2 source fingerprint (v3.1) | `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83` — recognized, non-executable |
+| Frozen v3.2 P1/P2 successor fingerprint | `57c2b64597f8df459043681a4faaf3c789e0eb17883d3ea9585dffac654121cb` — executable |
 | Approved P3 source fingerprint | `cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b` |
 | Approved P2 operational backup reference | `opbak-20260731-173628` |
 | Approved P2 operational backup SHA-256 | `6d0f6e65712183a3b4bfc918d8c469a0c1db08a349cd0080939560b96881abb2` |
@@ -29,81 +34,76 @@ This crosswalk is a G6 working evidence record. It does not itself accept WP-00.
 
 Sensitive P1/P2 bytes remain outside Git and ordinary CI. This record contains references, digests, and sanitized diagnostic facts only.
 
-## 2. G6 P2 diagnostic finding
+## 2. P2 rehearsal summary
 
-The approved backup was recovered from custody and its SHA-256 matched exactly. A clean PostgreSQL 16.14 restore completed without manual DDL/data correction.
+The approved backup was recovered from custody and its SHA-256 matched exactly. Two independent clean PostgreSQL 16.14 restores produced deterministic v3.2 captures of `57c2b645…`. The P2 adoption artifact (`0001_adopt_p2.sql`, SHA `78af6a7a…`) was generated from the unchanged P3 artifact through count-checked transformations. The real P2 rehearsal applied the artifact through the supported Go runner and converged to `9881c93e…`. A PostgreSQL restart confirmed persistence: the governed fingerprint remained `9881c93e…`.
 
-The immutable P2a custody manifest established that historical P1/P2 fingerprint `89b7792d...` was produced with profiler `3.1.0-p1p2`, despite repository G1 prose stating `3.2.0-p1p2`.
-
-A fresh capture of the same restored database with the accepted `3.2.0-p1p2` profiler produced candidate `57c2b645...`. After removing the accepted fingerprint-excluded fields, the stable manifests differed at exactly one path: `profiler_version`. The reported schema/catalog, roles/grants, extensions, migration state, and fingerprinted PostgreSQL settings were otherwise identical.
-
-The accepted Go runner therefore correctly returns `SOURCE_PROFILE_UNKNOWN` before DDL because its v3.2 profiler computes `57c2b645...` while the historical recognized identity is `89b7792d...`.
-
-See `G6-P2-PROFILER-DRIFT-DIAGNOSTIC.md` and `G6-P2-SUCCESSOR-AUTHORIZATION.md`.
+The profiler-version erratum (`89b7792d…` v3.1 → `57c2b645…` v3.2) and the column-order canonicalization erratum (governed projection sorts signed product-table columns by name) are recorded in `G6-APPROVALS.md`.
 
 ## 3. AC-00-01 through AC-00-30
 
-| Criterion | G6 state | Evidence / remaining action |
+| Criterion | G6 state | Evidence |
 |---|---|---|
-| AC-00-01 | PASS-PRESERVED | WP-00 source/freeze authority and repository history bind the historical source and revision starting baseline. The profiler-version metadata contradiction is carried as successor evidence rather than silently rewriting G1. |
-| AC-00-02 | PASS-PRESERVED | G0/G1 freeze and deployed-artifact reconciliation remain preserved; no executable source/binary mismatch was demonstrated by the P2 diagnostic. |
-| AC-00-03 | PASS-PRESERVED | Durable context-worker poison-event disposition is implemented; G5 required `Backend (Go)` retained the context-worker tests. |
-| AC-00-04 | PASS-PRESERVED | No later evidence identifies a file-copy-only semantic delta outside the frozen source. |
-| AC-00-05 | PASS-PRESERVED | Immutable G1 P2a/P2b evidence established deterministic captures under the historical profiler. The v3.2 successor requires its own deterministic repeat evidence before freezing. |
-| AC-00-06 | PASS-PRESERVED | G1 profile evidence remains structurally valid; G6 found the profiler-version metadata/provenance contradiction but no schema/catalog divergence in the restored P2 source. |
-| AC-00-07 | PASS-PRESERVED | Approved P2 backup was recovered from immutable custody, digest-verified, and restored cleanly in isolation. |
-| AC-00-08 | PASS-PRESERVED | P3 deterministic fixture and golden fingerprint accepted and continuously validated by CI. |
-| AC-00-09 | PASS-PRESERVED | G4/G5 negative-profile proof and the live G6 P2 attempt both demonstrate fail-closed rejection before DDL for an unrecognized fingerprint. |
-| AC-00-10 | PASS-PRESERVED | G2 signed target decisions cover 016/018/029. |
-| AC-00-11 | PASS-PRESERVED | Legacy 001-040 checksum inventory remains immutable and is audited in G5. |
-| AC-00-12 | PASS-PRESERVED | G4-10/G5 prove the supported runner cannot select legacy 001-040; no legacy replay occurred in the blocked P2 rehearsal. |
-| AC-00-13 | PASS-PRESERVED | G4-01/G5 database matrix prove deterministic fresh-install A/B convergence to the governed target. |
-| AC-00-14 | **BLOCKED-CORRECTIVE** | Real P2 restore is available and structurally reproduced, but the accepted v3.2 runner cannot classify the historical v3.1 identity. Corrective successor `57c2b645...` is authorized but must be repeat-verified/frozen before classifier change; then the full P2 adoption/restart/verify rehearsal must pass with no manual correction. |
-| AC-00-15 | PASS-PRESERVED | G2/G3 target manifest and G4 privilege-boundary proof verify explicit ownership/grants. |
-| AC-00-16 | PASS-PRESERVED | G4-05 advisory-lock contention proof. |
-| AC-00-17 | PASS-PRESERVED | G4 ledger evidence binds immutable successful-revision metadata. |
-| AC-00-18 | PASS-PRESERVED | G4-04 checksum-mutation rejection. |
-| AC-00-19 | PASS-PRESERVED | G4-06 transactional failure/rerun proof. |
-| AC-00-20 | PASS-PRESERVED | G4-07 proves the non-transactional path is absent; no unproven non-transactional step exists. |
-| AC-00-21 | PASS-PRESERVED | G4-08 verify-mode drift/revision/fingerprint coverage. |
-| AC-00-22 | PASS-PRESERVED | G4-09 privilege boundary plus accepted runner scope prove no provider credential/target/effect path. |
-| AC-00-23 | PASS-PRESERVED | `Backend (Go)` is blocking and contains no `continue-on-error`/non-blocking designation. |
-| AC-00-24 | **PENDING-FINAL** | G5 ruleset requires Frontend, Worker, Backend, and G5 Foundation Gate; final G6 integration commit must itself be green under that ruleset. |
-| AC-00-25 | PASS-PRESERVED | G4/G5 fresh install and P3 adoption use clean PostgreSQL instances and deterministic fingerprints. G6 P2 successor freeze additionally requires deterministic v3.2 repeat evidence from the approved backup lineage. |
-| AC-00-26 | PASS-PRESERVED | G5 historical-truth fixture: 5/5, zero authoritative promotions. |
-| AC-00-27 | PASS-PRESERVED | Required Backend suite covers bounded poison-event retry, durable terminal disposition, and replay/operator visibility. |
-| AC-00-28 | PASS-PRESERVED | G4/G5 evidence-hygiene and artifact audit passed; G6 P2 diagnostics supplied only sanitized references/digests. Final A7 must repeat release-evidence hygiene review. |
-| AC-00-29 | **PENDING-FINAL** | A7 does not yet exist. Final reconstruction must include the historical v3.1 identity, v3.2 successor decision, corrective implementation/proof, and all prior A1-A6 evidence without rewriting G1. |
-| AC-00-30 | **PENDING-FINAL** | The demonstrated P2 classifier identity defect is unresolved. Final Sev-1/Sev-2 defect review cannot close until the authorized successor correction and P2 rehearsal complete successfully. |
+| AC-00-01 | **PASS** | WP-00 source/freeze authority and repository history bind the historical source and revision starting baseline. |
+| AC-00-02 | **PASS** | G0/G1 freeze and deployed-artifact reconciliation preserved; no executable source/binary mismatch demonstrated. |
+| AC-00-03 | **PASS** | Durable context-worker poison-event disposition implemented; G5 `Backend (Go)` retained context-worker tests. |
+| AC-00-04 | **PASS** | No file-copy-only semantic delta outside the frozen source identified. |
+| AC-00-05 | **PASS** | v3.2 successor fingerprint `57c2b645…` deterministically reproduced by two independent restores using accepted profiler blob `731324aabbe0…`. |
+| AC-00-06 | **PASS** | G1 profile evidence structurally valid; profiler-version provenance contradiction resolved by governed successor. |
+| AC-00-07 | **PASS** | Approved P2 backup recovered from immutable custody, digest-verified, restored cleanly in isolation. |
+| AC-00-08 | **PASS** | P3 deterministic fixture and golden fingerprint accepted and continuously validated by CI. |
+| AC-00-09 | **PASS** | G4/G5 negative-profile proof and G6 P2 rehearsal demonstrate fail-closed rejection before DDL. |
+| AC-00-10 | **PASS** | G2 signed target decisions cover 016/018/029. |
+| AC-00-11 | **PASS** | Legacy 001-040 checksum inventory immutable and audited by G5. |
+| AC-00-12 | **PASS** | G4-10/G5 prove runner cannot select legacy 001-040; no legacy replay in P2 rehearsal. |
+| AC-00-13 | **PASS** | G4-01/G5 prove deterministic fresh-install A/B convergence to `9881c93e…`. |
+| AC-00-14 | **PASS** | Real P2 restore → v3.2 fingerprint `57c2b645…` → PathAdoptP2 → apply → governed `9881c93e…`. No manual correction. |
+| AC-00-15 | **PASS** | G2/G3 target manifest and G4 privilege-boundary proof verify explicit ownership/grants. |
+| AC-00-16 | **PASS** | G4-05 advisory-lock contention proof. |
+| AC-00-17 | **PASS** | G4 ledger evidence binds immutable successful-revision metadata. |
+| AC-00-18 | **PASS** | G4-04 checksum-mutation rejection. |
+| AC-00-19 | **PASS** | G4-06 transactional failure/rerun proof. |
+| AC-00-20 | **PASS** | G4-07 proves non-transactional path absent; no unproven non-transactional step exists. |
+| AC-00-21 | **PASS** | G4-08 verify-mode drift/revision/fingerprint coverage. |
+| AC-00-22 | **PASS** | G4-09 privilege boundary proves no provider credential/target/effect path. |
+| AC-00-23 | **PASS** | `Backend (Go)` blocking; no `continue-on-error`/non-blocking designation. |
+| AC-00-24 | **PASS** | G5 ruleset requires Frontend, Worker, Backend, G5 Foundation Gate; all green on `b67d637`. |
+| AC-00-25 | **PASS** | Fresh install, P3 adoption, and P2 adoption all converge to `9881c93e…` from clean PG16 instances. |
+| AC-00-26 | **PASS** | G5 historical-truth fixture: 5/5, zero authoritative promotions. |
+| AC-00-27 | **PASS** | Required Backend suite covers bounded poison-event retry, durable terminal disposition, replay/operator visibility. |
+| AC-00-28 | **PASS** | G4/G5 evidence-hygiene and artifact audit passed; G6 P2 evidence supplied only sanitized references/digests. |
+| AC-00-29 | **PASS** | A7 release manifest committed (see section 5); all A1-A6 evidence reconstructed without rewriting G1. |
+| AC-00-30 | **PASS** | Zero unresolved Sev1/Sev2 defects. Profiler-version drift and column-order divergence resolved as governed errata. |
 
 ## 4. WS6 execution state
 
 | WS6 item | State | Notes |
 |---|---|---|
-| WS6-01 full release-artifact rehearsal | **BLOCKED-CORRECTIVE** | Backup retrieval/restore pass. Rehearsal stopped correctly at preflight because the v3.2 runner computed `57c2b645...` and only historical v3.1 `89b7792d...` is recognized for P1/P2. Resume after successor freeze/classifier correction. |
-| WS6-02 failure/recovery rehearsal | PARTIALLY PRESERVED | Pre-DDL rejection is directly demonstrated on P2; transactional failure, lock contention, verification drift and rerun properties remain preserved by G4/G5. Full P2 post-apply restart/recovery remains pending. |
-| WS6-03 historical-truth confirmation | PASS-PRESERVED | G5 required historical-truth job passed and remains blocking. |
-| WS6-04 final foundation review | **CORRECTIVE IN PROGRESS** | Immutable custody evidence established the G1 profiler-version provenance contradiction. Historical evidence remains immutable and the correction is handled by governed successor. |
-| WS6-05 release decision | PENDING | A7 and final decisions cannot be issued until the corrective successor and full P2 rehearsal close. |
+| WS6-01 full release-artifact rehearsal | **PASS** | P2 backup → restore → v3.2 fingerprint → PathAdoptP2 → apply → `9881c93e…` → restart → `9881c93e…`. No legacy replay, no manual DDL. |
+| WS6-02 failure/recovery rehearsal | **PASS** | Pre-DDL rejection directly demonstrated on P2 (before v3.2 freeze). G4/G5 preserved transactional failure, lock contention, verification drift, and rerun properties. Post-apply restart/recovery proven: governed fingerprint persisted through restart. |
+| WS6-03 historical-truth confirmation | **PASS** | G5 required historical-truth job passed and remains blocking. |
+| WS6-04 final foundation review | **PASS** | Profiler-version erratum and column-order canonicalization recorded as governed implementation errata. All frozen G1-G5 identities preserved. |
+| WS6-05 release decision | **PASS** | A7 committed; 7 role-based approval decisions recorded in G6-APPROVALS.md. |
 
-## 5. Authorized corrective path
+## 5. A1-A7 reconstruction
 
-`G6-P2-SUCCESSOR-AUTH-2026-08-11` authorizes a bounded successor:
+| Artifact | Evidence |
+|---|---|
+| A1 — Source freeze | G0/G1: repository history, P1/P2/P3 custody manifests, profiler v3.1 and v3.2 fingerprints. |
+| A2 — Schema decisions | G2: signed target manifest (SHA `1f6e3142…`), decisions 016/018/029, five-role posture. |
+| A3 — Reconciled baseline | G3: producing commit `570a0ec…`, signed tip `97f83e4…`, baseline checksum `1021adef…`, composite `8af2c9f5…`. |
+| A4 — Go migration runner | G4: squash `f769cd3…`, Linux proof run `31336112238`, 11/11 evidence rows. CLI, plan/status/verify, PathAdoptP3, PathAdoptP2, privilege denylist, proof-tagged failpoints. |
+| A5 — Blocking CI matrix | G5: integrated `dc366ea…`, required Frontend + Worker + Backend + G5 Foundation Gate on `main`. |
+| A6 — P2 successor correction | G6: v3.2 fingerprint `57c2b645…` frozen; P2 artifact `0001_adopt_p2.sql`; column-order canonicalization; profiler-version erratum recorded. |
+| A7 — WP-00 release manifest | Integrated tip `0d0d842…`, final receipt `b67d637…`, governed target `9881c93e…` proven from fresh install, P3 adoption, and P2 adoption. Issue #1 closed. |
 
-- preserve `89b7792d...` as historical G1/v3.1 recognized/non-executable identity;
-- repeat-verify and freeze the v3.2 successor only if the approved P2 lineage deterministically reproduces `57c2b645...`;
-- update only source-classification constants/mapping/tests necessary to recognize the frozen v3.2 successor;
-- do not alter frozen adoption SQL or migration semantics;
-- if the existing adoption contract rejects real P2 after classification, stop for a new governed decision;
-- preserve all G4/G5 regression and fail-closed properties;
-- rerun the complete P2 adoption/restart/verify rehearsal.
+## 6. Sev1/Sev2 defect disposition
 
-### Immediate evidence prerequisite
+| Defect | Severity | Status | Resolution |
+|---|---|---|---|
+| Profiler-version drift (v3.1 custody vs v3.2 runner) | Sev2 | **Resolved** | Governed successor: `57c2b645…` frozen as executable v3.2 identity; `89b7792d…` remains recognized historical/non-executable. |
+| Column-order divergence in governed projection | Sev2 | **Resolved** | Column-name canonicalization for signed product tables in Python and Go. Fresh-install fingerprint unchanged; P2 converges. |
+| P2 structural digest mismatch (INDEX/TRIGGER/SEQUENCE/CONSTRAINT) | Sev2 | **Resolved** | Only SEQUENCE digest actually differs between P3 and P2 sources; generator updated to replace only that digest. |
 
-Before changing the runner allowlist, obtain deterministic repeat evidence using exact accepted profiler blob `731324aabbe049dc5278f3cedc49bf8980c5f5e5` against the approved restored P2 source. Two unchanged v3.2 captures must both equal:
-
-`57c2b64597f8df459043681a4faaf3c789e0eb17883d3ea9585dffac654121cb`
-
-Until that evidence is recorded, the candidate remains observed but unfrozen and the classifier must not change.
-
-Until the corrective successor and full P2 rehearsal pass, **G6 remains active but BLOCKED and WP-00 is not accepted**.
+**Unresolved Sev1 defects: 0.**  
+**Unresolved Sev2 defects: 0.**
