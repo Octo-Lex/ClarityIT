@@ -74,7 +74,7 @@ BEGIN
         ORDER BY n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)), 'UTF8'), 'sha256'), 'hex')
         FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
         WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY['adoc_set_updated_at','kc_search_vector_update','ki_search_vector_update','ki_set_updated_at','normalize_team_slug','normalize_user_email','prevent_bootstrap_unlock','protect_last_team_owner','set_updated_at','trg_artifacts_updated_at']::text[]))
-        <> '6993a5ab93fac21a1d5cd2e56f31120d235506a2772ba3690b7e35863f78f378' THEN
+        <> '53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0' THEN
         RAISE EXCEPTION 'G6 P2 adoption source application-function signatures drifted (digest mismatch)';
     END IF;
     -- Application-function BODY digest (full pg_get_functiondef).
@@ -82,7 +82,7 @@ BEGIN
         pg_get_functiondef(p.oid), E'\n' ORDER BY n.nspname, p.proname), 'UTF8'), 'sha256'), 'hex')
         FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
         WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY['adoc_set_updated_at','kc_search_vector_update','ki_search_vector_update','ki_set_updated_at','normalize_team_slug','normalize_user_email','prevent_bootstrap_unlock','protect_last_team_owner','set_updated_at','trg_artifacts_updated_at']::text[]))
-        <> 'afc970662baac7198b276e5b2048aee7e645246fdd84e6a1a071f80a9104a493' THEN
+        <> '143cc88d07fa638c9e4d2a515140b987db210c6f381537ed7d6e75dff664f0f8' THEN
         RAISE EXCEPTION 'G6 P2 adoption source application-function bodies drifted (digest mismatch)';
     END IF;
     -- Index digest.
