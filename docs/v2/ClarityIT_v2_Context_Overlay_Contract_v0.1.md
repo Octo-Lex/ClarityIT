@@ -28,6 +28,7 @@ The contract implements the WP-01-owned portion of Native Pattern P-05 and is su
 10. Every material rejection, omission, truncation, collision and policy conflict is evidenced.
 11. Workspace scope is mandatory and server-enforced before selection.
 12. Context may support investigation under degraded information, but a critical-source gap cannot satisfy an executable precondition.
+13. Same-layer precedence is a bound semantic input governed by an identified/versioned precedence policy; no unrecorded local ordering may influence composition.
 
 ## 3. Terminology
 
@@ -88,7 +89,8 @@ Every Context Bundle SHALL bind at least:
 - topology/resource/byte/token/count limits used by the builder;
 - builder version;
 - access-scope/policy version inputs;
-- ordered overlay-entry references;
+- same-layer precedence policy identity and version;
+- ordered overlay-entry references including each entry's bound declared precedence;
 - applied/rejected/omitted/conflicting entry records;
 - final canonical composition digest;
 - creation time and builder workload PrincipalRef.
@@ -108,11 +110,12 @@ For each build, the Context Builder SHALL execute in this order:
 7. expand topology only within the configured relation allowlist, depth and target-count limits;
 8. remove secret values and prohibited/sensitivity-disallowed material;
 9. classify screening state and quarantine where required;
-10. apply overlays in the order defined in section 6;
-11. reject authority-class collisions and prohibited shadowing;
-12. record omissions, truncation, stale inputs, critical gaps and conflicts;
-13. serialize the canonical composition manifest;
-14. compute and seal the final digest before reasoning begins.
+10. bind the identified/versioned same-layer precedence policy and each eligible entry's declared precedence;
+11. apply overlays in the order defined in section 6;
+12. reject authority-class collisions and prohibited shadowing;
+13. record omissions, truncation, stale inputs, critical gaps and conflicts;
+14. serialize the canonical composition manifest;
+15. compute and seal the final digest before reasoning begins.
 
 No browser or reasoning agent may bypass the builder and claim an equivalent authoritative Context Bundle.
 
@@ -139,7 +142,11 @@ Each overlay entry SHALL bind:
 - screening state;
 - immutable content/reference digest;
 - intended scope;
-- explicit constraints contributed by the entry.
+- explicit constraints contributed by the entry;
+- declared same-layer precedence value/class;
+- governing precedence-policy identity and version.
+
+The precedence value and governing policy/version are semantic composition inputs and must be included in evidence/digest inputs. Two builders may not use different unrecorded precedence rules for the same bound entries.
 
 Later layers may specialize presentation or add narrower restrictions. They may not transform contextual instructions into policy authority.
 
@@ -171,18 +178,27 @@ The composition record must identify the earlier constraint, conflicting later e
 
 ## 8. Reserved authoritative namespaces and anti-shadowing
 
-The following namespaces/classes are reserved and may only be populated from their authoritative owner:
+**Every canonical authoritative Kernel/Compatibility record namespace is reserved**, not only a selected subset. Reserved namespaces/classes may only be populated from their authoritative owner and include at least:
 
+- Case identity, aggregate version, lifecycle/projection source references and canonical Case fields;
+- Resource identity/version and ProviderBinding identity/version;
+- Observation identity, source, fieldset and freshness metadata;
+- OperationPacket identity, canonical bytes/digest/signature metadata, state and successor lineage;
 - policy and policy revision identifiers;
 - capability definitions and parameter schemas;
-- canonical Resource IDs and aggregate versions;
-- ProviderBinding IDs/versions;
-- current Observation IDs/source/freshness metadata;
+- PolicyDecision, ApprovalDecision and AuthorityGrant identities/states/bindings;
+- ExecutionAttempt identity/state/idempotency key, dispatch record and provider-operation reference;
+- ProviderReceipt and ResultClaim identities/source/bindings;
+- VerificationSpec, Verification and VerificationEvidence identities/results/bindings;
+- OutcomeDecision identity/state/accountable principal;
+- EvidenceManifest identity/digest/artifact references;
 - authoritative ownership/support mappings;
+- inbox/outbox/audit authoritative message/state records;
+- compatibility mapping and one-writer ownership records;
 - approved knowledge-version IDs once WP-05 introduces them;
-- AuthorityGrant/ApprovalDecision/PolicyDecision identifiers;
-- VerificationSpec/Verification/OutcomeDecision identifiers;
-- migration/schema authority identities.
+- migration/schema authority and revision identities.
+
+This list names the WP-01 canonical families but does not narrow the rule: if a record/field is authoritative under the Kernel, Compatibility contract, integrated WP-01 ownership matrix, or a later approved authority, its namespace is reserved automatically.
 
 Personal drafts, retrieved text, prior Cases, generated synthesis and unapproved knowledge MUST NOT define or override a reserved authoritative key.
 
@@ -272,12 +288,13 @@ Every cache key must include at least:
 - workspace;
 - access-scope/policy identity/version;
 - builder version;
+- same-layer precedence-policy identity/version;
 - relevant Resource/Binding aggregate versions;
 - relevant Observation/version/freshness inputs;
 - approved knowledge versions when applicable;
 - topology-limit configuration where it affects selection.
 
-Invalidation is required when any bound identity/version/access rule changes. A cache miss/failure may reduce performance; it must not change authority semantics.
+Invalidation is required when any bound identity/version/access/precedence rule changes. A cache miss/failure may reduce performance; it must not change authority semantics.
 
 Caches are never used as the sole source of an authoritative version assertion if the authoritative record can have advanced.
 
@@ -299,10 +316,11 @@ Reasoning output must distinguish what is known, stale, missing and inferred.
 Digest computation uses a versioned canonical JSON representation. The canonical form SHALL:
 
 - use explicit schema/builder versions;
+- include the same-layer precedence-policy identity/version and every entry's declared precedence;
 - sort object/map keys deterministically;
 - order set-like reference collections by stable ID/digest;
 - preserve the fixed overlay-layer order;
-- use deterministic ordering within each layer by declared precedence then stable entry ID;
+- use deterministic ordering within each layer by the **bound declared precedence** governed by the **bound precedence policy/version**, then stable entry ID;
 - normalize times to UTC RFC3339 with documented precision;
 - exclude non-semantic runtime data such as trace/span IDs;
 - include every semantic applied/rejected/omitted/conflict record required to reproduce the composition decision.
@@ -311,7 +329,7 @@ The digest is SHA-256 over the exact canonical bytes with a versioned domain sep
 
 `clarityit-context-overlay-v0.1\0 || canonical_json`
 
-Changing canonicalization or semantic fields requires a new builder/schema version; it must not silently reinterpret existing digests.
+Changing canonicalization, precedence semantics or semantic fields requires a new builder/schema version; it must not silently reinterpret existing digests.
 
 ## 17. Composition evidence
 
@@ -322,6 +340,8 @@ For every build the evidence record SHALL contain, directly or by immutable refe
 - workspace/Case/objective scope;
 - selected authoritative reference IDs/versions;
 - overlay entries and layer/authority metadata;
+- each entry's declared same-layer precedence;
+- governing precedence-policy identity/version;
 - applied entries;
 - rejected/quarantined entries;
 - omitted/truncated inputs;
@@ -374,18 +394,19 @@ WP-01 MUST prove at minimum:
 1. identical inputs + builder version reproduce the same digest;
 2. permutation of raw input arrival order does not change canonical output;
 3. overlay-layer permutation is rejected or canonicalized to the fixed order without changing authority;
-4. workspace/Case scope broadening fails;
-5. deny removal/policy relaxation fails;
-6. personal/retrieved/generated collision with a reserved namespace is rejected/quarantined;
-7. stale Observation remains stale and cannot satisfy a fresh requirement;
-8. critical-source gap remains explicit;
-9. topology depth/relation/count limits are enforced and evidenced;
-10. cache key includes workspace/access/version inputs and invalidates on change;
-11. secret values are absent from bundle/evidence/log fixtures;
-12. cross-workspace source/reference/cache/search cases fail closed;
-13. personal-draft data is excluded from packet canonicalization absent explicit typed mapping;
-14. screening state does not alter authority class;
-15. bundle reconstruction reproduces the final digest.
+4. identical entries with identical bound precedence policy/version reproduce the same same-layer order/digest, and changing precedence policy/version changes the bound composition input;
+5. workspace/Case scope broadening fails;
+6. deny removal/policy relaxation fails;
+7. personal/retrieved/generated collision with **any canonical authoritative Kernel/Compatibility namespace** is rejected/quarantined;
+8. stale Observation remains stale and cannot satisfy a fresh requirement;
+9. critical-source gap remains explicit;
+10. topology depth/relation/count limits are enforced and evidenced;
+11. cache key includes workspace/access/version/precedence-policy inputs and invalidates on change;
+12. secret values are absent from bundle/evidence/log fixtures;
+13. cross-workspace source/reference/cache/search cases fail closed;
+14. personal-draft data is excluded from packet canonicalization absent explicit typed mapping;
+15. screening state does not alter authority class;
+16. bundle reconstruction reproduces the final digest.
 
 These scenarios satisfy the WP-01-owned P-05/PC-BC criteria and AC-01-33 through AC-01-37 where applicable.
 
@@ -405,4 +426,4 @@ This contract does not authorize or define:
 
 Once WP01-G0 integrates this contract, implementation may refine internal APIs and storage shapes without changing these semantic requirements.
 
-A change to overlay order, monotonic-tightening rules, reserved-authority behavior, secret handling, workspace isolation, digest semantics, or the rule that context cannot create authority/truth is a contract change and requires a governed successor under WP-01 change control.
+A change to overlay order, same-layer precedence semantics/policy binding, monotonic-tightening rules, reserved-authority behavior, secret handling, workspace isolation, digest semantics, or the rule that context cannot create authority/truth is a contract change and requires a governed successor under WP-01 change control.
