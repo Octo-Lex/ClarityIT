@@ -3,7 +3,7 @@
 **Status:** Current authoritative project handoff
 **Snapshot date:** 11 August 2026
 **Integrated baseline:** G5 acceptance integration (this change), descended from exact-main proof baseline `main@d39c44fe942a786be43c1931f4047bf6a57df36e`
-**Current completed boundary:** WP-00 G5 accepted, signed, and enforced; required `Backend (Go)` + `G5 Foundation Gate` merge predicate active for `main`
+**Current completed boundary:** WP-00 G5 accepted, signed, and enforced; required frontend + worker + `Backend (Go)` + `G5 Foundation Gate` merge predicate active for `main`
 **Current authorized activity:** G6 final WP-00 acceptance under `G6-AUTH-2026-08-11`
 **Next gate:** G6 — execute WS6 from the accepted G5 integration boundary; G6 remains unaccepted until AC-00-01 through AC-00-30 pass
 
@@ -114,7 +114,7 @@ remain unchanged.
 | G5 exact-main G5 workflow | `WP-00 G5 Foundation Gate` run #11 — success |
 | G5 exact-main ordinary CI | `CI` run #136 — success |
 | Required-status ruleset | ID `20672081`, `WP-00 G5 Required Checks`, active on default branch, no bypass actors |
-| Required contexts | `Backend (Go)` AND `G5 Foundation Gate` |
+| Required contexts | `Frontend (typecheck · test · build)` AND `Worker (Python)` AND `Backend (Go)` AND `G5 Foundation Gate` |
 | G5 receipt | [`docs/migration/wp00/g5/G5-APPROVALS.md`](../migration/wp00/g5/G5-APPROVALS.md) |
 | G6 authorization | [`docs/migration/wp00/g6/G6-AUTHORIZATION-AND-PLAN.md`](../migration/wp00/g6/G6-AUTHORIZATION-AND-PLAN.md), `G6-AUTH-2026-08-11` |
 
@@ -156,7 +156,7 @@ test does not skip an earlier decision, and code presence does not close a gate.
 | G2 — schema decisions and target | **Closed**, 2026-08-02 | [`migrations/profiles/g2/G2-APPROVALS.md`](../../migrations/profiles/g2/G2-APPROVALS.md), signed commit `f04f94f...` | Target manifest is a read-only G3 input |
 | G3 — reconciled baseline | **Closed, signed, integrated**, 2026-08-04 | [G3 approval receipt](../migration/wp00/g3/G3-APPROVALS.md), signed tip `97f83e4...`, authority integration root `ac722273...` | Preserve identities and ancestry |
 | G4 — Go migration runner | **Accepted, signed, integrated**, 2026-08-10 | [G4 approval receipt](../migration/wp00/g4/G4-APPROVALS.md), implementation squash `f769cd3815ea08194b56c267cfa3b30fb7a12fd9`, authority tip `b31a7c5cd0ba132cb179db5751e8e2b8f339639f`, Linux CI run `31336112238` | Preserve accepted runner and proof identities |
-| G5 — blocking CI matrix | **Accepted, signed, enforced**, 2026-08-11 | [G5 approval receipt](../migration/wp00/g5/G5-APPROVALS.md), implementation squash `a0be44780aa0f486bd6fb1d5fd5d87d26de09001`, exact-main proof `d39c44fe942a786be43c1931f4047bf6a57df36e`, active ruleset ID `20672081` | G6 authorization is now active; preserve required `Backend (Go)` + `G5 Foundation Gate` conjunction |
+| G5 — blocking CI matrix | **Accepted, signed, enforced**, 2026-08-11 | [G5 approval receipt](../migration/wp00/g5/G5-APPROVALS.md), implementation squash `a0be44780aa0f486bd6fb1d5fd5d87d26de09001`, exact-main proof `d39c44fe942a786be43c1931f4047bf6a57df36e`, active ruleset ID `20672081` | G6 authorization is now active; preserve required frontend + worker + `Backend (Go)` + `G5 Foundation Gate` conjunction |
 | G6 — WP-00 acceptance | **Authorized, active, not accepted** | [G6 authorization](../migration/wp00/g6/G6-AUTHORIZATION-AND-PLAN.md), WP-00 AC-00-01 through AC-00-30 and A1-A7 evidence | Execute WS6 only; no conditional or partial acceptance |
 
 The immediate technical sequence is now G6 final WP-00 acceptance. G6 is
@@ -264,8 +264,8 @@ dump may be added to make the repository appear self-contained.
 2. Read this file, the authority index, the G5 acceptance receipt, the G6
    authorization, and the WP-00 plan.
 3. Verify the frozen G1-G4 identities remain unchanged, the G5 receipt is
-   integrated, and the repository still requires `Backend (Go)` and
-   `G5 Foundation Gate` for `main`.
+   integrated, and the repository still requires `Frontend (typecheck · test · build)`,
+   `Worker (Python)`, `Backend (Go)`, and `G5 Foundation Gate` for `main`.
 4. Bind the accepted G5 integration tip as the G6 starting baseline. Execute
    only the already-authorized WS6/G6 work: AC-00-01 through AC-00-30 evidence
    crosswalk, P2 release-artifact rehearsal, recovery/failure rehearsal,
