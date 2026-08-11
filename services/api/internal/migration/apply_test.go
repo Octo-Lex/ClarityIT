@@ -174,7 +174,7 @@ func TestApply_NoUnlockAllAnywhere(t *testing.T) {
 func TestApply_LegacyMigrationsNeverSelectable(t *testing.T) {
 	for _, act := range AllowlistedFingerprints {
 		switch act.Path {
-		case PathInstall, PathAdopt, PathBlock, "":
+		case PathInstall, PathAdopt, PathAdoptP2, PathBlock, "":
 			// allowed
 		default:
 			t.Errorf("allowlist fingerprint resolves to non-standard path %q (legacy leak?)", act.Path)
