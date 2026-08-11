@@ -26,7 +26,7 @@ The final pre-merge candidate `241cececbb74d2261cc696ade5c3aea09b6d2f8a` was pro
 
 - `WP-00 G5 Foundation Gate` run ID `31428517939` — **SUCCESS**.
 - `CI` run ID `31428520644` — **SUCCESS**.
-- `Backend (Go)` was part of the successful ordinary CI run and remained an unconditional blocking job.
+- `Backend (Go)`, `Frontend (typecheck · test · build)`, and `Worker (Python)` were part of the successful ordinary CI run and remained unconditional jobs.
 - All four G5 fan-in dependencies passed: `backend-static`, database foundation matrix, historical truth, and artifact audit.
 - The database foundation job retained the accepted G4 11-row matrix and required `ALL G4 EVIDENCE ROWS PASS`.
 
@@ -48,13 +48,13 @@ After implementation integration, the exact current `main` proof baseline `d39c4
 
 The Actions UI evidence was supplied directly by the repository owner. The installed GitHub connector cannot enumerate push-triggered workflow runs, so the receipt records the visible immutable workflow/run numbers, exact commit, branch, and conclusion rather than inventing unavailable run IDs.
 
-The ordinary `ci.yml` defines `Backend (Go)` as an unconditional job with no `continue-on-error`; therefore successful CI #136 includes successful `Backend (Go)` execution.
+The ordinary `ci.yml` defines `Backend (Go)`, `Frontend (typecheck · test · build)`, and `Worker (Python)` as unconditional jobs with no `continue-on-error`; therefore successful CI #136 includes successful execution of all three application CI jobs.
 
 ## 4. Required-status enforcement
 
 Repository ruleset evidence is preserved as [`G5-RULESET-EVIDENCE.json`](G5-RULESET-EVIDENCE.json).
 
-The exported GitHub ruleset has:
+The active GitHub ruleset state has:
 
 - ruleset ID `20672081`;
 - name `WP-00 G5 Required Checks`;
@@ -64,17 +64,21 @@ The exported GitHub ruleset has:
 - target condition `~DEFAULT_BRANCH` (repository default branch is `main`);
 - empty bypass actor list;
 - exactly one rule type: `required_status_checks`;
-- exactly two required contexts:
+- four required contexts:
   - `Backend (Go)`;
-  - `G5 Foundation Gate`.
+  - `G5 Foundation Gate`;
+  - `Frontend (typecheck · test · build)`;
+  - `Worker (Python)`.
 
-The client-supplied exported JSON SHA-256 is:
+The committed sanitized ruleset evidence SHA-256 is:
 
-`e905241b71f259c83aa232d458d9851542ce058bb3649e37b3172ca6cb49634f`
+`c55ea7b6622c21bee70eba0aeeabe3c8989f355e5297b8ffc6976cf85c614f26`
 
-No mandatory reviewer count, CODEOWNERS enforcement, signed-commit rule, linear-history rule, deployment approval, deletion restriction, force-push restriction, or other unrelated G5 control is represented in the exported ruleset.
+The original ruleset export established the immutable ruleset ID, active/default-branch targeting, no bypass actors, and GitHub Actions integration identity. The repository owner subsequently supplied the updated rule-detail UI showing the same ruleset with all four WP-00-required status contexts. The committed JSON preserves that final observed state without production secrets or unrelated repository data.
 
-`strict_required_status_checks_policy` is `false`; G5 did not require a branch to be updated with the latest `main` before merge. The frozen property is the fail-closed conjunction of the two required status contexts.
+No signed-commit rule, linear-history rule, deployment approval, deletion restriction, force-push restriction, or other unrelated G5 control is represented in this ruleset evidence.
+
+`strict_required_status_checks_policy` is `false`; G5 did not require a branch to be updated with the latest `main` before merge. The frozen property is the fail-closed conjunction of the four required status contexts.
 
 ## 5. Frozen G5 CI classes
 
@@ -85,8 +89,8 @@ No mandatory reviewer count, CODEOWNERS enforcement, signed-commit rule, linear-
 | `db-adopt-p3` | **PASS** | accepted G4 matrix G4-02 plus fan-in marker |
 | `db-negative` | **PASS** | G4-03/G4-04 fail-closed coverage plus fan-in marker |
 | `db-restart-lock` | **PASS** | G4-05/G4-06/G4-07 plus fan-in marker |
-| `context-dead-letter` | **PASS** | separately required successful `Backend (Go)` suite |
-| `backend-integration` | **PASS** | separately required successful `Backend (Go)` suite |
+| `context-dead-letter` | **PASS** | required successful `Backend (Go)` suite |
+| `backend-integration` | **PASS** | required successful `Backend (Go)` suite |
 | `artifact-audit` | **PASS** | G3 static/generated checks, legacy checksum verification, G2 grant inventory and three-way receipt/checksum/blob binding |
 
 Historical-truth safeguard: **PASS — 5/5; zero authoritative promotions**.
@@ -97,15 +101,19 @@ Evidence hygiene: **PASS**; no production credentials or raw sensitive P1/P2 byt
 
 ## 6. Enforcement predicate
 
-The effective `main` merge predicate is now:
+The effective WP-00 `main` merge predicate is now:
 
 ```text
+Frontend (typecheck · test · build) == SUCCESS
+AND
+Worker (Python) == SUCCESS
+AND
 Backend (Go) == SUCCESS
 AND
 G5 Foundation Gate == SUCCESS
 ```
 
-A green frontend or worker result cannot compensate for either required context failing or being absent.
+No successful subset can compensate for another required context failing or being absent.
 
 ## 7. Acceptance decisions
 
@@ -114,22 +122,22 @@ The authorization requested one transparent delegated assessment across the requ
 | Role | Decision | Basis |
 |---|---|---|
 | Backend | **APPROVE** | workflow implementation is deterministic, exact-SHA bound, and does not alter accepted G4 runner semantics |
-| Quality | **APPROVE** | eight frozen CI classes, G4 11-row regression oracle, exact-main proof, and fail-closed fan-in are evidenced |
+| Quality | **APPROVE** | eight frozen CI classes, existing frontend/worker gates, G4 11-row regression oracle, exact-main proof, and fail-closed enforcement are evidenced |
 | Security | **APPROVE** | historical-truth guard, secret/evidence hygiene, artifact binding, and no-bypass required-status enforcement are evidenced |
 
 ## 8. Final G5 decision
 
-Every frozen G5 requirement is satisfied:
+Every frozen G5 requirement is satisfied when this receipt-only integration itself passes the required contexts:
 
 1. G4 remained the accepted prerequisite.
 2. G5 authorization was integrated before implementation.
-3. Exact candidate proof passed both G5 and ordinary CI.
+3. Exact candidate proof passed G5 and ordinary CI.
 4. G5 implementation was integrated on `main`.
 5. Exact-main G5 and ordinary CI proof passed on `d39c44fe942a786be43c1931f4047bf6a57df36e`.
-6. The required-status ruleset is active on `main`, has no bypass actors, and requires exactly `Backend (Go)` and `G5 Foundation Gate`.
+6. The required-status ruleset is active on `main`, has no bypass actors, and requires the WP-00 backend checks in addition to the existing frontend and worker checks.
 7. Historical-truth and evidence-hygiene safeguards are blocking.
 8. No accepted G1-G4 artifact or identity was rewritten.
 
-**Decision: G5 ACCEPTED.**
+**Decision: G5 ACCEPTED upon integration of this receipt-only change after all required contexts pass.**
 
 This decision becomes durable when this receipt and the project completion authority update are integrated together. G6 is separately authorized by `G6-AUTH-2026-08-11` and becomes active from that accepted G5 integration boundary. G6 itself remains unaccepted until AC-00-01 through AC-00-30 and the frozen WS6 evidence contract pass.
