@@ -216,8 +216,9 @@ func TestNoReconstructionOfLegacyChain(t *testing.T) {
 	allowedPaths := map[Path]bool{
 		PathInstall: true,
 		PathAdopt:   true,
+		PathAdoptP2: true,
 		PathBlock:   true,
-		"":          true, // recognized but not executable (P1/P2)
+		"":          true, // recognized but not executable (P1/P2 v3.1)
 	}
 	for fp, act := range AllowlistedFingerprints {
 		if !allowedPaths[act.Path] {

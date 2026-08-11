@@ -254,8 +254,15 @@ func Apply(ctx context.Context, pool *pgxpool.Pool, opts ApplyOptions) ApplyResu
 			return res
 		}
 	case PathAdopt:
-		if err := execAdoption(ctx, tx, producingCommit, &res.DDLStarted); err != nil {
+		if err := execAdoption(ctx, tx, producingCommit, &res.DDLStarted, assets.AssetAdoptP3); err != nil {
 			res.Err = fmt.Errorf("adoption: %w", err)
+			res.CompletedAt = time.Now()
+			res.ExecutionMs = time.Since(res.StartedAt).Milliseconds()
+			return res
+		}
+	case PathAdoptP2:
+		if err := execAdoption(ctx, tx, producingCommit, &res.DDLStarted, assets.AssetAdoptP2); err != nil {
+			res.Err = fmt.Errorf("P2 adoption: %w", err)
 			res.CompletedAt = time.Now()
 			res.ExecutionMs = time.Since(res.StartedAt).Milliseconds()
 			return res
@@ -467,7 +474,7 @@ func execFreshChain(ctx context.Context, tx pgx.Tx, ddlStarted *bool) error {
 // via parameterized set_config (extended protocol) BEFORE the body; the body
 // (set_config line removed by Transform) runs via simple protocol. ddlStarted
 // is flipped only immediately before the body is submitted.
-func execAdoption(ctx context.Context, tx pgx.Tx, producingCommit string, ddlStarted *bool) error {
+func execAdoption(ctx context.Context, tx pgx.Tx, producingCommit string, ddlStarted *bool, artifact assets.AssetName) error {
 	if producingCommit == "" {
 		return errors.New("adoption requires a producing commit (ldflags-bound)")
 	}
@@ -475,7 +482,7 @@ func execAdoption(ctx context.Context, tx pgx.Tx, producingCommit string, ddlSta
 	if _, err := tx.Exec(ctx, `SELECT set_config('g3.source_commit', $1, true)`, producingCommit); err != nil {
 		return fmt.Errorf("set_config producing commit: %w", err)
 	}
-	ts, err := Transform(assets.AssetAdoptP3)
+	ts, err := Transform(artifact)
 	if err != nil {
 		return fmt.Errorf("transform adoption: %w", err)
 	}
@@ -549,6 +556,9 @@ func profileIDForPath(p Path) string {
 	if p == PathAdopt {
 		return P3ProfileID
 	}
+	if p == PathAdoptP2 {
+		return P2ProfileID
+	}
 	return ""
 }
 
@@ -585,6 +595,9 @@ func collectTransformedDigests(p Path) map[string]string {
 func chainForPath(p Path) []assets.AssetName {
 	if p == PathAdopt {
 		return assets.AdoptionChain
+	}
+	if p == PathAdoptP2 {
+		return assets.P2AdoptionChain
 	}
 	return assets.FreshInstallChain
 }

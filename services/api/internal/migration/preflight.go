@@ -28,10 +28,11 @@ const (
 type Path string
 
 const (
-	PathNoOp   Path = "no_op"
-	PathAdopt  Path = "adopt_p3"
+	PathNoOp    Path = "no_op"
+	PathAdopt   Path = "adopt_p3"
+	PathAdoptP2 Path = "adopt_p2"
 	PathInstall Path = "install"
-	PathBlock  Path = "block"
+	PathBlock   Path = "block"
 )
 
 // ReasonCode is a stable diagnostic code for a preflight outcome.
@@ -56,8 +57,9 @@ const (
 // are recognized but not executable (a separate governed artifact would be
 // required). Anything not here is unknown.
 var AllowlistedFingerprints = map[string]FingerprintAction{
-	P3GoldenFingerprint: {Path: PathAdopt, Class: ClassApprovedSource, Executable: true},
-	P1P2Fingerprint:     {Path: "", Class: ClassUnknownDrifted, Executable: false, Code: CodeSourceProfileP1P2},
+	P3GoldenFingerprint:     {Path: PathAdopt, Class: ClassApprovedSource, Executable: true},
+	P2SuccessorFingerprint:  {Path: PathAdoptP2, Class: ClassApprovedSource, Executable: true},
+	P1P2Fingerprint:         {Path: "", Class: ClassUnknownDrifted, Executable: false, Code: CodeSourceProfileP1P2},
 }
 
 // FingerprintAction is the resolution of a recognized source fingerprint.

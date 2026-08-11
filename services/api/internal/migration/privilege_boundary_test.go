@@ -94,6 +94,7 @@ func TestPrivilegeBoundary_LegacyMigrationsNeverSelectable(t *testing.T) {
 		"0001_reconciled.sql": true,
 		"0001_seed.sql":      true,
 		"0001_adopt_p3.sql":  true,
+		"0001_adopt_p2.sql":  true,
 	}
 	for _, asset := range assets.AllAssets {
 		name := string(asset)

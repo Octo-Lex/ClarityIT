@@ -66,7 +66,8 @@ func TestLegacySQLNotEmbedded(t *testing.T) {
 			// 001_core_extensions.sql. Assert the only numbered embeds are G3.
 			switch s {
 			case "0000_platform.sql", "0000_roles.sql",
-				"0001_reconciled.sql", "0001_seed.sql", "0001_adopt_p3.sql":
+				"0001_reconciled.sql", "0001_seed.sql",
+				"0001_adopt_p3.sql", "0001_adopt_p2.sql":
 				// allowed
 			default:
 				t.Errorf("legacy-looking asset embedded: %s", s)

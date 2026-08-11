@@ -55,9 +55,16 @@ const (
 	// entry; the only fingerprint executable through adoption in G4).
 	P3GoldenFingerprint = "cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b"
 
-	// P1/P2 source fingerprint. Recognized but NOT executable through any G4
-	// path; a P1/P2 executable adoption requires a separately governed artifact.
+	// P1/P2 source fingerprint (historical v3.1). Recognized but NOT executable;
+	// the v3.2 successor is executable through the G6 P2 adoption path.
 	P1P2Fingerprint = "89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83"
+
+	// P1/P2 source fingerprint (v3.2 successor). The executable P2 adoption
+	// fingerprint established by G6-TERMINAL-CLOSURE-AUTH-2026-08-11.
+	P2SuccessorFingerprint = "57c2b64597f8df459043681a4faaf3c789e0eb17883d3ea9585dffac654121cb"
+
+	// P2 adoption artifact SHA-256 (migrations/v2/adoption/0001_adopt_p2.sql).
+	P2AdoptionArtifactSHA256 = "060001beec55a6483ca86654d9cfef8f74192901c9db6d34ba7a6fe9decb746e"
 
 	// Baseline SQL checksum — the revision-0001 checksum recorded by both the
 	// seed artifact and the adoption artifact (they converge on this value).
@@ -72,6 +79,9 @@ const (
 	// P3 adoption profile identifiers (UUIDv5, deterministic; transcribed from
 	// the G3-A4 manifest adoption block).
 	P3ProfileID = "7c5cb0b9-1fb4-540d-9433-f0196ff6f7bb"
+
+	// P2 successor profile UUID (from G6-TERMINAL-CLOSURE-AUTH-2026-08-11).
+	P2ProfileID = "7b5b8b87-3467-5fd5-9bac-3dbcdd858178"
 
 	// G1 approval reference (the commit that approved the P1/P2/P3 profile pack).
 	G1ApprovalRef = "3b4a6fdeb35473e5f73ca74bafa479bd2648fb10"
@@ -89,6 +99,7 @@ var FrozenDigest = map[assets.AssetName]string{
 	assets.AssetPlatformSchema: PlatformSQLSHA256,
 	assets.AssetRolesBootstrap: RolesSQLSHA256,
 	assets.AssetAdoptP3:        P3AdoptionArtifactSHA256,
+	assets.AssetAdoptP2:        P2AdoptionArtifactSHA256,
 	assets.AssetG2Manifest:     G2ManifestBlobSHA256,
 	assets.AssetControlManifest: ControlManifestSHA256,
 }
