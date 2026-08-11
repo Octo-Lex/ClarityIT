@@ -38,7 +38,7 @@ import (
 // is insufficient (definitions/grants can drift at constant count), so this
 // captures definition-sensitive material too.
 type DatabaseSnapshot struct {
-	LedgerDigest       string // sha256 of ledger rows; "" if no platform
+	LedgerDigest        string // sha256 of ledger rows; "" if no platform
 	GovernedFingerprint string // computed live; "" if not governable
 	SourceFingerprint   string // computed live; "" if DB empty
 	InventoryDigest     string // sha256 of object-identity + definition material

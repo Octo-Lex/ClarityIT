@@ -274,7 +274,7 @@ func grantsDigest(grants []string) (string, error) {
 // golang_migrations, goose_db_version. Returns {table, row_count,
 // latest_column, latest_recorded_at} or {table, note} if none found.
 func queryMigrationState(ctx context.Context, q pgxQuerier) (map[string]any, error) {
-	candidates := []struct{ schema, table string}{
+	candidates := []struct{ schema, table string }{
 		{"public", "schema_migrations"},
 		{"platform", "schema_revisions"},
 		{"public", "golang_migrations"},
@@ -314,9 +314,9 @@ func queryMigrationState(ctx context.Context, q pgxQuerier) (map[string]any, err
 				maxTsVal = *maxTs
 			}
 			return map[string]any{
-				"table":           c.schema + "." + c.table,
-				"row_count":       count,
-				"latest_column":   *tsCol,
+				"table":              c.schema + "." + c.table,
+				"row_count":          count,
+				"latest_column":      *tsCol,
 				"latest_recorded_at": maxTsVal,
 			}, nil
 		}

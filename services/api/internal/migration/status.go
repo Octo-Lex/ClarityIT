@@ -38,13 +38,13 @@ func Status(ctx context.Context, conn *pgx.Conn) (Result, error) {
 	if !hasPlatform {
 		// No platform schema → uninstalled (a valid status, not an error).
 		return Result{
-			Status:    "ok",
-			Code:      CodeOK,
-			Phase:     PhasePreflight,
+			Status:     "ok",
+			Code:       CodeOK,
+			Phase:      PhasePreflight,
 			DDLStarted: false,
-			Class:     ClassEmptyInstall,
-			Path:      PathInstall,
-			Composite: vres.Composite,
+			Class:      ClassEmptyInstall,
+			Path:       PathInstall,
+			Composite:  vres.Composite,
 			Diagnostics: []Diag{{
 				CheckID: "platform",
 				Result:  "absent",
@@ -80,16 +80,16 @@ func Status(ctx context.Context, conn *pgx.Conn) (Result, error) {
 	class, path, code := Classify(probe)
 
 	return Result{
-		Status:          "ok",
-		Code:            code,
-		Phase:           PhasePreflight,
-		DDLStarted:      false,
-		Class:           class,
-		Path:            path,
-		Composite:       vres.Composite,
-		TargetVersion:   revVersion,
-		SourceProfile:   probe.SourceFingerprint,
-		GovernedFP:      probe.GovernedFingerprint,
+		Status:        "ok",
+		Code:          code,
+		Phase:         PhasePreflight,
+		DDLStarted:    false,
+		Class:         class,
+		Path:          path,
+		Composite:     vres.Composite,
+		TargetVersion: revVersion,
+		SourceProfile: probe.SourceFingerprint,
+		GovernedFP:    probe.GovernedFingerprint,
 		Diagnostics: []Diag{
 			{CheckID: "revision", Scope: revVersion, Result: fmt.Sprintf("success=%v", revSuccess), Detail: fmt.Sprintf("%s checksum=%s applied_by=%s", revName, revChecksum[:12], revAppliedBy)},
 			{CheckID: "runs", Scope: "migration_runs", Result: fmt.Sprintf("total=%d active=%d", runCount, activeCount)},

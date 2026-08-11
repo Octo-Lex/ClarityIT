@@ -37,11 +37,11 @@ func zeroMutDSN() string {
 // comparison. If any field differs after a preflight attempt, a mutation
 // occurred.
 type dbSnapshot struct {
-	PlatformExists   bool
-	LedgerRowCount   int
-	LedgerDigest     string // sha256 of (version,name,checksum,success) rows, or "" if no platform
-	UserObjectCount  int    // count of user relations+functions (sentinel for DDL)
-	XID              string // txid_current()::text as a transaction sentinel
+	PlatformExists  bool
+	LedgerRowCount  int
+	LedgerDigest    string // sha256 of (version,name,checksum,success) rows, or "" if no platform
+	UserObjectCount int    // count of user relations+functions (sentinel for DDL)
+	XID             string // txid_current()::text as a transaction sentinel
 }
 
 func snapshotDB(t *testing.T, conn *pgx.Conn) dbSnapshot {

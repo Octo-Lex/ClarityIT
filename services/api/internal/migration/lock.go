@@ -33,8 +33,10 @@ import (
 // one bigint or two ints; we use the single-bigint form).
 //
 // Derivation (recorded once, never recomputed at runtime):
-//   input  = "clarityit-g4-migration-advisory-lock-v1"
-//   sha256 = b1f3... (first 8 bytes, big-endian, interpreted as int64)
+//
+//	input  = "clarityit-g4-migration-advisory-lock-v1"
+//	sha256 = b1f3... (first 8 bytes, big-endian, interpreted as int64)
+//
 // The value below is hard-coded; changing it would break lock compatibility
 // across runner versions. Two 32-bit halves are also documented for the
 // two-int call form if ever needed.

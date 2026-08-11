@@ -94,26 +94,26 @@ const (
 // here (the manifests that *contain* digests, and the detached checksum files)
 // are verified structurally rather than against a single frozen digest.
 var FrozenDigest = map[assets.AssetName]string{
-	assets.AssetBaseline:       BaselineChecksum,
-	assets.AssetSeed:           SeedSQLSHA256,
-	assets.AssetPlatformSchema: PlatformSQLSHA256,
-	assets.AssetRolesBootstrap: RolesSQLSHA256,
-	assets.AssetAdoptP3:        P3AdoptionArtifactSHA256,
-	assets.AssetAdoptP2:        P2AdoptionArtifactSHA256,
-	assets.AssetG2Manifest:     G2ManifestBlobSHA256,
+	assets.AssetBaseline:        BaselineChecksum,
+	assets.AssetSeed:            SeedSQLSHA256,
+	assets.AssetPlatformSchema:  PlatformSQLSHA256,
+	assets.AssetRolesBootstrap:  RolesSQLSHA256,
+	assets.AssetAdoptP3:         P3AdoptionArtifactSHA256,
+	assets.AssetAdoptP2:         P2AdoptionArtifactSHA256,
+	assets.AssetG2Manifest:      G2ManifestBlobSHA256,
 	assets.AssetControlManifest: ControlManifestSHA256,
 }
 
 // Composite domain and component labels — transcribed verbatim from
 // generate_g3.py::composite_digest. The Go port must produce identical bytes.
 const (
-	compositeDomain     = "clarityit-g3-composite-v1\x00"
-	lblProductManifest  = "product_manifest_blob_sha256"
-	lblControlManifest  = "control_manifest"
-	lblBaselineSQL      = "baseline_sql"
-	lblSeedSQL          = "seed_sql"
-	lblRolesBootstrap   = "role_bootstrap_sql"
-	lblLegacyChecksums  = "legacy_checksum_inventory"
+	compositeDomain    = "clarityit-g3-composite-v1\x00"
+	lblProductManifest = "product_manifest_blob_sha256"
+	lblControlManifest = "control_manifest"
+	lblBaselineSQL     = "baseline_sql"
+	lblSeedSQL         = "seed_sql"
+	lblRolesBootstrap  = "role_bootstrap_sql"
+	lblLegacyChecksums = "legacy_checksum_inventory"
 )
 
 // CompositeDigest reproduces generate_g3.py::composite_digest byte-for-byte:
@@ -178,10 +178,10 @@ type sha256Writer interface {
 
 // VerifyResult is the outcome of packaging self-verification.
 type VerifyResult struct {
-	Composite    string            // recomputed composite digest
-	PerAsset     map[string]string // asset name -> recomputed SHA-256
-	CompositeOK  bool
-	Mismatches   []string // asset names whose embedded bytes diverge from frozen
+	Composite   string            // recomputed composite digest
+	PerAsset    map[string]string // asset name -> recomputed SHA-256
+	CompositeOK bool
+	Mismatches  []string // asset names whose embedded bytes diverge from frozen
 }
 
 // VerifyAll recomputes every per-file SHA-256 and the composite digest from the

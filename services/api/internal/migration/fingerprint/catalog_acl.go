@@ -122,10 +122,10 @@ func queryGrantMaterial(ctx context.Context, q pgxQuerier, governedRelations [][
 // ownershipRow is a governed projected-ownership record. The ownership projection
 // includes database owner, schema owners, relation owners, and function owners.
 type ownershipRow struct {
-	Database    string `json:"database,omitempty"`
-	Schemas     map[string]string `json:"schemas,omitempty"`
-	Relations   map[string]string `json:"relations,omitempty"`
-	Functions   map[string]string `json:"functions,omitempty"`
+	Database  string            `json:"database,omitempty"`
+	Schemas   map[string]string `json:"schemas,omitempty"`
+	Relations map[string]string `json:"relations,omitempty"`
+	Functions map[string]string `json:"functions,omitempty"`
 }
 
 // queryProjectedOwnership returns the projected ownership posture: database

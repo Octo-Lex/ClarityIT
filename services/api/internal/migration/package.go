@@ -54,10 +54,10 @@ var ErrTransformInvariant = errors.New("frozen artifact transform invariant viol
 // transformation is auditable: SourceSHA256 ties to the embedded/frozen
 // identity; TransformedSHA256 ties to the executable bytes.
 type TransformedScript struct {
-	Asset            assets.AssetName
-	SourceSHA256     string // SHA-256 of the immutable embedded bytes
+	Asset             assets.AssetName
+	SourceSHA256      string // SHA-256 of the immutable embedded bytes
 	TransformedSHA256 string // SHA-256 of the transformed executable body
-	Body             []byte // the parameter-free, BEGIN/COMMIT-stripped body
+	Body              []byte // the parameter-free, BEGIN/COMMIT-stripped body
 	// NeedsSetConfig is true for the adoption artifact: the runner must execute
 	// SELECT set_config('g3.source_commit',$1,true) separately before the body.
 	NeedsSetConfig bool

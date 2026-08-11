@@ -23,11 +23,11 @@ import (
 // PreflightResult is the immutable outcome of a live preflight. Apply and plan
 // consume this; neither recomputes a weaker subset.
 type PreflightResult struct {
-	Probe              Probe
-	Class              Class
-	Path               Path
-	Code               ReasonCode
-	Packaging          VerifyResult
+	Probe               Probe
+	Class               Class
+	Path                Path
+	Code                ReasonCode
+	Packaging           VerifyResult
 	GovernedFingerprint string // computed live (empty if not governable)
 	SourceFingerprint   string // computed live (empty if DB is empty)
 }

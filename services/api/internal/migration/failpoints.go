@@ -10,16 +10,16 @@ package migration
 type Failpoint string
 
 const (
-	FailAfterSecondProbe     Failpoint = "after_second_probe"
-	FailAfterArtifactRoles   Failpoint = "after_artifact_roles"
-	FailAfterArtifactPlatform Failpoint = "after_artifact_platform"
-	FailAfterArtifactBaseline Failpoint = "after_artifact_baseline"
-	FailAfterArtifactSeed    Failpoint = "after_artifact_seed"
-	FailAfterAdoptionBody    Failpoint = "after_adoption_body"
-	FailAfterTargetFingerprint Failpoint = "after_target_fingerprint"
-	FailAfterRunInsert       Failpoint = "after_run_insert"
-	FailAfterTargetReceipt   Failpoint = "after_target_receipt"
-	FailAfterExecutionReceipt Failpoint = "after_execution_receipt"
+	FailAfterSecondProbe         Failpoint = "after_second_probe"
+	FailAfterArtifactRoles       Failpoint = "after_artifact_roles"
+	FailAfterArtifactPlatform    Failpoint = "after_artifact_platform"
+	FailAfterArtifactBaseline    Failpoint = "after_artifact_baseline"
+	FailAfterArtifactSeed        Failpoint = "after_artifact_seed"
+	FailAfterAdoptionBody        Failpoint = "after_adoption_body"
+	FailAfterTargetFingerprint   Failpoint = "after_target_fingerprint"
+	FailAfterRunInsert           Failpoint = "after_run_insert"
+	FailAfterTargetReceipt       Failpoint = "after_target_receipt"
+	FailAfterExecutionReceipt    Failpoint = "after_execution_receipt"
 	FailAfterEvidenceFingerprint Failpoint = "after_evidence_fingerprint"
-	FailBeforeCommit         Failpoint = "before_commit"
+	FailBeforeCommit             Failpoint = "before_commit"
 )

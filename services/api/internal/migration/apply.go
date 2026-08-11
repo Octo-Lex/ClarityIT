@@ -68,16 +68,16 @@ type ApplyOptions struct {
 // fingerprint matched the frozen target. On failure, Err carries the cause and
 // the diagnostic is sanitized.
 type ApplyResult struct {
-	Class              Class
-	Path               Path
-	Code               ReasonCode
+	Class               Class
+	Path                Path
+	Code                ReasonCode
 	GovernedFingerprint string
-	RunID              string
-	StartedAt          time.Time
-	CompletedAt        time.Time
-	ExecutionMs        int64
-	DDLStarted         bool // true only when DDL was actually submitted (past preflight + into target tx)
-	Err                error
+	RunID               string
+	StartedAt           time.Time
+	CompletedAt         time.Time
+	ExecutionMs         int64
+	DDLStarted          bool // true only when DDL was actually submitted (past preflight + into target tx)
+	Err                 error
 }
 
 // Apply executes the version-0001 migration on a dedicated physical connection
@@ -353,20 +353,20 @@ func Apply(ctx context.Context, pool *pgxpool.Pool, opts ApplyOptions) ApplyResu
 	res.CompletedAt = time.Now()
 	res.ExecutionMs = res.CompletedAt.Sub(res.StartedAt).Milliseconds()
 	if err := AppendExecutionReceipt(ctx, tx, ExecutionReceipt{
-		RunID:             runID,
-		ReleaseID:         opts.ReleaseID,
-		PackageDigest:     mustCompositeDigest(),
-		TargetFingerprint: fp,
-		TargetVersion:     "0001",
-		Actor:             opts.Actor,
-		Path:              string(pf.Path),
-		StartedAt:         res.StartedAt,
-		CompletedAt:       res.CompletedAt,
-		ExecutionMs:       res.ExecutionMs,
-		ProducingCommit:   producingCommit,
-		OriginalDigests:   collectOriginalDigests(pf.Path),
+		RunID:              runID,
+		ReleaseID:          opts.ReleaseID,
+		PackageDigest:      mustCompositeDigest(),
+		TargetFingerprint:  fp,
+		TargetVersion:      "0001",
+		Actor:              opts.Actor,
+		Path:               string(pf.Path),
+		StartedAt:          res.StartedAt,
+		CompletedAt:        res.CompletedAt,
+		ExecutionMs:        res.ExecutionMs,
+		ProducingCommit:    producingCommit,
+		OriginalDigests:    collectOriginalDigests(pf.Path),
 		TransformedDigests: collectTransformedDigests(pf.Path),
-		EvidenceRef:       opts.EvidenceRef,
+		EvidenceRef:        opts.EvidenceRef,
 	}); err != nil {
 		res.Err = fmt.Errorf("append execution receipt: %w", err)
 		return res

@@ -106,14 +106,14 @@ func TestTransformRejectsUnsupportedPsqlMeta(t *testing.T) {
 	// Transform operates on embedded assets only, so we test the regex layer
 	// directly with synthetic inputs that simulate a drifted artifact.
 	cases := map[string]string{
-		"include": `\i other.sql`,
+		"include":      `\i other.sql`,
 		"include_long": `\include other.sql`,
-		"copy":    `\copy (SELECT 1) TO '/tmp/x'`,
-		"set_var": `\set myvar 42`,
-		"shell":   `\! rm -rf /`,
-		"if":      `\if :cond`,
-		"connect": `\connect postgres://evil`,
-		"warn":    `\echo boom`,
+		"copy":         `\copy (SELECT 1) TO '/tmp/x'`,
+		"set_var":      `\set myvar 42`,
+		"shell":        `\! rm -rf /`,
+		"if":           `\if :cond`,
+		"connect":      `\connect postgres://evil`,
+		"warn":         `\echo boom`,
 	}
 	for name, line := range cases {
 		t.Run(name, func(t *testing.T) {

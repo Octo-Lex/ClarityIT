@@ -26,8 +26,8 @@ import (
 // runner must NEVER import. If any appear in the dependency graph of
 // cmd/clarity-migrate, the runner has a provider/effect/target path.
 var forbiddenDeps = []string{
-	"github.com/clarityit/api/internal/natsx",      // NATS runtime
-	"github.com/clarityit/api/internal/outbox",     // outbox event dispatch
+	"github.com/clarityit/api/internal/natsx",       // NATS runtime
+	"github.com/clarityit/api/internal/outbox",      // outbox event dispatch
 	"github.com/clarityit/api/internal/gateway",     // API gateway / effect dispatch
 	"github.com/clarityit/api/internal/proxmox",     // Proxmox provider client
 	"github.com/clarityit/api/internal/remediation", // remediation provider
@@ -89,12 +89,12 @@ func TestPrivilegeBoundary_NoForbiddenDeps(t *testing.T) {
 // belongs to exactly the authorized execution set. No legacy 001-040 can appear.
 func TestPrivilegeBoundary_LegacyMigrationsNeverSelectable(t *testing.T) {
 	authorizedSQL := map[string]bool{
-		"0000_platform.sql":  true,
-		"0000_roles.sql":     true,
+		"0000_platform.sql":   true,
+		"0000_roles.sql":      true,
 		"0001_reconciled.sql": true,
-		"0001_seed.sql":      true,
-		"0001_adopt_p3.sql":  true,
-		"0001_adopt_p2.sql":  true,
+		"0001_seed.sql":       true,
+		"0001_adopt_p3.sql":   true,
+		"0001_adopt_p2.sql":   true,
 	}
 	for _, asset := range assets.AllAssets {
 		name := string(asset)

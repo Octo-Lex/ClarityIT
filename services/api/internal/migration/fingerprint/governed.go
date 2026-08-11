@@ -39,7 +39,7 @@ type SignedG2Manifest struct {
 // ControlManifestFunctions is the subset of the control manifest the projection
 // needs: the platform function inventory (names like "platform.fn(args)").
 type ControlManifestFunctions struct {
-	Functions []string `json:"functions"`
+	Functions []string                   `json:"functions"`
 	Tables    map[string]json.RawMessage `json:"tables"`
 }
 
@@ -181,22 +181,22 @@ func GovernedCapture(ctx context.Context, q pgxQuerier, signed *SignedG2Manifest
 	}
 
 	return map[string]any{
-		"algorithm":            GovernedAlgorithm,
-		"schemas":              sortedStrings(GovernedSchemas),
-		"relations":            relationsProjected,
-		"columns":              columns,
-		"constraints":          constraints,
-		"indexes":              indexes,
-		"triggers":             triggers,
-		"sequences":            sequencesAny,
+		"algorithm":             GovernedAlgorithm,
+		"schemas":               sortedStrings(GovernedSchemas),
+		"relations":             relationsProjected,
+		"columns":               columns,
+		"constraints":           constraints,
+		"indexes":               indexes,
+		"triggers":              triggers,
+		"sequences":             sequencesAny,
 		"application_functions": appFunctionsAny,
-		"roles":                rolesAny,
-		"memberships":          membershipsAny,
-		"roles_digest":         rolesDigest(roles, memberships),
-		"grants":               grantsAny,
-		"default_privileges":   defaultPrivsAny,
-		"ownership":            ownership,
-		"extension_owners":     extInvariant,
+		"roles":                 rolesAny,
+		"memberships":           membershipsAny,
+		"roles_digest":          rolesDigest(roles, memberships),
+		"grants":                grantsAny,
+		"default_privileges":    defaultPrivsAny,
+		"ownership":             ownership,
+		"extension_owners":      extInvariant,
 	}, nil
 }
 

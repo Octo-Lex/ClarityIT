@@ -39,12 +39,12 @@ const (
 type ReasonCode string
 
 const (
-	CodeOK                  ReasonCode = "OK"
+	CodeOK                   ReasonCode = "OK"
 	CodeSourceProfileUnknown ReasonCode = "SOURCE_PROFILE_UNKNOWN"
 	CodeSourceProfileP1P2    ReasonCode = "SOURCE_PROFILE_P1P2_NOT_EXECUTABLE"
 	CodeDriftedGoverned      ReasonCode = "GOVERNED_TARGET_DRIFTED"
 	CodeNotFreshNonEmpty     ReasonCode = "NOT_FRESH_NONEMPTY"
-	CodePgMajorUnsupported  ReasonCode = "PG_MAJOR_UNSUPPORTED"
+	CodePgMajorUnsupported   ReasonCode = "PG_MAJOR_UNSUPPORTED"
 	CodeDbIdentityWrong      ReasonCode = "DB_IDENTITY_WRONG"
 	CodeMissingExtension     ReasonCode = "MISSING_EXTENSION"
 	CodeMissingRole          ReasonCode = "MISSING_ROLE"
@@ -57,9 +57,9 @@ const (
 // are recognized but not executable (a separate governed artifact would be
 // required). Anything not here is unknown.
 var AllowlistedFingerprints = map[string]FingerprintAction{
-	P3GoldenFingerprint:     {Path: PathAdopt, Class: ClassApprovedSource, Executable: true},
-	P2SuccessorFingerprint:  {Path: PathAdoptP2, Class: ClassApprovedSource, Executable: true},
-	P1P2Fingerprint:         {Path: "", Class: ClassUnknownDrifted, Executable: false, Code: CodeSourceProfileP1P2},
+	P3GoldenFingerprint:    {Path: PathAdopt, Class: ClassApprovedSource, Executable: true},
+	P2SuccessorFingerprint: {Path: PathAdoptP2, Class: ClassApprovedSource, Executable: true},
+	P1P2Fingerprint:        {Path: "", Class: ClassUnknownDrifted, Executable: false, Code: CodeSourceProfileP1P2},
 }
 
 // FingerprintAction is the resolution of a recognized source fingerprint.
@@ -85,7 +85,7 @@ type Probe struct {
 
 	// Platform ledger presence.
 	PlatformSchemaPresent bool
-	Revision0001Present  bool
+	Revision0001Present   bool
 
 	// Source-profiler fingerprint of the live database (empty if DB is empty).
 	SourceFingerprint string

@@ -24,9 +24,9 @@ type Executor interface {
 // to assert that a rejection never crossed into execution. InvocationCount==0 is
 // the primary no-attempt proof.
 type SpyExecutor struct {
-	Inner            Executor
-	InvocationCount  int
-	LastPreflight    *PreflightResult
+	Inner           Executor
+	InvocationCount int
+	LastPreflight   *PreflightResult
 }
 
 // Execute records the invocation and delegates to the inner executor (if any).
