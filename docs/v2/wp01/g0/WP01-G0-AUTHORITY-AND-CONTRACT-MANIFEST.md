@@ -69,7 +69,7 @@ The following exact branch blobs form the G0 contract candidate:
 |---|---|---|
 | `docs/v2/ClarityIT_v2_Context_Overlay_Contract_v0.1.md` | `6f789efa183b9c93f75dbcdbc2cb8bf0ff7e7fea` | deterministic bounded context, overlays, anti-shadowing, screening, digest, isolation |
 | `docs/v2/wp01/g0/WP01-G0-OBJECT-OWNERSHIP-AND-PROHIBITED-WRITES.md` | `57d86c75305d440efb8aed5f0bf99d701decebb1` | single authoritative owner per object family; deny bypass writers |
-| `docs/v2/wp01/g0/WP01-G0-STATE-AND-REASON-CODE-APPLICABILITY.md` | `e7e5cf1409f681f2f707eb2afc99a3d5429b376d` | Kernel states/transitions/reason families |
+| `docs/v2/wp01/g0/WP01-G0-STATE-AND-REASON-CODE-APPLICABILITY.md` | `feb520eb0eb8fc754d0315900634ad3111da423f` | exact Kernel states/transitions/reason families; no invented transition edges |
 | `docs/v2/wp01/g0/WP01-G0-CONFORMANCE-APPLICABILITY.md` | `387dfcd08146ea5957f34afa8bdaede495f93e61` | K/KT/Native Pattern required vs deferred scope |
 | `docs/v2/wp01/g0/WP01-G0-ADDITIVE-MIGRATION-DESIGN.md` | `83081c702caa8e80c26e260436d122d8e92a0115` | Phase-2 expand and post-0001 forward-series design |
 
@@ -143,7 +143,7 @@ WP01-G0 is ready to close when:
 - this A1 set reconstructs;
 - Context Overlay Contract is coherent with Kernel/Native Pattern authority;
 - ownership/prohibited-write matrix has one authoritative writer per family;
-- state/reason map contains no invented weakening state;
+- state/reason map contains no invented weakening state or transition edge;
 - conformance map requires every WP-01 Kernel scenario and clearly defers later live scope;
 - additive migration design preserves all frozen WP-00 identities and uses no parallel runner;
 - inherited CI is green on the final G0 candidate;
