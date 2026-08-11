@@ -1,11 +1,11 @@
 # ClarityIT v2 Project Completion Authority
 
 **Status:** Current authoritative project handoff
-**Snapshot date:** 10 August 2026
-**Integrated baseline:** `main` at `b31a7c5cd0ba132cb179db5751e8e2b8f339639f`, descended from G4 implementation squash `f769cd3815ea08194b56c267cfa3b30fb7a12fd9`
-**Current completed boundary:** WP-00 G4 accepted, signed, and integrated; Go migration runner on `main`
-**Current authorized activity:** G5 authorization (separately governed); G4 acceptance receipt recorded
-**Next gate:** G5 authorization; G5 remains not started until separately authorized
+**Snapshot date:** 11 August 2026
+**Integrated baseline:** G5 acceptance integration (this change), descended from exact-main proof baseline `main@d39c44fe942a786be43c1931f4047bf6a57df36e`
+**Current completed boundary:** WP-00 G5 accepted, signed, and enforced; required `Backend (Go)` + `G5 Foundation Gate` merge predicate active for `main`
+**Current authorized activity:** G6 final WP-00 acceptance under `G6-AUTH-2026-08-11`
+**Next gate:** G6 — execute WS6 from the accepted G5 integration boundary; G6 remains unaccepted until AC-00-01 through AC-00-30 pass
 
 ## 1. Purpose
 
@@ -32,7 +32,7 @@ semantics. When a conflict exists, use the hierarchy below.
 | 4 | [Layered System Architecture suite](ClarityIT-v2-Layered-System-Architecture.md) | Logical component placement, physical dispatch, evidence sealing, trust/deployment boundaries, Signals/Routines, persistence, and routes | Target architecture baseline; draft overlays remain explicitly proposed |
 | 5 | [Native Pattern Specification v0.1](ClarityIT_v2_Native_Pattern_Specification_v0.1.md) | Reusable experience and orchestration patterns that must conform to priorities 1-4 | Draft normative specification; not yet approved |
 | 6 | [Environment Trust and Evidence Custody Profile v0.1](ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md) | Development placement, production trust topology, evidence custody, and no-in-place promotion | Adopted for development; normative production exit criteria |
-| 7 | [WP-00 Plan v0.1](ClarityIT_v2_WP-00_Migration_Baseline_and_CI_Stabilization_Plan_v0.1.md) | Formal migration-foundation package, G0-G6, AC-00-01 through AC-00-30 | Active formal package; complete through G3 |
+| 7 | [WP-00 Plan v0.1](ClarityIT_v2_WP-00_Migration_Baseline_and_CI_Stabilization_Plan_v0.1.md) | Formal migration-foundation package, G0-G6, AC-00-01 through AC-00-30 | Active formal package; complete through G5 |
 | 8 | [Delivery Roadmap v0.2](ClarityIT_v2_Delivery_Roadmap_v0.2.md) | Proposed WP-01 through WP-10 sequence, RG-01 through RG-10, and R1-R5 packaging | Draft planning authority; later package names are not yet approved plans |
 | 9 | This file | Current completion ledger, next permitted gate, and continuity rules | Current handoff authority |
 
@@ -55,7 +55,7 @@ reference. Its committed Mermaid sources and version-stamped renders are:
 
 Dashed P-05, P-09, P-12, and P-15 elements remain proposed under the unapproved
 Native Pattern Specification. Their inclusion documents the intended extension
-boundary without granting implementation authority or changing the G3/G4 gate.
+boundary without granting implementation authority or changing the WP-00 gate.
 
 ## 3. Current integrated state
 
@@ -101,6 +101,28 @@ as first parent and the render tip as second parent, so both the source and
 render provenance commits are ancestors. The G3 signed tip and recovery branch
 remain unchanged.
 
+### G4/G5 integrated completion chain
+
+| Item | Exact value |
+|---|---|
+| G4 implementation squash | `f769cd3815ea08194b56c267cfa3b30fb7a12fd9` |
+| G4 exact integrated implementation/proof tip | `b31a7c5cd0ba132cb179db5751e8e2b8f339639f` |
+| G4 acceptance receipt integration | `ecb0ea48eb67bc07371b72e11517a77ad802d465` |
+| G5 authorization integration | `ea231810ba3b858a78cdb25850ab3e0fd407a3f1` |
+| G5 implementation squash | `a0be44780aa0f486bd6fb1d5fd5d87d26de09001` |
+| G5 exact-main proof baseline | `d39c44fe942a786be43c1931f4047bf6a57df36e` |
+| G5 exact-main G5 workflow | `WP-00 G5 Foundation Gate` run #11 — success |
+| G5 exact-main ordinary CI | `CI` run #136 — success |
+| Required-status ruleset | ID `20672081`, `WP-00 G5 Required Checks`, active on default branch, no bypass actors |
+| Required contexts | `Backend (Go)` AND `G5 Foundation Gate` |
+| G5 receipt | [`docs/migration/wp00/g5/G5-APPROVALS.md`](../migration/wp00/g5/G5-APPROVALS.md) |
+| G6 authorization | [`docs/migration/wp00/g6/G6-AUTHORIZATION-AND-PLAN.md`](../migration/wp00/g6/G6-AUTHORIZATION-AND-PLAN.md), `G6-AUTH-2026-08-11` |
+
+G5 acceptance does not modify a frozen G1-G4 identity. It establishes the
+required fail-closed merge predicate for the accepted foundation. The G6
+authorization was recorded before G5 closure but explicitly remained inactive
+until accepted G5; this G5 acceptance integration satisfies that prerequisite.
+
 ## 4. Frozen identities
 
 These identities are unchanged by the integration and by documentation-only
@@ -133,15 +155,15 @@ test does not skip an earlier decision, and code presence does not close a gate.
 | G1 — profiles and restore | **Closed**, 2026-08-01 | [`migrations/profiles/G1-APPROVALS.md`](../../migrations/profiles/G1-APPROVALS.md), closure commit `0dd21d8` | Development-only trust exception remains in force |
 | G2 — schema decisions and target | **Closed**, 2026-08-02 | [`migrations/profiles/g2/G2-APPROVALS.md`](../../migrations/profiles/g2/G2-APPROVALS.md), signed commit `f04f94f...` | Target manifest is a read-only G3 input |
 | G3 — reconciled baseline | **Closed, signed, integrated**, 2026-08-04 | [G3 approval receipt](../migration/wp00/g3/G3-APPROVALS.md), signed tip `97f83e4...`, authority integration root `ac722273...` | Preserve identities and ancestry |
-| G4 — Go migration runner | **Accepted, signed, integrated**, 2026-08-10 | [G4 approval receipt](../migration/wp00/g4/G4-APPROVALS.md), implementation squash `f769cd3815ea08194b56c267cfa3b30fb7a12fd9`, authority tip `b31a7c5cd0ba132cb179db5751e8e2b8f339639f`, Linux CI run `31336112238` | G5 now separately governable; no G5 work authorized by this acceptance |
-| G5 — blocking CI matrix | **Not started** | WP-00 WS5/G5 contract | Begins only after separate G5 authorization; existing green G4-proof CI does not by itself pass G5 |
-| G6 — WP-00 acceptance | **Not started** | WP-00 AC-00-01 through AC-00-30 and signed A11 evidence | No conditional or partial acceptance |
+| G4 — Go migration runner | **Accepted, signed, integrated**, 2026-08-10 | [G4 approval receipt](../migration/wp00/g4/G4-APPROVALS.md), implementation squash `f769cd3815ea08194b56c267cfa3b30fb7a12fd9`, authority tip `b31a7c5cd0ba132cb179db5751e8e2b8f339639f`, Linux CI run `31336112238` | Preserve accepted runner and proof identities |
+| G5 — blocking CI matrix | **Accepted, signed, enforced**, 2026-08-11 | [G5 approval receipt](../migration/wp00/g5/G5-APPROVALS.md), implementation squash `a0be44780aa0f486bd6fb1d5fd5d87d26de09001`, exact-main proof `d39c44fe942a786be43c1931f4047bf6a57df36e`, active ruleset ID `20672081` | G6 authorization is now active; preserve required `Backend (Go)` + `G5 Foundation Gate` conjunction |
+| G6 — WP-00 acceptance | **Authorized, active, not accepted** | [G6 authorization](../migration/wp00/g6/G6-AUTHORIZATION-AND-PLAN.md), WP-00 AC-00-01 through AC-00-30 and A1-A7 evidence | Execute WS6 only; no conditional or partial acceptance |
 
-The immediate technical sequence is G4 implementation and acceptance, then a
-separate G5 authorization, then G6. This record authorizes G4 implementation
-only. It does not authorize G5, G6, provider mutation, Site
-Runtime, host agents, additional adapters, broader UI work, production cutover,
-or WP-01 through WP-10 implementation.
+The immediate technical sequence is now G6 final WP-00 acceptance. G6 is
+already separately authorized by `G6-AUTH-2026-08-11`; accepted G5 activates
+that authority. No additional G6 authorization is required. G6 does not
+authorize provider mutation, Site Runtime, host agents, adapters, broader UI
+work, production cutover, or WP-01 through WP-10 implementation.
 
 ## 6. Position against the final architecture
 
@@ -150,13 +172,14 @@ or WP-01 through WP-10 implementation.
 | 1. Experience | Product surfaces and first-release acceptance are specified | My Work, Case Workspace, Resources, live progress, accessibility, and pilot acceptance |
 | 2. Authoritative control | Domain and database contracts are frozen through G3 | Control API, IAM isolation, Authority, Effect Broker, ingress, and gateways |
 | 3. Intelligence and processing | Reason/Observe/Execute/Verify responsibilities and invariants are specified | Operational workers, independent verifier, retry/reconciliation, and failure proof |
-| 4. Data and evidence | PostgreSQL target, fresh/adopted convergence, drift checks, atomicity, provenance, and G3 signatures | Runner, blocking CI, NATS transport, immutable object evidence, search, and later migration phases |
+| 4. Data and evidence | PostgreSQL target, fresh/adopted convergence, drift checks, atomicity, provenance, Go migration runner, and blocking G5 CI enforcement are proven | G6 P2 release rehearsal and final A1-A7 WP-00 acceptance evidence; NATS transport, immutable object evidence, search, and later migration phases remain downstream |
 | 5. Trust services | Development custody exception and production exit topology are specified; G1 evidence controls passed for development | Runtime workload identity, secret brokering, policy distribution, trust-boundary enforcement, and fresh production trust domains |
 | 6. Target | Provider-neutral and Proxmox boundaries are specified | Generic adapter, live Proxmox conformance, native enforcement, managed-system execution, and later Site Runtime |
 | 7. Operational sources | Telemetry and independent health roles are specified | Source integrations and end-to-end observation/health evidence |
 
-The project therefore has a signed authoritative database foundation, not a
-delivered seven-plane runtime or an accepted product release.
+The project therefore has a signed authoritative database/migration foundation
+and enforced foundation CI, not a delivered seven-plane runtime or an accepted
+product release.
 
 ## 7. Project completion path
 
@@ -166,7 +189,7 @@ later package requires its own approval and package plan before implementation.
 
 | Release | Work packages | Required outcome | Current status |
 |---|---|---|---|
-| Foundation | WP-00, WP-01 | Reproducible migration foundation and authoritative kernel foundation | WP-00 G4 accepted and integrated |
+| Foundation | WP-00, WP-01 | Reproducible migration foundation and authoritative kernel foundation | WP-00 G5 accepted; G6 authorized and active; WP-01 not authorized |
 | R1 — Verified VM Recovery | WP-02, WP-03 | One governed `compute.virtual_machine.start` lineage on one enrolled non-production VM, independently verified and human-accepted | Not started |
 | R2 — Private and Reusable Operations | WP-04, WP-05 | Private-zone execution plus reviewed knowledge and skills | Not started; blocked by R1 |
 | R3 — Evented and Project Work | WP-06, WP-07 | Governed Signals, Routines, Projects, and software-delivery contexts | Not started |
@@ -205,6 +228,11 @@ created. Interpret them as follows:
 - The G3 receipt is bound to producing commit `570a0ec...`, Linux run
   `30900328914`, and the identities in section 4. PR #12's squash and subsequent
   no-content ancestry repair do not change those bytes.
+- The G4 receipt is bound to the accepted G4 implementation/proof chain and
+  Linux run `31336112238`; later G5 CI governance does not modify that evidence.
+- The G5 receipt binds the G5 implementation, exact-main proof baseline,
+  required-status ruleset, and role-based decisions. Ruleset/UI evidence is
+  preserved as sanitized metadata and does not replace the workflow evidence.
 - Pull-request state and branch heads are operational metadata. Commit IDs,
   signed receipts, artifact digests, and recorded ancestry are the durable
   authority.
@@ -233,19 +261,20 @@ dump may be added to make the repository appear self-contained.
 ## 10. Required start procedure for the next session
 
 1. Fetch remote references and identify the commit that contains this file.
-2. Read this file, the authority index, and the controlling specification for
-   the requested gate.
-3. Verify the G3 signed tip remains an ancestor of the integrated target and the
-   frozen identities still match the signed receipts.
-4. Confirm the requested work is permitted by
-   [`G4-AUTHORIZATION-AND-PLAN.md`](../migration/wp00/g4/G4-AUTHORIZATION-AND-PLAN.md).
-   G4 implementation is authorized; G4 acceptance still requires its exact
-   evidence and decisions. Silence or a general request to continue is not
-   authorization for G5, G6, provider mutation, or a later work package.
-5. Create a normal forward branch and preserve all existing evidence and signed
-   history. Do not force-push, rewrite, or delete recovery references.
-6. Use `wp00/g4-migration-runner` for authorized G4 work. Update this completion
-   ledger in the same integration that changes a gate or
+2. Read this file, the authority index, the G5 acceptance receipt, the G6
+   authorization, and the WP-00 plan.
+3. Verify the frozen G1-G4 identities remain unchanged, the G5 receipt is
+   integrated, and the repository still requires `Backend (Go)` and
+   `G5 Foundation Gate` for `main`.
+4. Bind the accepted G5 integration tip as the G6 starting baseline. Execute
+   only the already-authorized WS6/G6 work: AC-00-01 through AC-00-30 evidence
+   crosswalk, P2 release-artifact rehearsal, recovery/failure rehearsal,
+   historical-truth confirmation, final schema/security/provenance review,
+   A7 release manifest, issue #1 disposition, and required G6 decisions.
+5. Create a normal forward branch (`wp00/g6-acceptance`) from the accepted G5
+   integration tip and preserve all existing evidence and signed history. Do
+   not force-push, rewrite, or delete recovery references.
+6. Update this completion ledger in the same integration that changes G6 or
    project status. Record exact commits, CI runs, artifact digests, approvals,
    remaining blockers, and the next permitted action.
 
