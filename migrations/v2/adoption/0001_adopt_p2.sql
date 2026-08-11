@@ -74,7 +74,7 @@ BEGIN
         ORDER BY n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)), 'UTF8'), 'sha256'), 'hex')
         FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
         WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY['adoc_set_updated_at','kc_search_vector_update','ki_search_vector_update','ki_set_updated_at','normalize_team_slug','normalize_user_email','prevent_bootstrap_unlock','protect_last_team_owner','set_updated_at','trg_artifacts_updated_at']::text[]))
-        <> '53eafc8837007c94620c786edbdb5c0db3c11c5e3675a987f8be231ae2357ab0' THEN
+        <> '6993a5ab93fac21a1d5cd2e56f31120d235506a2772ba3690b7e35863f78f378' THEN
         RAISE EXCEPTION 'G6 P2 adoption source application-function signatures drifted (digest mismatch)';
     END IF;
     -- Application-function BODY digest (full pg_get_functiondef).
@@ -82,7 +82,7 @@ BEGIN
         pg_get_functiondef(p.oid), E'\n' ORDER BY n.nspname, p.proname), 'UTF8'), 'sha256'), 'hex')
         FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
         WHERE n.nspname='public' AND p.prokind='f' AND p.proname = ANY(ARRAY['adoc_set_updated_at','kc_search_vector_update','ki_search_vector_update','ki_set_updated_at','normalize_team_slug','normalize_user_email','prevent_bootstrap_unlock','protect_last_team_owner','set_updated_at','trg_artifacts_updated_at']::text[]))
-        <> '143cc88d07fa638c9e4d2a515140b987db210c6f381537ed7d6e75dff664f0f8' THEN
+        <> 'afc970662baac7198b276e5b2048aee7e645246fdd84e6a1a071f80a9104a493' THEN
         RAISE EXCEPTION 'G6 P2 adoption source application-function bodies drifted (digest mismatch)';
     END IF;
     -- Index digest.
@@ -92,7 +92,7 @@ BEGIN
         FROM pg_index ix JOIN pg_class c ON c.oid=ix.indrelid
         JOIN pg_class i ON i.oid=ix.indexrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')
-        <> '6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3' THEN
+        <> 'cb81b1f6f34d3e3c79300c9e7c95e62320d3f4a0ce75f6923541e8be6456cc88' THEN
         RAISE EXCEPTION 'G6 P2 adoption source index inventory drifted (digest mismatch)';
     END IF;
     -- Trigger digest.
@@ -102,7 +102,7 @@ BEGIN
         FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace
         WHERE n.nspname='public' AND NOT t.tgisinternal)
-        <> 'b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333' THEN
+        <> 'ef5704b1901b07783b7a1f2f4717450f019c8a3ba48c3f2c6ec5e1efaab32c08' THEN
         RAISE EXCEPTION 'G6 P2 adoption source trigger inventory drifted (digest mismatch)';
     END IF;
     -- Sequence digest: type, start, increment, min, max, cache, cycle,
@@ -119,7 +119,7 @@ BEGIN
         ORDER BY n.nspname, c.relname), 'UTF8'), 'sha256'), 'hex')
         FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')
-        <> '1d5f4ddaff8fd246b75c680cff3323a21452227406f593ad198039a3387d9f52' THEN
+        <> '474221dfd9c7a8d84e847a0add34420ebb4eca62516bdc39be6d6829bf92f1f5' THEN
         RAISE EXCEPTION 'G6 P2 adoption source sequence properties drifted (digest mismatch)';
     END IF;
     -- Constraint digest: name + definition (all 287, names included).
@@ -129,7 +129,7 @@ BEGIN
         ORDER BY n.nspname, c.relname, con.conname), 'UTF8'), 'sha256'), 'hex')
         FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r')
-        <> '87372790e05c745ee3867cfe89d06df1017c9247615f0b7d98b8d55eba99fdf3' THEN
+        <> '004913bc1d067ec8ad7ed8781782ffe1e69c32d2fa1488b73984f4a549d17fa1' THEN
         RAISE EXCEPTION 'G6 P2 adoption source constraints drifted (digest mismatch)';
     END IF;
     -- Target identities must be absent (single-shot adoption).
