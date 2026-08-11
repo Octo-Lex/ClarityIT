@@ -1,284 +1,259 @@
 # ClarityIT v2 Project Completion Authority
 
-**Status:** Current authoritative project handoff
-**Snapshot date:** 11 August 2026
-**Integrated baseline:** `main@0d0d842c088284d54abe7fd56df9d6ebf63a7e66`, descended from G5 acceptance + G6 P2 adoption + column-order canonicalization
-**Current completed boundary:** WP-00 G6 accepted — all gates G0 through G6 closed; migration runner, P3 adoption, and P2 adoption proven and integrated
-**Current authorized activity:** WP-01+ may begin under separate authorization
-**Next gate:** WP-01 authorization (separately governed)
+**Status:** Current authoritative project handoff  
+**Snapshot date:** 12 August 2026  
+**Accepted foundation baseline:** `main@e13c8b734b39afb32ff5e3e4a7281543f33d8a1f`  
+**Current completed boundary:** **WP-00 ACCEPTED — G0 through G6 closed**  
+**Current authorized package:** **WP-01 — Authoritative Kernel Foundation**  
+**Authorization:** `WP01-AUTH-2026-08-12`  
+**Current implementation boundary:** provider-mutation-free authoritative kernel foundation  
+**Final WP-01 gate:** RG-01  
+**Later packages:** WP-02+ require separate authorization
 
 ## 1. Purpose
 
-This file is the durable entry point for continuing and completing ClarityIT v2.
-It records current progress, controlling authorities, frozen identities, remaining
-gates, sequencing constraints, external-evidence boundaries, and the required
-start procedure for a later work session.
+This file is the durable entry point for continuing ClarityIT v2. It records the current completed boundary, controlling authorities, frozen inputs, active package, blocked scope, and the required continuation procedure.
 
-Chat history is not a project authority. A decision that changes scope,
-semantics, a gate, an identity, or an authorization boundary must be recorded in
-the repository with its evidence before later work may depend on it.
+Chat history is not project authority. A decision that changes scope, semantics, a gate, an identity, or authorization must be recorded in the repository before later work depends on it.
 
-This file governs **status and continuation**. It does not override product,
-execution, migration, architecture, security, evidence, or signed-receipt
-semantics. When a conflict exists, use the hierarchy below.
+This file governs **status and continuation**. It does not override higher product, kernel, migration, architecture, security, evidence, or signed-receipt semantics.
+
+---
 
 ## 2. Authority hierarchy
 
-| Priority | Authority | Governs | Current status |
+| Priority | Authority | Governs | Current WP-01 status |
 |---:|---|---|---|
-| 1 | [Product Definition v0.1](ClarityIT_v2_Product_Definition_v0.1.md) | Product category, users, value, scope, first-release outcome, and acceptance | Draft product authority |
-| 2 | [Authoritative Execution Kernel v0.1](ClarityIT_v2_Authoritative_Execution_Kernel_Specification_v0.1.md) | Truth, authority, execution, verification, outcomes, and evidence | Draft normative engineering authority |
-| 3 | [v1-to-v2 Compatibility and Migration v0.1](ClarityIT_v2_v1-to-v2_Compatibility_and_Migration_Specification_v0.1.md) | Source profiles, coexistence, migration, cutover, rollback, and historical truth | Draft normative migration authority |
-| 4 | [Layered System Architecture suite](ClarityIT-v2-Layered-System-Architecture.md) | Logical component placement, physical dispatch, evidence sealing, trust/deployment boundaries, Signals/Routines, persistence, and routes | Target architecture baseline; draft overlays remain explicitly proposed |
-| 5 | [Native Pattern Specification v0.1](ClarityIT_v2_Native_Pattern_Specification_v0.1.md) | Reusable experience and orchestration patterns that must conform to priorities 1-4 | Draft normative specification; not yet approved |
-| 6 | [Environment Trust and Evidence Custody Profile v0.1](ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md) | Development placement, production trust topology, evidence custody, and no-in-place promotion | Adopted for development; normative production exit criteria |
-| 7 | [WP-00 Plan v0.1](ClarityIT_v2_WP-00_Migration_Baseline_and_CI_Stabilization_Plan_v0.1.md) | Formal migration-foundation package, G0-G6, AC-00-01 through AC-00-30 | Active formal package; complete through G5 |
-| 8 | [Delivery Roadmap v0.2](ClarityIT_v2_Delivery_Roadmap_v0.2.md) | Proposed WP-01 through WP-10 sequence, RG-01 through RG-10, and R1-R5 packaging | Draft planning authority; later package names are not yet approved plans |
-| 9 | This file | Current completion ledger, next permitted gate, and continuity rules | Current handoff authority |
+| 1 | [Product Definition v0.1](ClarityIT_v2_Product_Definition_v0.1.md) | Product category, users, value, first-release outcome and scope | Ratified for WP-01 by `WP01-AUTH-2026-08-12` |
+| 2 | [Authoritative Execution Kernel v0.1](ClarityIT_v2_Authoritative_Execution_Kernel_Specification_v0.1.md) | Truth, authority, execution, verification, outcomes and evidence | Highest WP-01 execution-semantics authority |
+| 3 | [v1-to-v2 Compatibility and Migration v0.1](ClarityIT_v2_v1-to-v2_Compatibility_and_Migration_Specification_v0.1.md) | Coexistence, migration, historical truth and one-writer sequencing | Ratified for WP-01 |
+| 4 | [Layered System Architecture](ClarityIT-v2-Layered-System-Architecture.md) | Logical placement, trust boundaries, persistence and routes | WP-01 architecture baseline where consistent with higher authorities |
+| 5 | [Native Pattern Specification v0.1](ClarityIT_v2_Native_Pattern_Specification_v0.1.md) | Reusable native patterns | Ratified for WP-01-owned patterns/skeletons only |
+| 6 | [Environment Trust and Evidence Custody Profile v0.1](ClarityIT_v2_Environment_Trust_and_Evidence_Custody_Deployment_Profile_v0.1.md) | Development trust/custody and production non-promotion boundary | Existing adopted profile remains in force |
+| 7 | [WP-01 Authorization](wp01/WP01-AUTHORIZATION.md) | Exact authority-set ratification and activation boundary | `WP01-AUTH-2026-08-12` |
+| 8 | [WP-01 Plan](ClarityIT_v2_WP-01_Authoritative_Kernel_Foundation_Plan_v0.1.md) | Workstreams, gates, AC-01, evidence and RG-01 closure | Formal active package plan after integration |
+| 9 | [Delivery Roadmap v0.2](ClarityIT_v2_Delivery_Roadmap_v0.2.md) | WP-01–WP-10 order and RG-01–RG-10 | WP-01 boundary active; WP-02+ remain separately gated |
+| 10 | This file | Current status and continuation | Current handoff authority |
 
-Higher-priority semantic authorities prevail over lower-priority planning or
-status text. Signed receipts prevail over intermediate report wording for the
-specific artifact and decision they bind. A later status record may explain an
-older record, but must not rewrite historical evidence.
+Higher semantic authorities prevail over package planning. Signed historical receipts remain authoritative for the decisions and identities they bind.
 
-### Architecture source and render status
+---
 
-Diagram version 0.2 replaces the prior layered PNG as the implementation
-reference. Its committed Mermaid sources and version-stamped renders are:
+## 3. WP-00 closure — immutable foundation
 
-| View | Authority status |
-|---|---|
-| [Layered System Architecture](ClarityIT-v2-Layered-System-Architecture.md) | Executive target-state overview; Product v0.1 + Kernel v0.1 baseline |
-| [Authoritative Operation Sequence](ClarityIT-v2-Authoritative-Operation-Sequence.md) | Normative companion for the sole outbox dispatch, evidence sealing, verification, and outcome-decision boundaries |
-| [Trust and Deployment Topology](ClarityIT-v2-Trust-and-Deployment-Topology.md) | Target-state trust companion; environment placement governed by the adopted trust/custody profile |
-| [Signals and Routines](ClarityIT-v2-Signals-and-Routines.md) | Proposed P-15 companion; not an approved implementation contract |
+WP-00 is closed and MUST NOT be reopened by routine WP-01 work.
 
-Dashed P-05, P-09, P-12, and P-15 elements remain proposed under the unapproved
-Native Pattern Specification. Their inclusion documents the intended extension
-boundary without granting implementation authority or changing the WP-00 gate.
+Final closure:
 
-## 3. Current integrated state
+- final evidence integration: `e13c8b734b39afb32ff5e3e4a7281543f33d8a1f`;
+- G6 approval receipt integration: `b67d63720aa3fc2231d2d221d06ccb58d7fc09a0`;
+- exact integrated P2 rehearsal implementation: `0d0d842c088284d54abe7fd56df9d6ebf63a7e66`;
+- AC-00-01 through AC-00-30: **30/30 PASS**;
+- A1-A7: complete;
+- unresolved Sev1/Sev2: 0;
+- issue #1: closed as completed;
+- G0 through G6: closed.
 
-G3 is complete, signed, and integrated. The integration contains an honest,
-non-destructive repair for the repository's squash-only pull-request setting:
-
-| Item | Exact value |
-|---|---|
-| G2 signed commit | `f04f94faad0105d1c3274e9c7974d44f936a0d28` |
-| G3 producing implementation | `570a0ec7e31087d1dd6db22e14935e21e7481cf6` |
-| Exact-SHA Linux proof | GitHub Actions run `30900328914` — pass |
-| G3 signed tip | `97f83e4ac0609994b64493c7a8b2b76208545bb1` |
-| PR #12 squash commit | `4677e104d4a81a3c21dd30f19054a2d79abe0c72` |
-| Ancestry-repair merge | `211c0ee1abeab0626472a2502d35de13eb9db080` |
-| Integrated target | `wp00/g2-schema-decisions` at `211c0ee1abeab0626472a2502d35de13eb9db080` |
-| Recovery branch | `wp00/g3-reconciled-baseline-recovery` at `97f83e4ac0609994b64493c7a8b2b76208545bb1` |
-| Pull request | PR #12 — closed and merged |
-| Recorded G3 approvals | Architecture: Archy / AR; Database: Domty / DO; both `APPROVE`, 2026-08-04 |
-
-The squash commit and signed tip have the same tree. The two-parent
-`211c0ee1...` merge has the squash commit as first parent and the signed tip as
-second parent, changes no content, and makes the signed tip an ancestor of the
-integrated target. The squash operation remains part of the historical record.
-
-The controlling G3 receipt is
-[`docs/migration/wp00/g3/G3-APPROVALS.md`](../migration/wp00/g3/G3-APPROVALS.md).
-Do not edit that signed receipt merely to restate current status.
-
-PR #13 separately integrated the completion authority and corrected architecture
-suite without changing any G3 byte or identity:
-
-| Item | Exact value |
-|---|---|
-| PR #13 source commit | `ed5e1fe2497eea9335f069920608e0d28b68b6e1` |
-| PR #13 render commit | `60c64893708f530c812567d6e817e8222dfa3b4b` |
-| PR #13 squash commit | `91fe4919e82044573241f24fdf619f0aef26bc84` |
-| Provenance ancestry bridge | `ac7222737e14796174ed78420f1f388e6c21170b` |
-| Current authority integration root | `wp00/g2-schema-decisions@ac7222737e14796174ed78420f1f388e6c21170b` |
-| Role-based review | GitHub review `4859164706`; one delegated Product/Architecture/Security/Delivery assessment, not four independent attestations |
-
-The squash, render tip, and bridge have the same tree. The bridge has the squash
-as first parent and the render tip as second parent, so both the source and
-render provenance commits are ancestors. The G3 signed tip and recovery branch
-remain unchanged.
-
-### G4/G5 integrated completion chain
-
-| Item | Exact value |
-|---|---|
-| G4 implementation squash | `f769cd3815ea08194b56c267cfa3b30fb7a12fd9` |
-| G4 exact integrated implementation/proof tip | `b31a7c5cd0ba132cb179db5751e8e2b8f339639f` |
-| G4 acceptance receipt integration | `ecb0ea48eb67bc07371b72e11517a77ad802d465` |
-| G5 authorization integration | `ea231810ba3b858a78cdb25850ab3e0fd407a3f1` |
-| G5 implementation squash | `a0be44780aa0f486bd6fb1d5fd5d87d26de09001` |
-| G5 exact-main proof baseline | `d39c44fe942a786be43c1931f4047bf6a57df36e` |
-| G5 exact-main G5 workflow | `WP-00 G5 Foundation Gate` run #11 — success |
-| G5 exact-main ordinary CI | `CI` run #136 — success |
-| Required-status ruleset | ID `20672081`, `WP-00 G5 Required Checks`, active on default branch, no bypass actors |
-| Required contexts | `Frontend (typecheck · test · build)` AND `Worker (Python)` AND `Backend (Go)` AND `G5 Foundation Gate` |
-| G5 receipt | [`docs/migration/wp00/g5/G5-APPROVALS.md`](../migration/wp00/g5/G5-APPROVALS.md) |
-| G6 authorization | [`docs/migration/wp00/g6/G6-AUTHORIZATION-AND-PLAN.md`](../migration/wp00/g6/G6-AUTHORIZATION-AND-PLAN.md), `G6-AUTH-2026-08-11` |
-
-G5 acceptance does not modify a frozen G1-G4 identity. It establishes the
-required fail-closed merge predicate for the accepted foundation. The G6
-authorization was recorded before G5 closure but explicitly remained inactive
-until accepted G5; this G5 acceptance integration satisfies that prerequisite.
-
-## 4. Frozen identities
-
-These identities are unchanged by the integration and by documentation-only
-continuity updates:
+### 3.1 Frozen WP-00 identities inherited by WP-01
 
 | Identity | Value |
 |---|---|
-| Product manifest blob SHA-256 | `1f6e31422461173cd4b4671417809f8b819bad493efec2fb0a5cdd2783d37a63` |
-| Product manifest blob size | `284064` bytes |
-| Control manifest SHA-256 | `3fd65e917ded8b7d59a1f42051b69f41e4b5c24f583f9524deaccdfdfb1add66` |
-| Composite installation SHA-256 | `8af2c9f55e9f8661f111d90abf4f6037dafc9db7c9a3971665b9748d37b34084` |
 | Governed target fingerprint | `9881c93e79b825963d3c3434de23a3900b3797b181ad0413bafaa5dc4dbc7de6` |
+| Baseline checksum | `1021adefe8b5edaae13010a713cdde594f084a66b9d4012940603ee4a94e0508` |
+| Composite installation SHA-256 | `8af2c9f55e9f8661f111d90abf4f6037dafc9db7c9a3971665b9748d37b34084` |
+| P3 source fingerprint | `cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b` |
+| P2 executable v3.2 fingerprint | `57c2b64597f8df459043681a4faaf3c789e0eb17883d3ea9585dffac654121cb` |
+| Historical P1/P2 v3.1 fingerprint | `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83` — recognized/non-executable |
 | P3 adoption artifact SHA-256 | `a89ab852b7add6e130bc9ed941caa4329f3024a5c1d3cabd7b25ba2f89a64359` |
-| P3 golden source fingerprint | `cedf689db8e890eeb48a3d3c8e9d0255db8399641b7be1732e67491ec2f1407b` |
-| P1/P2 source fingerprint | `89b7792d437dc6d27f297e2298ad37e5636e313264116e2dd079d152a657fc83` |
-| PostgreSQL target | Major version 16; database `clarityit` |
+| PostgreSQL target | Major 16; database `clarityit` |
 
-Any change to a frozen artifact requires a new governed successor decision and
-new evidence. A convenient recomputation or an equivalent-looking schema does
-not supersede a signed identity.
+Any modification to a frozen WP-00 artifact/identity requires a demonstrated defect and separately governed successor decision. WP-01 normally consumes these as read-only foundation inputs.
 
-## 5. WP-00 gate ledger
+### 3.2 Required CI inherited from WP-00
 
-WP-00 gates are sequential authority boundaries. Passing a later implementation
-test does not skip an earlier decision, and code presence does not close a gate.
+The `main` merge predicate retains all four accepted contexts:
 
-| Gate | Status | Controlling repository evidence | Continuation rule |
+1. `Frontend (typecheck · test · build)`;
+2. `Worker (Python)`;
+3. `Backend (Go)`;
+4. `G5 Foundation Gate`.
+
+WP-01 may add a kernel-specific gate but may not replace or weaken these checks.
+
+---
+
+## 4. WP-01 authorization and scope
+
+`WP01-AUTH-2026-08-12` authorizes the package defined by the integrated WP-01 plan through RG-01. Routine implementation decisions inside that plan do not require new authorization.
+
+The active objective is:
+
+> Introduce the canonical v2 domain and truth model alongside the stabilized v1 spine, proving authority, state machines, transactional persistence, independent verification semantics, evidence reconstruction, deterministic bounded context, trust foundations, compatibility/historical truth and workspace isolation **without a live consequential provider mutation**.
+
+### 4.1 Non-negotiable WP-01 boundary
+
+WP-01 is **provider-mutation-free**.
+
+Required final evidence:
+
+```text
+LIVE_PROVIDER_MUTATIONS=0
+```
+
+Permitted:
+
+- additive kernel/compat schema;
+- canonical objects/principals/states;
+- transactional outbox/inbox;
+- immutable packets;
+- policy/approval/grant semantics;
+- Effect Broker skeleton;
+- deterministic fake/no-op route fixtures;
+- deterministic read-only verifier fixtures;
+- evidence manifests;
+- Context Overlay Contract and implementation;
+- secret-reference/entitlement schemas and trust-policy evaluation;
+- v1 read compatibility, mapping and historical classification;
+- workspace/isolation/security tests.
+
+Not permitted in WP-01:
+
+- a real Proxmox/provider call or provider credential;
+- Site Runtime/private-zone execution;
+- production cutover;
+- complete WP-03 Case/My Work UX and live pilot;
+- reviewed skills/knowledge, Signals/Routines, Project delivery integration;
+- multi-target execution, second provider or extension SDK;
+- any WP-02+ implementation merged as part of WP-01.
+
+The first real provider-neutral `compute.virtual_machine.start@1` mutation remains WP-02 after RG-01 and separate authorization.
+
+---
+
+## 5. WP-01 gate ledger
+
+| Gate | State | Purpose | Continuation |
 |---|---|---|---|
-| G0 — source freeze | Complete prerequisite | Repository history and WP-00 source baseline | Preserve; do not reopen implicitly |
-| G1 — profiles and restore | **Closed**, 2026-08-01 | [`migrations/profiles/G1-APPROVALS.md`](../../migrations/profiles/G1-APPROVALS.md), closure commit `0dd21d8` | Development-only trust exception remains in force |
-| G2 — schema decisions and target | **Closed**, 2026-08-02 | [`migrations/profiles/g2/G2-APPROVALS.md`](../../migrations/profiles/g2/G2-APPROVALS.md), signed commit `f04f94f...` | Target manifest is a read-only G3 input |
-| G3 — reconciled baseline | **Closed, signed, integrated**, 2026-08-04 | [G3 approval receipt](../migration/wp00/g3/G3-APPROVALS.md), signed tip `97f83e4...`, authority integration root `ac722273...` | Preserve identities and ancestry |
-| G4 — Go migration runner | **Accepted, signed, integrated**, 2026-08-10 | [G4 approval receipt](../migration/wp00/g4/G4-APPROVALS.md), implementation squash `f769cd3815ea08194b56c267cfa3b30fb7a12fd9`, authority tip `b31a7c5cd0ba132cb179db5751e8e2b8f339639f`, Linux CI run `31336112238` | Preserve accepted runner and proof identities |
-| G5 — blocking CI matrix | **Accepted, signed, enforced**, 2026-08-11 | [G5 approval receipt](../migration/wp00/g5/G5-APPROVALS.md), implementation squash `a0be44780aa0f486bd6fb1d5fd5d87d26de09001`, exact-main proof `d39c44fe942a786be43c1931f4047bf6a57df36e`, active ruleset ID `20672081` | G6 authorization is now active; preserve required frontend + worker + `Backend (Go)` + `G5 Foundation Gate` conjunction |
-| G6 — WP-00 acceptance | **Accepted, signed, integrated**, 2026-08-11 | [G6 approval receipt](../migration/wp00/g6/G6-APPROVALS.md), P2 rehearsal converged to `9881c93e…`, integrated tip `0d0d842…` | WP-00 closed; WP-01+ requires separate authorization |
+| WP01-G0 — Plan/Contract Freeze | **Authorized / active on plan integration** | Bind authority, plan, Context Overlay Contract structure, ownership/test maps | Additive implementation |
+| WP01-G1 — Canonical Schema Foundation | Pending | Canonical objects/principals/workspace constraints safely additive | State/persistence work may rely on schema |
+| WP01-G2 — State and Persistence Kernel | Pending | Legal/illegal states, concurrency, atomic outbox/inbox, replay/restart | Authority/verifier flows may rely on persistence |
+| WP01-G3 — Authority/Dispatch Skeleton | Pending | Packet/policy/approval/grant/broker/idempotency fail closed | Synthetic end-to-end lineages |
+| WP01-G4 — Verification/Context/Compatibility | Pending | Verification, successors, overlays, isolation, historical truth coherent | Final RG-01 conformance |
+| RG-01 — Authoritative Kernel Foundation | Pending | AC-01-01..40, A1-A9, required approvals, blocking CI, Sev1/Sev2=0 | WP-01 accepted; WP-02 still separately authorized |
 
-The immediate technical sequence is now G6 final WP-00 acceptance. G6 is
-already separately authorized by `G6-AUTH-2026-08-11`; accepted G5 activates
-that authority. No additional G6 authorization is required. G6 does not
-authorize provider mutation, Site Runtime, host agents, adapters, broader UI
-work, production cutover, or WP-01 through WP-10 implementation.
+No later gate can waive an earlier failed property.
 
-## 6. Position against the final architecture
+---
 
-| Plane | Delivered and proven | Still required |
-|---|---|---|
-| 1. Experience | Product surfaces and first-release acceptance are specified | My Work, Case Workspace, Resources, live progress, accessibility, and pilot acceptance |
-| 2. Authoritative control | Domain and database contracts are frozen through G3 | Control API, IAM isolation, Authority, Effect Broker, ingress, and gateways |
-| 3. Intelligence and processing | Reason/Observe/Execute/Verify responsibilities and invariants are specified | Operational workers, independent verifier, retry/reconciliation, and failure proof |
-| 4. Data and evidence | PostgreSQL target, fresh/adopted convergence, drift checks, atomicity, provenance, Go migration runner, and blocking G5 CI enforcement are proven | G6 P2 release rehearsal and final A1-A7 WP-00 acceptance evidence; NATS transport, immutable object evidence, search, and later migration phases remain downstream |
-| 5. Trust services | Development custody exception and production exit topology are specified; G1 evidence controls passed for development | Runtime workload identity, secret brokering, policy distribution, trust-boundary enforcement, and fresh production trust domains |
-| 6. Target | Provider-neutral and Proxmox boundaries are specified | Generic adapter, live Proxmox conformance, native enforcement, managed-system execution, and later Site Runtime |
-| 7. Operational sources | Telemetry and independent health roles are specified | Source integrations and end-to-end observation/health evidence |
+## 6. WP-01 required evidence
 
-The project therefore has a signed authoritative database/migration foundation
-and enforced foundation CI, not a delivered seven-plane runtime or an accepted
-product release.
+| Evidence | Purpose |
+|---|---|
+| A1 — Authority and Contract Manifest | Exact authorities, baseline, ownership, applicability, Context Overlay Contract identity |
+| A2 — Canonical Schema and Principal Manifest | Revisions/checksums, objects/constraints, principals/workspaces, fresh/upgrade proof |
+| A3 — Transition/Concurrency/Provenance Evidence | Legal/illegal states, conflict handling, successors, projection rebuild |
+| A4 — Persistence/Messaging/Recovery Evidence | Outbox atomicity, inbox dedupe, replay/restart/lease loss |
+| A5 — Packet/Authority/Broker/Idempotency Evidence | Packet digest, decision separation, grant negatives, one-attempt and no-provider proof |
+| A6 — Verification/Outcome/Successor/Evidence Pack | Pass/fail/inconclusive, human acceptance, unknown/reconcile, successors, manifests |
+| A7 — Context/Anti-Shadowing/Trust/Isolation Evidence | Overlay digest, monotonic policy, collisions, limits, secret/isolation matrix |
+| A8 — Compatibility/Historical-Truth Evidence | Mapping/backfill, zero promoted legacy truth, one-writer and P2/P3/fresh regression |
+| A9 — RG-01 Release Evidence Manifest | Exact implementation/CI/evidence identities, AC crosswalk, defects, approvals |
 
-## 7. Project completion path
+The formal definitions and AC-01-01 through AC-01-40 are in the WP-01 plan.
 
-Only WP-00 is currently a formal approved work package. The following names and
-boundaries are the draft completion route defined by the Delivery Roadmap; each
-later package requires its own approval and package plan before implementation.
+---
 
-| Release | Work packages | Required outcome | Current status |
-|---|---|---|---|
-| Foundation | WP-00, WP-01 | Reproducible migration foundation and authoritative kernel foundation | WP-00 G5 accepted; G6 authorized and active; WP-01 not authorized |
-| R1 — Verified VM Recovery | WP-02, WP-03 | One governed `compute.virtual_machine.start` lineage on one enrolled non-production VM, independently verified and human-accepted | Not started |
-| R2 — Private and Reusable Operations | WP-04, WP-05 | Private-zone execution plus reviewed knowledge and skills | Not started; blocked by R1 |
-| R3 — Evented and Project Work | WP-06, WP-07 | Governed Signals, Routines, Projects, and software-delivery contexts | Not started |
-| R4 — Controlled Scale and Extensibility | WP-08, WP-09 | Per-target multi-target truth plus second-provider/extension conformance | Not started |
-| R5 — Production Rollout | WP-10 | Operable, secure, supportable production deployment | Not started |
+## 7. Controlling semantic invariants
 
-Project completion means all of the following are true and recorded:
+Every WP-01 session must preserve:
 
-1. WP-00 reaches signed G6 with AC-00-01 through AC-00-30 evidenced.
-2. Every approved successor package passes its entry gate and recorded release
-   gate in dependency order through RG-10.
-3. Release R5 is accepted against an executable deployment contract, migration
-   and recovery evidence, security and accessibility criteria, service-level
-   objectives, support readiness, and independent production trust/custody
-   topology.
-4. Production is provisioned fresh. CT 150 identities, root keys, service
-   identities, storage credentials, and evidence keys are not promoted or
-   reused.
-5. Every consequential operation continues to use the sole governed dispatch,
-   independent verification, and explicit outcome-decision model.
-6. Deferred capabilities remain excluded unless an approved successor authority
-   assigns them a typed capability, work package, and acceptance gate.
+- PostgreSQL is authoritative; NATS is transport only.
+- State + audit + outbox persist atomically before publication.
+- Inbox dedupe precedes or joins consumer state mutation.
+- Operation Packets are immutable after proposal.
+- PolicyDecision, ApprovalDecision and AuthorityGrant remain separate.
+- Grants bind exact packet/resource/capability/workload/route/policy/time/nonce/use scope.
+- `outcome_unknown` and Verification `inconclusive` are legitimate states.
+- Provider/executor claims cannot create Verification or Accepted.
+- Verification uses exact versioned specs and fresh evidence.
+- First-release acceptance requires an identified accountable human.
+- Correction/compensation create successors and preserve original history.
+- Reasoning agents are credentialless and cannot issue authority or write execution/verification/outcome truth.
+- Effect Broker is the sole dispatch API.
+- Workspace isolation is server-side across all implemented surfaces.
+- Context is derived; overlay policy can tighten but never relax authority.
+- Personal/retrieved/prior-Case/generated content cannot shadow authoritative namespaces.
+- Historical v1 success is not upgraded to current verified truth.
+- One authoritative writer exists per object family at every coexistence stage.
 
-## 8. Historical-record precedence
+---
 
-Some evidence files deliberately preserve the state at the moment they were
-created. Interpret them as follows:
+## 8. Continuation procedure
 
-- Blank approval rows or “awaiting approval” text in G1 capture/custody working
-  records are historical. The later signed
-  [`G1-APPROVALS.md`](../../migrations/profiles/G1-APPROVALS.md) is the G1 closure
-  authority.
-- Earlier G2 receipts and manifest identities are superseded by the signed
-  [`G2-APPROVALS.md`](../../migrations/profiles/g2/G2-APPROVALS.md) identity
-  `1f6e3142...` / `284064` bytes.
-- The G3 receipt is bound to producing commit `570a0ec...`, Linux run
-  `30900328914`, and the identities in section 4. PR #12's squash and subsequent
-  no-content ancestry repair do not change those bytes.
-- The G4 receipt is bound to the accepted G4 implementation/proof chain and
-  Linux run `31336112238`; later G5 CI governance does not modify that evidence.
-- The G5 receipt binds the G5 implementation, exact-main proof baseline,
-  required-status ruleset, and role-based decisions. Ruleset/UI evidence is
-  preserved as sanitized metadata and does not replace the workflow evidence.
-- Pull-request state and branch heads are operational metadata. Commit IDs,
-  signed receipts, artifact digests, and recorded ancestry are the durable
-  authority.
+A later session continuing WP-01 must:
 
-## 9. Repository and external-state boundary
+1. read this file;
+2. read `wp01/WP01-AUTHORIZATION.md`;
+3. read `ClarityIT_v2_WP-01_Authoritative_Kernel_Foundation_Plan_v0.1.md`;
+4. verify current `main` descends from the accepted WP-00 baseline and the integrated WP-01 plan;
+5. identify the current WP01-G* gate and its unmet acceptance evidence;
+6. preserve all frozen WP-00 identities and required CI contexts;
+7. execute only the current WP-01 scope;
+8. stop only for a concrete demonstrated blocker that the accepted design cannot safely handle.
 
-With the authority set indexed here, the repository contains the specifications,
-delivery sequence, implementation state, gate criteria, frozen identities, and
-continuation rules needed to plan the remainder of the project. Current chat
-memory is not required to decide what is complete or what comes next.
+Routine implementation uncertainty is resolved through bounded reversible tests, not new planning gates.
 
-The following remain external by design and must be represented in the
-repository by immutable references, digests, receipts, and decisions rather
-than copied into source control:
+### Required status reporting
 
-- raw P1/P2 manifests, database backups, restore logs, and sensitive evidence;
-- production credentials, identity material, KES/KMS roots, evidence keys, and
-  provider access;
-- live infrastructure state, environment health, and provider observations; and
-- future human approvals, release decisions, and operational go/no-go actions
-  until their signed records are committed.
+Use:
 
-No credential, production hostname, customer data, secret, or raw production
-dump may be added to make the repository appear self-contained.
+```text
+Done
+Verified
+Blockers
+Non-blocking follow-up
+Decision
+```
 
-## 10. Required start procedure for the next session
+Do not report a planning or context-window limitation as a technical blocker.
 
-1. Fetch remote references and identify the commit that contains this file.
-2. Read this file, the authority index, the G5 acceptance receipt, the G6
-   authorization, and the WP-00 plan.
-3. Verify the frozen G1-G4 identities remain unchanged, the G5 receipt is
-   integrated, and the repository still requires `Frontend (typecheck · test · build)`,
-   `Worker (Python)`, `Backend (Go)`, and `G5 Foundation Gate` for `main`.
-4. Bind the accepted G5 integration tip as the G6 starting baseline. Execute
-   only the already-authorized WS6/G6 work: AC-00-01 through AC-00-30 evidence
-   crosswalk, P2 release-artifact rehearsal, recovery/failure rehearsal,
-   historical-truth confirmation, final schema/security/provenance review,
-   A7 release manifest, issue #1 disposition, and required G6 decisions.
-5. Create a normal forward branch (`wp00/g6-acceptance`) from the accepted G5
-   integration tip and preserve all existing evidence and signed history. Do
-   not force-push, rewrite, or delete recovery references.
-6. Update this completion ledger in the same integration that changes G6 or
-   project status. Record exact commits, CI runs, artifact digests, approvals,
-   remaining blockers, and the next permitted action.
+---
 
-The completion ledger must never claim a gate because code exists, a CI job is
-green outside the required boundary, a provider returned success, or a chat
-participant stated approval. The gate's specified evidence and recorded decision
-are required.
+## 9. Final WP-01 closure condition
+
+WP-01 closes only when:
+
+- AC-01-01 through AC-01-40 are PASS;
+- Kernel K-01 through K-12 are evidenced;
+- applicable Kernel/Native Pattern conformance scenarios pass;
+- A1-A9 reconstruct;
+- fresh/P3/P2 install/adoption/upgrade paths remain reproducible;
+- all required blocking CI is green;
+- historical mapping creates zero passed Verifications and zero Accepted outcomes from legacy claims;
+- `LIVE_PROVIDER_MUTATIONS=0`;
+- unresolved Sev1/Sev2 = 0;
+- required Architecture, Backend, Database, Security and Quality decisions are recorded.
+
+Only these decisions are valid:
+
+```text
+RG-01=ACCEPTED
+WP-01=ACCEPTED
+```
+
+or
+
+```text
+RG-01=BLOCKED
+WP-01=NOT_ACCEPTED
+```
+
+Conditional acceptance is not permitted.
+
+---
+
+## 10. Roadmap boundary after RG-01
+
+RG-01 freezes the authoritative kernel foundation as an input to later packages. It does not itself authorize WP-02.
+
+A separately authorized WP-02 may then implement the first live provider-neutral VM-start vertical slice, destination-bound connector credential broker and Proxmox VE conformance. WP-03 completes the Case experience and R1 pilot. WP-04+ remain separately gated.
