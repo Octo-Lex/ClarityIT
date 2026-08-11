@@ -2,10 +2,10 @@
 
 **Status:** Current authoritative project handoff
 **Snapshot date:** 11 August 2026
-**Integrated baseline:** G5 acceptance integration (this change), descended from exact-main proof baseline `main@d39c44fe942a786be43c1931f4047bf6a57df36e`
-**Current completed boundary:** WP-00 G5 accepted, signed, and enforced; required frontend + worker + `Backend (Go)` + `G5 Foundation Gate` merge predicate active for `main`
-**Current authorized activity:** G6 final WP-00 acceptance under `G6-AUTH-2026-08-11`
-**Next gate:** G6 — execute WS6 from the accepted G5 integration boundary; G6 remains unaccepted until AC-00-01 through AC-00-30 pass
+**Integrated baseline:** `main@0d0d842c088284d54abe7fd56df9d6ebf63a7e66`, descended from G5 acceptance + G6 P2 adoption + column-order canonicalization
+**Current completed boundary:** WP-00 G6 accepted — all gates G0 through G6 closed; migration runner, P3 adoption, and P2 adoption proven and integrated
+**Current authorized activity:** WP-01+ may begin under separate authorization
+**Next gate:** WP-01 authorization (separately governed)
 
 ## 1. Purpose
 
@@ -157,7 +157,7 @@ test does not skip an earlier decision, and code presence does not close a gate.
 | G3 — reconciled baseline | **Closed, signed, integrated**, 2026-08-04 | [G3 approval receipt](../migration/wp00/g3/G3-APPROVALS.md), signed tip `97f83e4...`, authority integration root `ac722273...` | Preserve identities and ancestry |
 | G4 — Go migration runner | **Accepted, signed, integrated**, 2026-08-10 | [G4 approval receipt](../migration/wp00/g4/G4-APPROVALS.md), implementation squash `f769cd3815ea08194b56c267cfa3b30fb7a12fd9`, authority tip `b31a7c5cd0ba132cb179db5751e8e2b8f339639f`, Linux CI run `31336112238` | Preserve accepted runner and proof identities |
 | G5 — blocking CI matrix | **Accepted, signed, enforced**, 2026-08-11 | [G5 approval receipt](../migration/wp00/g5/G5-APPROVALS.md), implementation squash `a0be44780aa0f486bd6fb1d5fd5d87d26de09001`, exact-main proof `d39c44fe942a786be43c1931f4047bf6a57df36e`, active ruleset ID `20672081` | G6 authorization is now active; preserve required frontend + worker + `Backend (Go)` + `G5 Foundation Gate` conjunction |
-| G6 — WP-00 acceptance | **Authorized, active, not accepted** | [G6 authorization](../migration/wp00/g6/G6-AUTHORIZATION-AND-PLAN.md), WP-00 AC-00-01 through AC-00-30 and A1-A7 evidence | Execute WS6 only; no conditional or partial acceptance |
+| G6 — WP-00 acceptance | **Accepted, signed, integrated**, 2026-08-11 | [G6 approval receipt](../migration/wp00/g6/G6-APPROVALS.md), P2 rehearsal converged to `9881c93e…`, integrated tip `0d0d842…` | WP-00 closed; WP-01+ requires separate authorization |
 
 The immediate technical sequence is now G6 final WP-00 acceptance. G6 is
 already separately authorized by `G6-AUTH-2026-08-11`; accepted G5 activates
