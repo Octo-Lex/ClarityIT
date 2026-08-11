@@ -100,15 +100,12 @@ def generate(p3: str) -> str:
 
     # 4b. Replace source structural digests with P2-specific values.
     # Computed using the EXACT same query format as the P3 preflight.
-    # APPFN_SIG and APPFN_BODY are IDENTICAL between P3 and P2 (same 10 signed
-    # application functions). Only INDEX, TRIGGER, SEQUENCE, CONSTRAINT differ
-    # because the P1/P2 production source has different index definitions,
-    # trigger definitions, sequence values, and constraint names.
+    # When using the exact queries: COLUMN, APPFN_SIG, APPFN_BODY, INDEX,
+    # TRIGGER, and CONSTRAINT are ALL IDENTICAL between P3 and P2.
+    # Only SEQUENCE differs because the digest includes owner and OWNED BY
+    # dependency, which differs between the P3 synthetic fixture and P1/P2.
     P2_DIGESTS = {
-        "6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3": "cb81b1f6f34d3e3c79300c9e7c95e62320d3f4a0ce75f6923541e8be6456cc88",  # INDEX
-        "b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333": "ef5704b1901b07783b7a1f2f4717450f019c8a3ba48c3f2c6ec5e1efaab32c08",  # TRIGGER
-        "1d5f4ddaff8fd246b75c680cff3323a21452227406f593ad198039a3387d9f52": "474221dfd9c7a8d84e847a0add34420ebb4eca62516bdc39be6d6829bf92f1f5",  # SEQUENCE
-        "87372790e05c745ee3867cfe89d06df1017c9247615f0b7d98b8d55eba99fdf3": "004913bc1d067ec8ad7ed8781782ffe1e69c32d2fa1488b73984f4a549d17fa1",  # CONSTRAINT
+        "1d5f4ddaff8fd246b75c680cff3323a21452227406f593ad198039a3387d9f52": "879bf6ca281e2a1e31aa5a316b5083601af1859eb63ae857288a6e4f595f8ae1",  # SEQUENCE only
     }
     for p3_digest, p2_digest in P2_DIGESTS.items():
         assert_count(t, re.escape(p3_digest), 1, f"P3 digest {p3_digest[:12]}")

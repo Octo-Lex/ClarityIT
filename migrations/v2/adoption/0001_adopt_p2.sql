@@ -92,7 +92,7 @@ BEGIN
         FROM pg_index ix JOIN pg_class c ON c.oid=ix.indrelid
         JOIN pg_class i ON i.oid=ix.indexrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')
-        <> 'cb81b1f6f34d3e3c79300c9e7c95e62320d3f4a0ce75f6923541e8be6456cc88' THEN
+        <> '6dc397c2f5f5e36a6b946efb8cf39052e04fef311e8bb913506bb345a8190cf3' THEN
         RAISE EXCEPTION 'G6 P2 adoption source index inventory drifted (digest mismatch)';
     END IF;
     -- Trigger digest.
@@ -102,7 +102,7 @@ BEGIN
         FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace
         WHERE n.nspname='public' AND NOT t.tgisinternal)
-        <> 'ef5704b1901b07783b7a1f2f4717450f019c8a3ba48c3f2c6ec5e1efaab32c08' THEN
+        <> 'b379674f75f67a40c684c3ee9133019972ddca591c287659cbf076e22dca7333' THEN
         RAISE EXCEPTION 'G6 P2 adoption source trigger inventory drifted (digest mismatch)';
     END IF;
     -- Sequence digest: type, start, increment, min, max, cache, cycle,
@@ -119,7 +119,7 @@ BEGIN
         ORDER BY n.nspname, c.relname), 'UTF8'), 'sha256'), 'hex')
         FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public')
-        <> '474221dfd9c7a8d84e847a0add34420ebb4eca62516bdc39be6d6829bf92f1f5' THEN
+        <> '879bf6ca281e2a1e31aa5a316b5083601af1859eb63ae857288a6e4f595f8ae1' THEN
         RAISE EXCEPTION 'G6 P2 adoption source sequence properties drifted (digest mismatch)';
     END IF;
     -- Constraint digest: name + definition (all 287, names included).
@@ -129,7 +129,7 @@ BEGIN
         ORDER BY n.nspname, c.relname, con.conname), 'UTF8'), 'sha256'), 'hex')
         FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid
         JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r')
-        <> '004913bc1d067ec8ad7ed8781782ffe1e69c32d2fa1488b73984f4a549d17fa1' THEN
+        <> '87372790e05c745ee3867cfe89d06df1017c9247615f0b7d98b8d55eba99fdf3' THEN
         RAISE EXCEPTION 'G6 P2 adoption source constraints drifted (digest mismatch)';
     END IF;
     -- Target identities must be absent (single-shot adoption).
