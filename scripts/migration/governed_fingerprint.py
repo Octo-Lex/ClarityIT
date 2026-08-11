@@ -319,6 +319,15 @@ def governed_capture(cur, signed: dict, control: dict) -> dict:
     ]
     columns = {k: v for k, v in cs.columns(cur, list(governed_schemas)).items()
                if k.split(".", 1)[0] in governed_schemas}
+    # The signed G2 product contract is column-order independent.
+    # G3 fresh installs already emit these 64 tables in column-name order;
+    # normalize inherited P1/P2 attnum order to that same canonical order.
+    for table_key in signed["tables"]:
+        if table_key in columns:
+            columns[table_key] = sorted(
+                columns[table_key],
+                key=lambda column: column["name"],
+            )
     constraints = {k: v for k, v in cs.constraints(cur, list(governed_schemas)).items()
                    if k.split(".", 1)[0] in governed_schemas}
     indexes = {k: v for k, v in cs.indexes(cur, list(governed_schemas)).items()
