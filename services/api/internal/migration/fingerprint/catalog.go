@@ -82,10 +82,10 @@ type membershipRow struct {
 
 // relationRow is a governed relation projected to the 4-field signed contract.
 type relationRow struct {
-	Schema       string `json:"schema"`
-	Name         string `json:"name"`
-	Kind         string `json:"kind"`
-	Persistence  string `json:"persistence"`
+	Schema      string `json:"schema"`
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	Persistence string `json:"persistence"`
 }
 
 // columnRow is a governed column record.
@@ -106,10 +106,10 @@ type constraintRow struct {
 
 // indexRow is a governed index record.
 type indexRow struct {
-	Name      string `json:"name"`
-	Def       string `json:"definition"`
-	Unique    bool   `json:"unique"`
-	Primary   bool   `json:"primary"`
+	Name    string `json:"name"`
+	Def     string `json:"definition"`
+	Unique  bool   `json:"unique"`
+	Primary bool   `json:"primary"`
 }
 
 // triggerRow is a governed trigger record.

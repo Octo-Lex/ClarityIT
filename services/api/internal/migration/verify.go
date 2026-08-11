@@ -66,12 +66,12 @@ func Verify(ctx context.Context, conn *pgx.Conn) (Result, error) {
 	}
 
 	res := Result{
-		Status:    "verified",
-		Code:      CodeOK,
-		Phase:     PhaseVerify,
+		Status:     "verified",
+		Code:       CodeOK,
+		Phase:      PhaseVerify,
 		DDLStarted: false,
 		GovernedFP: fp,
-		Composite: vres.Composite,
+		Composite:  vres.Composite,
 	}
 
 	// Compare against the frozen target.
@@ -143,7 +143,7 @@ func Verify(ctx context.Context, conn *pgx.Conn) (Result, error) {
 			Status:     "blocked",
 			Code:       CodeLedgerInconsistent,
 			Phase:      PhaseVerify,
-			DDLStarted:  false,
+			DDLStarted: false,
 			Diagnostics: []Diag{{
 				CheckID: "revision_count",
 				Result:  "fail",

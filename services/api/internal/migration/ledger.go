@@ -52,13 +52,13 @@ import (
 // LedgerInput is the sanitized evidence the caller supplies for a run. The
 // runner never stores secrets, DSNs, or raw production data here.
 type LedgerInput struct {
-	RunID          string // generated in Go (UUID)
-	SourceProfile  string // source-profile id (fingerprint-derived), allowlisted
-	TargetVersion  string // "0001"
-	ReleaseID      string // compiled release identifier (ldflags)
-	Actor          string // who/what initiated the apply
-	SourceCommit   string // build-bound implementation commit (ldflags)
-	EvidenceRef    string // sanitized evidence reference (CI run id, never raw payload)
+	RunID         string // generated in Go (UUID)
+	SourceProfile string // source-profile id (fingerprint-derived), allowlisted
+	TargetVersion string // "0001"
+	ReleaseID     string // compiled release identifier (ldflags)
+	Actor         string // who/what initiated the apply
+	SourceCommit  string // build-bound implementation commit (ldflags)
+	EvidenceRef   string // sanitized evidence reference (CI run id, never raw payload)
 }
 
 // LedgerRecord is the runner's view of a migration_runs row.
@@ -142,9 +142,9 @@ type ExecutionReceipt struct {
 	ExecutionMs       int64
 	ProducingCommit   string // 40-char SHA (ldflags-bound)
 	// Original/transformed artifact digests (asset name -> sha256).
-	OriginalDigests   map[string]string
+	OriginalDigests    map[string]string
 	TransformedDigests map[string]string
-	EvidenceRef       string // sanitized immutable reference
+	EvidenceRef        string // sanitized immutable reference
 }
 
 // AppendExecutionReceipt writes the runner.execution_receipt reconciliation row
@@ -157,13 +157,13 @@ func AppendExecutionReceipt(ctx context.Context, tx pgx.Tx, r ExecutionReceipt) 
 		"target_version":     r.TargetVersion,
 	}
 	actual := map[string]any{
-		"run_id":               r.RunID,
-		"actor":                r.Actor,
-		"path":                 r.Path,
-		"started_at":           r.StartedAt.Format(time.RFC3339Nano),
-		"completed_at":         r.CompletedAt.Format(time.RFC3339Nano),
-		"execution_ms":         r.ExecutionMs,
-		"producing_commit":     r.ProducingCommit,
+		"run_id":                       r.RunID,
+		"actor":                        r.Actor,
+		"path":                         r.Path,
+		"started_at":                   r.StartedAt.Format(time.RFC3339Nano),
+		"completed_at":                 r.CompletedAt.Format(time.RFC3339Nano),
+		"execution_ms":                 r.ExecutionMs,
+		"producing_commit":             r.ProducingCommit,
 		"original_artifact_digests":    r.OriginalDigests,
 		"transformed_artifact_digests": r.TransformedDigests,
 	}

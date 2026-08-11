@@ -33,15 +33,15 @@ const ProfilerVersion = "3.2.0-p1p2"
 // source fingerprint (capture_schema.FINGERPRINT_EXCLUDE). These are volatile
 // or self-referential and must not enter the hash.
 var fingerprintExclude = map[string]bool{
-	"captured_at_utc":   true,
-	"row_counts":        true,
-	"source_label":      true,
-	"integrity_checks":  true,
+	"captured_at_utc":    true,
+	"row_counts":         true,
+	"source_label":       true,
+	"integrity_checks":   true,
 	"schema_dump_sha256": true,
-	"schema_dump_error": true,
+	"schema_dump_error":  true,
 	"fingerprint_sha256": true, // the digest cannot include itself
-	"ownership":         true, // spec excludes ownership from fingerprint
-	"pg_version_string": true, // build-specific label
+	"ownership":          true, // spec excludes ownership from fingerprint
+	"pg_version_string":  true, // build-specific label
 }
 
 // ProfilerCapture builds the full source manifest from the live catalog. This
@@ -110,21 +110,21 @@ func ProfilerCapture(ctx context.Context, q pgxQuerier) (map[string]any, error) 
 	}
 
 	return map[string]any{
-		"profiler_version":   ProfilerVersion,
-		"postgres":           pgInfo,
-		"schemas":            schemas,
-		"relations":          relations,
-		"columns":            columns,
-		"constraints":        constraints,
-		"indexes":            indexes,
-		"sequences":          sequences,
-		"functions":          functions,
-		"triggers":           triggers,
-		"views":              views,
-		"rls_policies":       rlsPolicies,
-		"rls_state":          rlsState,
-		"roles_and_grants":   rolesAndGrants,
-		"migration_state":    migrationState,
+		"profiler_version": ProfilerVersion,
+		"postgres":         pgInfo,
+		"schemas":          schemas,
+		"relations":        relations,
+		"columns":          columns,
+		"constraints":      constraints,
+		"indexes":          indexes,
+		"sequences":        sequences,
+		"functions":        functions,
+		"triggers":         triggers,
+		"views":            views,
+		"rls_policies":     rlsPolicies,
+		"rls_state":        rlsState,
+		"roles_and_grants": rolesAndGrants,
+		"migration_state":  migrationState,
 		// Excluded keys (captured_at_utc, source_label, ownership, row_counts,
 		// integrity_checks, schema_dump_*, fingerprint_sha256, pg_version_string)
 		// are deliberately NOT added.

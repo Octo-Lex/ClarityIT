@@ -27,13 +27,16 @@ type AssetName string
 
 const (
 	// Fresh-install chain (executed in this order by the runner).
-	AssetRolesBootstrap AssetName = "0000_roles.sql"        // privileged: five-role posture
-	AssetPlatformSchema AssetName = "0000_platform.sql"     // platform control schema (4 tables)
-	AssetBaseline       AssetName = "0001_reconciled.sql"   // 64 product tables + 10 app functions
-	AssetSeed           AssetName = "0001_seed.sql"         // 7 canonical permissions + revision 0001 row
+	AssetRolesBootstrap AssetName = "0000_roles.sql"      // privileged: five-role posture
+	AssetPlatformSchema AssetName = "0000_platform.sql"   // platform control schema (4 tables)
+	AssetBaseline       AssetName = "0001_reconciled.sql" // 64 product tables + 10 app functions
+	AssetSeed           AssetName = "0001_seed.sql"       // 7 canonical permissions + revision 0001 row
 
 	// Approved P3 adoption (self-contained: brings its own platform ledger).
 	AssetAdoptP3 AssetName = "0001_adopt_p3.sql"
+
+	// Approved P2 adoption (G6 successor; self-contained like P3).
+	AssetAdoptP2 AssetName = "0001_adopt_p2.sql"
 
 	// Identity manifests (read-only inputs; never executed as SQL).
 	AssetG3A4Manifest    AssetName = "G3-A4-MANIFEST.json"
@@ -48,7 +51,7 @@ const (
 // AllAssets enumerates every embedded asset. Order is stable and is the single
 // place that proves the legacy SQL (001-040) is not embedded.
 var AllAssets = []AssetName{
-	AssetRolesBootstrap, AssetPlatformSchema, AssetBaseline, AssetSeed, AssetAdoptP3,
+	AssetRolesBootstrap, AssetPlatformSchema, AssetBaseline, AssetSeed, AssetAdoptP3, AssetAdoptP2,
 	AssetG3A4Manifest, AssetControlManifest, AssetG2Manifest,
 	AssetV2Checksums, AssetLegacyChecksums,
 }
@@ -66,6 +69,11 @@ var FreshInstallChain = []AssetName{
 // artifact is self-contained (it recreates the platform ledger itself).
 var AdoptionChain = []AssetName{
 	AssetAdoptP3,
+}
+
+// P2AdoptionChain is the execution chain for approved P2 adoption (G6 successor).
+var P2AdoptionChain = []AssetName{
+	AssetAdoptP2,
 }
 
 // Bytes returns the immutable raw embedded bytes for an asset.

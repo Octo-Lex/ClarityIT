@@ -30,15 +30,15 @@ func Plan(ctx context.Context, conn *pgx.Conn) (Result, error) {
 	}
 
 	res := Result{
-		Status:    "ok",
-		Code:      pf.Code,
-		Phase:     PhasePreflight,
-		DDLStarted: false,
-		Class:     pf.Class,
-		Path:      pf.Path,
-		Composite: vres.Composite,
+		Status:        "ok",
+		Code:          pf.Code,
+		Phase:         PhasePreflight,
+		DDLStarted:    false,
+		Class:         pf.Class,
+		Path:          pf.Path,
+		Composite:     vres.Composite,
 		SourceProfile: pf.SourceFingerprint,
-		GovernedFP: pf.GovernedFingerprint,
+		GovernedFP:    pf.GovernedFingerprint,
 		TargetVersion: "0001",
 	}
 

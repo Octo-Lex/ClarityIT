@@ -68,16 +68,16 @@ type ApplyOptions struct {
 // fingerprint matched the frozen target. On failure, Err carries the cause and
 // the diagnostic is sanitized.
 type ApplyResult struct {
-	Class              Class
-	Path               Path
-	Code               ReasonCode
+	Class               Class
+	Path                Path
+	Code                ReasonCode
 	GovernedFingerprint string
-	RunID              string
-	StartedAt          time.Time
-	CompletedAt        time.Time
-	ExecutionMs        int64
-	DDLStarted         bool // true only when DDL was actually submitted (past preflight + into target tx)
-	Err                error
+	RunID               string
+	StartedAt           time.Time
+	CompletedAt         time.Time
+	ExecutionMs         int64
+	DDLStarted          bool // true only when DDL was actually submitted (past preflight + into target tx)
+	Err                 error
 }
 
 // Apply executes the version-0001 migration on a dedicated physical connection
@@ -254,8 +254,15 @@ func Apply(ctx context.Context, pool *pgxpool.Pool, opts ApplyOptions) ApplyResu
 			return res
 		}
 	case PathAdopt:
-		if err := execAdoption(ctx, tx, producingCommit, &res.DDLStarted); err != nil {
+		if err := execAdoption(ctx, tx, producingCommit, &res.DDLStarted, assets.AssetAdoptP3); err != nil {
 			res.Err = fmt.Errorf("adoption: %w", err)
+			res.CompletedAt = time.Now()
+			res.ExecutionMs = time.Since(res.StartedAt).Milliseconds()
+			return res
+		}
+	case PathAdoptP2:
+		if err := execAdoption(ctx, tx, producingCommit, &res.DDLStarted, assets.AssetAdoptP2); err != nil {
+			res.Err = fmt.Errorf("P2 adoption: %w", err)
 			res.CompletedAt = time.Now()
 			res.ExecutionMs = time.Since(res.StartedAt).Milliseconds()
 			return res
@@ -346,20 +353,20 @@ func Apply(ctx context.Context, pool *pgxpool.Pool, opts ApplyOptions) ApplyResu
 	res.CompletedAt = time.Now()
 	res.ExecutionMs = res.CompletedAt.Sub(res.StartedAt).Milliseconds()
 	if err := AppendExecutionReceipt(ctx, tx, ExecutionReceipt{
-		RunID:             runID,
-		ReleaseID:         opts.ReleaseID,
-		PackageDigest:     mustCompositeDigest(),
-		TargetFingerprint: fp,
-		TargetVersion:     "0001",
-		Actor:             opts.Actor,
-		Path:              string(pf.Path),
-		StartedAt:         res.StartedAt,
-		CompletedAt:       res.CompletedAt,
-		ExecutionMs:       res.ExecutionMs,
-		ProducingCommit:   producingCommit,
-		OriginalDigests:   collectOriginalDigests(pf.Path),
+		RunID:              runID,
+		ReleaseID:          opts.ReleaseID,
+		PackageDigest:      mustCompositeDigest(),
+		TargetFingerprint:  fp,
+		TargetVersion:      "0001",
+		Actor:              opts.Actor,
+		Path:               string(pf.Path),
+		StartedAt:          res.StartedAt,
+		CompletedAt:        res.CompletedAt,
+		ExecutionMs:        res.ExecutionMs,
+		ProducingCommit:    producingCommit,
+		OriginalDigests:    collectOriginalDigests(pf.Path),
 		TransformedDigests: collectTransformedDigests(pf.Path),
-		EvidenceRef:       opts.EvidenceRef,
+		EvidenceRef:        opts.EvidenceRef,
 	}); err != nil {
 		res.Err = fmt.Errorf("append execution receipt: %w", err)
 		return res
@@ -467,7 +474,7 @@ func execFreshChain(ctx context.Context, tx pgx.Tx, ddlStarted *bool) error {
 // via parameterized set_config (extended protocol) BEFORE the body; the body
 // (set_config line removed by Transform) runs via simple protocol. ddlStarted
 // is flipped only immediately before the body is submitted.
-func execAdoption(ctx context.Context, tx pgx.Tx, producingCommit string, ddlStarted *bool) error {
+func execAdoption(ctx context.Context, tx pgx.Tx, producingCommit string, ddlStarted *bool, artifact assets.AssetName) error {
 	if producingCommit == "" {
 		return errors.New("adoption requires a producing commit (ldflags-bound)")
 	}
@@ -475,7 +482,7 @@ func execAdoption(ctx context.Context, tx pgx.Tx, producingCommit string, ddlSta
 	if _, err := tx.Exec(ctx, `SELECT set_config('g3.source_commit', $1, true)`, producingCommit); err != nil {
 		return fmt.Errorf("set_config producing commit: %w", err)
 	}
-	ts, err := Transform(assets.AssetAdoptP3)
+	ts, err := Transform(artifact)
 	if err != nil {
 		return fmt.Errorf("transform adoption: %w", err)
 	}
@@ -549,6 +556,9 @@ func profileIDForPath(p Path) string {
 	if p == PathAdopt {
 		return P3ProfileID
 	}
+	if p == PathAdoptP2 {
+		return P2ProfileID
+	}
 	return ""
 }
 
@@ -585,6 +595,9 @@ func collectTransformedDigests(p Path) map[string]string {
 func chainForPath(p Path) []assets.AssetName {
 	if p == PathAdopt {
 		return assets.AdoptionChain
+	}
+	if p == PathAdoptP2 {
+		return assets.P2AdoptionChain
 	}
 	return assets.FreshInstallChain
 }

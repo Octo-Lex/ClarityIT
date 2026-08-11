@@ -55,10 +55,10 @@ func TestApply_FreshInstall_ConvergesToFrozenTarget(t *testing.T) {
 	ctx := context.Background()
 
 	res := Apply(ctx, pool, ApplyOptions{
-		Actor:           "clarity-migrate@fresh-test",
-		ReleaseID:       "fresh-test-release",
-		
-		EvidenceRef:     "sanitized-fresh-apply-test",
+		Actor:     "clarity-migrate@fresh-test",
+		ReleaseID: "fresh-test-release",
+
+		EvidenceRef: "sanitized-fresh-apply-test",
 	})
 	if res.Err != nil {
 		t.Fatalf("Apply fresh failed: %v", res.Err)
@@ -128,7 +128,7 @@ func TestApply_SecondApplyIsNoOp(t *testing.T) {
 	ctx := context.Background()
 
 	// First apply installs.
-	if res := Apply(ctx, pool, ApplyOptions{Actor: "a", ReleaseID: "r",  EvidenceRef: "e"}); res.Err != nil {
+	if res := Apply(ctx, pool, ApplyOptions{Actor: "a", ReleaseID: "r", EvidenceRef: "e"}); res.Err != nil {
 		t.Fatalf("first apply: %v", res.Err)
 	}
 	// Capture the revision applied_at to detect re-execution.
@@ -138,7 +138,7 @@ func TestApply_SecondApplyIsNoOp(t *testing.T) {
 	conn.QueryRow(ctx, `SELECT applied_at::text FROM platform.schema_revisions WHERE version='0001'`).Scan(&firstAppliedAt)
 
 	// Second apply: should be no-op (governed current).
-	res2 := Apply(ctx, pool, ApplyOptions{Actor: "a2", ReleaseID: "r2",  EvidenceRef: "e2"})
+	res2 := Apply(ctx, pool, ApplyOptions{Actor: "a2", ReleaseID: "r2", EvidenceRef: "e2"})
 	// No-op is not an error; the path is no_op... but Apply currently only
 	// executes install/adopt. A governed-current DB blocks at preflight.
 	if res2.Err == nil {
@@ -174,7 +174,7 @@ func TestApply_NoUnlockAllAnywhere(t *testing.T) {
 func TestApply_LegacyMigrationsNeverSelectable(t *testing.T) {
 	for _, act := range AllowlistedFingerprints {
 		switch act.Path {
-		case PathInstall, PathAdopt, PathBlock, "":
+		case PathInstall, PathAdopt, PathAdoptP2, PathBlock, "":
 			// allowed
 		default:
 			t.Errorf("allowlist fingerprint resolves to non-standard path %q (legacy leak?)", act.Path)
