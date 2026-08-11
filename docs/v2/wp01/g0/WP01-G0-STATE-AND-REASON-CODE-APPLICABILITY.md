@@ -25,13 +25,14 @@ Required semantics:
 |---|---|---|
 | draft | proposed | legal when packet canonicalization, integrity and proposal prerequisites pass |
 | proposed | superseded | legal only through an immutable successor relationship; proposed bytes remain unchanged |
-| proposed | withdrawn | legal proposer withdrawal before execution; does not erase proposal history |
-| proposed | expired | legal on governed validity expiry |
+| proposed | withdrawn | legal proposer withdrawal only before dispatch/execution has begun; does not erase proposal history |
+| proposed | expired | legal only when the governed validity window expires **before dispatch has begun**, with authoritative proof that no attempt crossed the submission boundary |
 | draft | withdrawn/superseded/expired | **illegal** under Kernel v0.1; draft may only transition by propose |
+| proposed | expired after dispatch/submission began or may have begun | **illegal**; execution lineage remains attached to the proposed packet rather than being rewritten as expired |
 | proposed | proposed with modified bound bytes | **illegal**; material change requires successor |
 | terminal packet state | mutation back to draft/proposed | **illegal** |
 
-A proposed packet digest binds downstream PolicyDecision, ApprovalDecision and AuthorityGrant scope.
+A proposed packet digest binds downstream PolicyDecision, ApprovalDecision and AuthorityGrant scope. Expiry is a pre-dispatch validity outcome, not a mechanism for rewriting the state of a packet whose execution has already begun.
 
 ## 3. AuthorityGrant
 
@@ -100,10 +101,11 @@ outcome_unknown
   -> submitted
   -> provider_completed
   -> provider_failed
-  -> outcome_unknown
 ```
 
-`provider_completed`, `provider_failed`, `blocked` and `cancelled` are terminal for that attempt. Kernel v0.1 permits `outcome_unknown` reconciliation to submitted/completed/failed or remaining terminal-unknown; it does **not** introduce a direct `outcome_unknown -> running` edge. Reconciliation updates that same attempt according to observed provider truth and never silently creates a blind retry.
+`provider_completed`, `provider_failed`, `blocked` and `cancelled` are terminal for that attempt. Kernel v0.1 permits `outcome_unknown` reconciliation to submitted/completed/failed when independent evidence resolves the ambiguity. If reconciliation remains unresolved, **there is no `outcome_unknown -> outcome_unknown` transition**: the attempt stays in the existing terminal-unknown state and new reconciliation evidence/audit records are appended without emitting a duplicate authoritative state transition or transition outbox event. Kernel v0.1 also does **not** introduce a direct `outcome_unknown -> running` edge.
+
+Reconciliation updates that same attempt only when observed provider truth supports one of the legal resolving transitions and never silently creates a blind retry.
 
 WP-01 uses deterministic fake/no-op execution to exercise these states. No real provider mutation occurs.
 
@@ -263,17 +265,19 @@ WP-01 implementation shall prove:
 2. a provider-completed ResultClaim cannot transition Verification to passed;
 3. a passed Verification cannot transition OutcomeDecision to accepted without the required human decision;
 4. `outcome_unknown` cannot trigger automatic new attempt submission;
-5. cancelled and failed attempts remain historically visible;
-6. compensation is a successor operation, not mutation of the original attempt/outcome;
-7. stale aggregate-version writes fail before state change;
-8. duplicate delivery produces at most one authoritative transition per consumer/logical command;
-9. illegal transition failure leaves no partial audit/outbox/state inconsistency;
-10. state + audit + outbox atomicity is preserved.
+5. unresolved reconciliation appends evidence without a duplicate `outcome_unknown` self-transition;
+6. packet expiry cannot rewrite a packet after dispatch has begun or may have begun;
+7. cancelled and failed attempts remain historically visible;
+8. compensation is a successor operation, not mutation of the original attempt/outcome;
+9. stale aggregate-version writes fail before state change;
+10. duplicate delivery produces at most one authoritative transition per consumer/logical command;
+11. illegal transition failure leaves no partial audit/outbox/state inconsistency;
+12. state + audit + outbox atomicity is preserved.
 
 ## 11. Evidence requirements
 
-A3/A4/A5/A6 evidence must include the exact state/reason matrices exercised, expected/actual outcomes, transaction rollback proof for negatives where applicable, and immutable references to the tests/runs that established them.
+A3/A4/A5/A6 evidence must include the exact state/reason matrices exercised, expected/actual outcomes, transaction rollback proof for negatives where applicable, and immutable references to the tests/runs that established them. Reconciliation evidence must distinguish an actual state transition from an evidence-only no-state-change result.
 
 ## 12. Change control
 
-New semantic states, an additional transition edge not permitted by Kernel v0.1, removal of `outcome_unknown`/`inconclusive`, reclassification of provider claims as Verification, a `released` AuthorityGrant state, or a transition that weakens immutable-successor semantics requires a governed semantic successor; it is not a routine implementation detail.
+New semantic states, an additional transition edge not permitted by Kernel v0.1, removal of `outcome_unknown`/`inconclusive`, reclassification of provider claims as Verification, a `released` AuthorityGrant state, post-dispatch packet expiry, an `outcome_unknown` self-transition, or a transition that weakens immutable-successor semantics requires a governed semantic successor; it is not a routine implementation detail.
