@@ -89,9 +89,9 @@ func Transform(name assets.AssetName) (TransformedScript, error) {
 
 	out := TransformedScript{Asset: name, SourceSHA256: srcHex}
 
-	// Only the adoption artifact is permitted to have (and must have) the
+	// Only adoption artifacts are permitted to have (and must have) the
 	// set_config line. Every other artifact must NOT contain it.
-	expectSetConfig := name == assets.AssetAdoptP3
+	expectSetConfig := name == assets.AssetAdoptP3 || name == assets.AssetAdoptP2
 
 	setCount := 0
 	setConfigCount := 0
