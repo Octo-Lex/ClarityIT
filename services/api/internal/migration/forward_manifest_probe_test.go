@@ -81,11 +81,12 @@ func TestForwardG1Convergence(t *testing.T) {
 				}
 			}
 
-			// Production SQL intentionally stores no passwords. After either
-			// sanctioned Stage-A path, the signed target contains clarityit_admin
-			// (CREATEROLE) and clarityit_migrator (SET-only membership in owner).
-			// The fixture provisions only a test password through the container-local
-			// trusted socket; it does not alter membership, ownership, or fingerprint.
+			// Production SQL intentionally stores no passwords. The official
+			// PostgreSQL fixture permits local trusted socket access inside the
+			// container. A role may change its own password without CREATEROLE or
+			// ADMIN OPTION, so provision only a fixture TCP credential by connecting
+			// locally as clarityit_migrator itself. No role attributes, memberships,
+			// ownership, grants, or schema identities are changed.
 			provisionTestMigratorPassword(t, tc.container)
 			migratorPool := openTestMigratorPool(t, ctx, tc.port)
 			defer migratorPool.Close()
@@ -154,7 +155,7 @@ func provisionTestMigratorPassword(t *testing.T, container string) {
 	t.Helper()
 	cmd := exec.Command(
 		"docker", "exec", "-u", "postgres", container,
-		"psql", "-U", "clarityit_admin", "-d", "clarityit", "-v", "ON_ERROR_STOP=1", "-c",
+		"psql", "-U", "clarityit_migrator", "-d", "clarityit", "-v", "ON_ERROR_STOP=1", "-c",
 		"ALTER ROLE clarityit_migrator PASSWORD 'wp01-g1-test-only'",
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
