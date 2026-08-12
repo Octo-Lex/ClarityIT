@@ -139,6 +139,9 @@ func ForwardVerify(ctx context.Context, conn *pgx.Conn) (Result, error) {
 			}},
 		}, nil
 	}
+	if err := verifyForwardRuntimePrivileges(ctx, conn); err != nil {
+		return forwardBlocked(PhaseVerify, err), nil
+	}
 	return Result{
 		Status:        "verified",
 		Code:          CodeOK,
@@ -150,6 +153,7 @@ func ForwardVerify(ctx context.Context, conn *pgx.Conn) (Result, error) {
 		Diagnostics: []Diag{
 			{CheckID: "forward_package", Result: "pass", Detail: ins.PackageDigest},
 			{CheckID: "forward_manifest", Result: "pass", Detail: ins.ManifestDigest},
+			{CheckID: "forward_message_privileges", Result: "pass"},
 		},
 	}, nil
 }
