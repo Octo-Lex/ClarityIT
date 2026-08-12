@@ -37,6 +37,7 @@ const (
 	// revision 0001 ancestry/foundation verification.
 	AssetForward0002 AssetName = "0002_kernel_foundation.sql"
 	AssetForward0003 AssetName = "0003_kernel_integrity_hardening.sql"
+	AssetForward0004 AssetName = "0004_packet_immutability_barrier.sql"
 
 	// Identity manifests (read-only inputs; never executed as SQL).
 	AssetG3A4Manifest    AssetName = "G3-A4-MANIFEST.json"
@@ -52,7 +53,7 @@ const (
 // place that proves legacy SQL (001-040) is not embedded.
 var AllAssets = []AssetName{
 	AssetRolesBootstrap, AssetPlatformSchema, AssetBaseline, AssetSeed, AssetAdoptP3, AssetAdoptP2,
-	AssetForward0002, AssetForward0003,
+	AssetForward0002, AssetForward0003, AssetForward0004,
 	AssetG3A4Manifest, AssetControlManifest, AssetG2Manifest,
 	AssetV2Checksums, AssetLegacyChecksums,
 }
@@ -76,11 +77,12 @@ var P2AdoptionChain = []AssetName{
 }
 
 // ForwardChain is the only ordered post-0001 revision sequence in WP-01 G1.
-// G1 current/accepted state is the complete chain through 0003; 0002 alone is
-// an intermediate revision, not an accepted WP-01 target.
+// G1 current/accepted state is the complete chain through 0004. Earlier
+// forward revisions are intermediate revision ancestry, not accepted targets.
 var ForwardChain = []AssetName{
 	AssetForward0002,
 	AssetForward0003,
+	AssetForward0004,
 }
 
 // Bytes returns the immutable raw embedded bytes for an asset.
