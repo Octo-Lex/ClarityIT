@@ -108,15 +108,21 @@ func forwardBlocked(phase Phase, err error) Result {
 func containsForwardPackaging(err error) bool {
 	return err != nil && (err == ErrForwardPackaging || containsErr(err, ErrForwardPackaging))
 }
+
 func containsForwardManifest(err error) bool {
 	return err != nil && (err == ErrForwardManifest || containsErr(err, ErrForwardManifest))
 }
+
 func containsErr(err, target error) bool {
 	for err != nil {
-		if err == target { return true }
+		if err == target {
+			return true
+		}
 		type unwrapper interface{ Unwrap() error }
 		u, ok := err.(unwrapper)
-		if !ok { return false }
+		if !ok {
+			return false
+		}
 		err = u.Unwrap()
 	}
 	return false
