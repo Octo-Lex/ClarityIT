@@ -62,11 +62,27 @@ func verifyForwardTarget(ctx context.Context, conn *pgx.Conn) (string, error) {
 		return "", err
 	}
 	defer tx.Rollback(ctx)
+	if err := pinForwardManifestSession(ctx, tx); err != nil {
+		return "", err
+	}
 	return verifyForwardTargetQuery(ctx, tx)
 }
 
 func verifyForwardTargetTx(ctx context.Context, tx pgx.Tx) (string, error) {
+	if err := pinForwardManifestSession(ctx, tx); err != nil {
+		return "", err
+	}
 	return verifyForwardTargetQuery(ctx, tx)
+}
+
+func pinForwardManifestSession(ctx context.Context, tx pgx.Tx) error {
+	if _, err := tx.Exec(ctx, `SET LOCAL TIME ZONE 'UTC'`); err != nil {
+		return fmt.Errorf("pin forward manifest timezone: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `SET LOCAL DateStyle = 'ISO, YMD'`); err != nil {
+		return fmt.Errorf("pin forward manifest datestyle: %w", err)
+	}
+	return nil
 }
 
 func verifyForwardTargetQuery(ctx context.Context, q forwardVerifierQuery) (string, error) {
@@ -151,8 +167,6 @@ func verifyForwardTargetQuery(ctx context.Context, q forwardVerifierQuery) (stri
 		return "", fmt.Errorf("%w: writer ownership registry mismatch", ErrForwardManifest)
 	}
 
-	// The target identity is the complete deterministic catalog/control
-	// projection, not merely the table-name inventory above.
 	digest, err := forwardTargetManifestDigest(ctx, q)
 	if err != nil {
 		return "", fmt.Errorf("%w: build catalog manifest: %v", ErrForwardManifest, err)
