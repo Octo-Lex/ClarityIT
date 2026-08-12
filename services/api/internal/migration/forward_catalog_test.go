@@ -17,8 +17,13 @@ func testForwardCatalog() []ForwardRevision {
 }
 
 func TestValidateForwardHistoryFoundation(t *testing.T) {
-	state, err := validateForwardHistory([]forwardLedgerRow{{Version: "0001", Name: "baseline", Checksum: BaselineChecksum, Success: true}}, testForwardCatalog())
-	if err != nil || state != "foundation" { t.Fatalf("state=%q err=%v", state, err) }
+	state, err := validateForwardHistory(
+		[]forwardLedgerRow{{Version: "0001", Name: "baseline", Checksum: BaselineChecksum, Success: true}},
+		testForwardCatalog(),
+	)
+	if err != nil || state != "foundation" {
+		t.Fatalf("state=%q err=%v", state, err)
+	}
 }
 
 func TestValidateForwardHistoryCurrent(t *testing.T) {
@@ -30,7 +35,9 @@ func TestValidateForwardHistoryCurrent(t *testing.T) {
 		{Version: "0005", Name: "wp01-lineage-and-message-integrity", Checksum: "d", Success: true},
 	}
 	state, err := validateForwardHistory(rows, testForwardCatalog())
-	if err != nil || state != "current" { t.Fatalf("state=%q err=%v", state, err) }
+	if err != nil || state != "current" {
+		t.Fatalf("state=%q err=%v", state, err)
+	}
 }
 
 func TestValidateForwardHistoryRejectsIntermediatePrefix(t *testing.T) {
@@ -39,7 +46,9 @@ func TestValidateForwardHistoryRejectsIntermediatePrefix(t *testing.T) {
 		{Version: "0002", Name: "wp01-kernel-foundation", Checksum: "a", Success: true},
 	}
 	_, err := validateForwardHistory(rows, testForwardCatalog())
-	if !errors.Is(err, ErrForwardIntermediate) { t.Fatalf("expected ErrForwardIntermediate, got %v", err) }
+	if !errors.Is(err, ErrForwardIntermediate) {
+		t.Fatalf("expected ErrForwardIntermediate, got %v", err)
+	}
 }
 
 func TestValidateForwardHistoryRejectsChecksumMutation(t *testing.T) {
@@ -51,7 +60,9 @@ func TestValidateForwardHistoryRejectsChecksumMutation(t *testing.T) {
 		{Version: "0005", Name: "wp01-lineage-and-message-integrity", Checksum: "d", Success: true},
 	}
 	_, err := validateForwardHistory(rows, testForwardCatalog())
-	if !errors.Is(err, ErrForwardHistory) { t.Fatalf("expected ErrForwardHistory, got %v", err) }
+	if !errors.Is(err, ErrForwardHistory) {
+		t.Fatalf("expected ErrForwardHistory, got %v", err)
+	}
 }
 
 func TestValidateForwardHistoryRejectsUnknownRevision(t *testing.T) {
@@ -63,12 +74,20 @@ func TestValidateForwardHistoryRejectsUnknownRevision(t *testing.T) {
 		{Version: "9999", Name: "unknown", Checksum: "d", Success: true},
 	}
 	_, err := validateForwardHistory(rows, testForwardCatalog())
-	if !errors.Is(err, ErrForwardHistory) { t.Fatalf("expected ErrForwardHistory, got %v", err) }
+	if !errors.Is(err, ErrForwardHistory) {
+		t.Fatalf("expected ErrForwardHistory, got %v", err)
+	}
 }
 
 func TestValidateForwardSQLRejectsClientOrTransactionControl(t *testing.T) {
-	for _, sql := range []string{"\\set ON_ERROR_STOP on\nSELECT 1;", "BEGIN;\nSELECT 1;", "SELECT 1;\nCOMMIT;"} {
-		if err := validateForwardSQL([]byte(sql)); err == nil { t.Fatalf("expected rejection for %q", sql) }
+	for _, sql := range []string{
+		"\\set ON_ERROR_STOP on\nSELECT 1;",
+		"BEGIN;\nSELECT 1;",
+		"SELECT 1;\nCOMMIT;",
+	} {
+		if err := validateForwardSQL([]byte(sql)); err == nil {
+			t.Fatalf("expected rejection for %q", sql)
+		}
 	}
 	if err := validateForwardSQL([]byte("SET LOCAL ROLE clarityit_owner;\nCREATE TABLE x(id int);\n")); err != nil {
 		t.Fatalf("unexpected valid SQL rejection: %v", err)
