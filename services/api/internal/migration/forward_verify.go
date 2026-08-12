@@ -24,12 +24,27 @@ type forwardVerifierQuery interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
+// InspectForward performs the complete Stage-B read path as the real migration
+// identity: enter a read-only transaction, SET ROLE clarityit_owner, pin
+// canonical formatting, then validate exact revision ancestry and target state.
 func InspectForward(ctx context.Context, conn *pgx.Conn) (ForwardInspection, error) {
 	cat, err := ForwardCatalog()
 	if err != nil {
 		return ForwardInspection{}, err
 	}
-	rows, err := readForwardHistory(ctx, conn)
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return ForwardInspection{}, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `SET LOCAL ROLE clarityit_owner`); err != nil {
+		return ForwardInspection{}, fmt.Errorf("forward inspection privilege boundary: %w", err)
+	}
+	if err := pinForwardManifestSession(ctx, tx); err != nil {
+		return ForwardInspection{}, err
+	}
+
+	rows, err := readForwardHistory(ctx, tx)
 	if err != nil {
 		return ForwardInspection{}, err
 	}
@@ -42,13 +57,20 @@ func InspectForward(ctx context.Context, conn *pgx.Conn) (ForwardInspection, err
 		return ForwardInspection{}, fmt.Errorf("%w: package=%s frozen=%s", ErrForwardPackaging, ins.PackageDigest, ForwardPackageSHA256)
 	}
 	if state == "foundation" {
+		gfp, ok, err := tryGovernedFingerprint(ctx, tx)
+		if err != nil || !ok || gfp != GovernedTargetFingerprint {
+			if err != nil {
+				return ForwardInspection{}, fmt.Errorf("%w: governed capture: %v", ErrForwardFoundation, err)
+			}
+			return ForwardInspection{}, fmt.Errorf("%w: computed=%s expected=%s", ErrForwardFoundation, gfp, GovernedTargetFingerprint)
+		}
 		ins.FoundationOnly = true
 		ins.CurrentVersion = "0001"
 		return ins, nil
 	}
 	ins.Current = true
 	ins.CurrentVersion = ForwardTargetVersion
-	digest, err := verifyForwardTarget(ctx, conn)
+	digest, err := verifyForwardTargetQuery(ctx, tx)
 	if err != nil {
 		return ForwardInspection{}, err
 	}
@@ -62,6 +84,9 @@ func verifyForwardTarget(ctx context.Context, conn *pgx.Conn) (string, error) {
 		return "", err
 	}
 	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `SET LOCAL ROLE clarityit_owner`); err != nil {
+		return "", fmt.Errorf("forward verify privilege boundary: %w", err)
+	}
 	if err := pinForwardManifestSession(ctx, tx); err != nil {
 		return "", err
 	}
