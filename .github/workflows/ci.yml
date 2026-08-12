@@ -56,6 +56,62 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # WP-01 G1 adds one host-side migration proof in this existing Backend
+      # context because the normal Go-suite container does not receive the host
+      # Docker socket and therefore cannot run the Docker-spawning migration
+      # fixture. This does not create a new required status context.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api/go.mod
+          cache-dependency-path: services/api/go.sum
+
+      - name: WP-01 G1 forward migration proof
+        working-directory: services/api
+        run: |
+          go test -p 1 -count=1 -timeout 600s \
+            ./internal/migration -run '^TestForwardG1(Convergence|RuntimeNegatives|VerifierDrift)$' -v
+
+      - name: WP-01 G1 secret scan
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          files = sorted(Path("migrations/v2/forward").glob("*.sql"))
+          files += sorted(Path("services/api/internal/migration").glob("forward*.go"))
+          evidence = Path("docs/v2/wp01/g1")
+          if evidence.exists():
+              files += sorted(evidence.rglob("*.md"))
+              files += sorted(evidence.rglob("*.json"))
+
+          patterns = {
+              "private_key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+              "credential_uri": re.compile(r"(?:postgres|postgresql|https?)://[^\s/:]+:[^@\s/]+@", re.I),
+              "github_token": re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
+              "aws_access_key": re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+              "provider_api_key": re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
+              "literal_secret_assignment": re.compile(
+                  r'''(?i)\b(?:password|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret)\b\s*[:=]\s*["'][^"'\n]{4,}["']'''
+              ),
+          }
+
+          findings = []
+          for path in files:
+              text = path.read_text(encoding="utf-8")
+              for name, pattern in patterns.items():
+                  for match in pattern.finditer(text):
+                      line = text.count("\n", 0, match.start()) + 1
+                      findings.append(f"{path}:{line}:{name}")
+
+          if findings:
+              print("WP01-G1 SECRET SCAN FAIL")
+              for finding in findings:
+                  print(finding)
+              raise SystemExit(1)
+
+          print(f"WP01-G1 SECRET SCAN PASS files={len(files)}")
+          PY
+
       - name: Create test network
         run: docker network create clarityit-net
 

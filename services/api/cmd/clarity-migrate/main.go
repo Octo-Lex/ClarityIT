@@ -1,22 +1,23 @@
-// Command clarity-migrate is the G4 Go migration runner. It provides plan,
-// apply, status, and read-only verify behavior with stable machine-readable
-// diagnostics and non-zero failure exits.
+// Command clarity-migrate is the governed ClarityIT migration runner. WP-00
+// Stage A remains the accepted version-0001 install/adoption path; WP-01 adds an
+// ordered post-0001 Stage B in the same binary/package.
 //
-// The runner consumes only the frozen G3 artifacts embedded at build time. It
-// never offers the legacy 001-040 chain as a selectable installation path. It
-// holds no provider credentials, provider clients, target-system access, effect
+// It never offers the historical legacy 001-040 chain as a selectable path and
+// has no provider credentials, provider clients, target-system access, effect
 // dispatch, or general application authority.
 //
 // Usage:
 //
 //	clarity-migrate plan    [-dsn DATABASE_URL]
 //	clarity-migrate apply   [-dsn DATABASE_URL] [-actor ACTOR] [-release RELEASE] [-evidence EVIDENCE_REF]
+//	clarity-migrate forward [-dsn DATABASE_URL] [-actor ACTOR] [-release RELEASE] [-evidence EVIDENCE_REF]
 //	clarity-migrate status  [-dsn DATABASE_URL]
 //	clarity-migrate verify  [-dsn DATABASE_URL]
 //
-// The DSN defaults to the DATABASE_URL environment variable. Actor, release,
-// and evidence-ref are required for apply. The producing commit is build-bound
-// via -ldflags and is NOT accepted from CLI input.
+// `apply` is the unchanged WP-00 Stage-A operation and uses the privileged
+// bootstrap/adoption connection. `forward` is WP-01 Stage B and requires a
+// clarityit_migrator-capable connection. Read-only commands preserve the
+// accepted Stage-A model until a >=0002 revision actually exists.
 package main
 
 import (
@@ -32,13 +33,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Build-time variables (set via -ldflags).
 var (
-	// ProducingCommit is the Git commit SHA this binary was built from. Set via:
-	//   -ldflags "-X main.ProducingCommit=$(git rev-parse HEAD)"
 	ProducingCommit string
-	// ReleaseID is the release artifact identifier.
-	ReleaseID string
+	ReleaseID       string
 )
 
 func main() {
@@ -48,8 +45,6 @@ func main() {
 	}
 
 	sub := os.Args[1]
-
-	// version doesn't need a DSN or flag parsing.
 	if sub == "version" {
 		fmt.Printf("clarity-migrate commit=%s release=%s\n", ProducingCommit, ReleaseID)
 		return
@@ -57,9 +52,9 @@ func main() {
 
 	fs := flag.NewFlagSet("clarity-migrate "+sub, flag.ExitOnError)
 	dsn := fs.String("dsn", "", "database URL (defaults to DATABASE_URL env)")
-	actor := fs.String("actor", "", "caller-supplied actor label (apply only)")
-	release := fs.String("release", "", "release identifier (apply only)")
-	evidence := fs.String("evidence", "", "sanitized evidence reference (apply only)")
+	actor := fs.String("actor", "", "caller-supplied actor label (apply/forward)")
+	release := fs.String("release", "", "release identifier (apply/forward)")
+	evidence := fs.String("evidence", "", "sanitized evidence reference (apply/forward)")
 	fs.Parse(os.Args[2:])
 
 	if *dsn == "" {
@@ -75,26 +70,28 @@ func main() {
 
 	switch sub {
 	case "plan":
-		sub = "plan"
-		runReadOnly(ctx, *dsn, migration.Plan)
+		runReadOnlyAuto(ctx, sub, *dsn, migration.Plan, migration.ForwardPlan)
 	case "status":
-		sub = "status"
-		runReadOnly(ctx, *dsn, migration.Status)
+		runReadOnlyAuto(ctx, sub, *dsn, migration.Status, migration.ForwardStatus)
 	case "verify":
-		sub = "verify"
-		runReadOnly(ctx, *dsn, migration.Verify)
+		runReadOnlyAuto(ctx, sub, *dsn, migration.Verify, migration.ForwardVerify)
 	case "apply":
-		sub = "apply"
 		runApply(ctx, *dsn, *actor, *release, *evidence)
+	case "forward":
+		runForward(ctx, *dsn, *actor, *release, *evidence)
 	default:
 		usage()
 		os.Exit(2)
 	}
 }
 
-// runReadOnly executes a read-only command (plan, status, verify) and emits the
-// stable JSON result on stdout. Non-zero exit on failure.
-func runReadOnly(ctx context.Context, dsn string, fn func(context.Context, *pgx.Conn) (migration.Result, error)) {
+func runReadOnlyAuto(
+	ctx context.Context,
+	operation string,
+	dsn string,
+	stageA func(context.Context, *pgx.Conn) (migration.Result, error),
+	stageB func(context.Context, *pgx.Conn) (migration.Result, error),
+) {
 	conn, err := pgx.Connect(ctx, dsn)
 	if err != nil {
 		emitError("connect", err)
@@ -102,15 +99,25 @@ func runReadOnly(ctx context.Context, dsn string, fn func(context.Context, *pgx.
 	}
 	defer conn.Close(ctx)
 
-	// Enforce read-only at the session level.
-	if _, err := conn.Exec(ctx, "SET TRANSACTION READ ONLY"); err != nil {
+	// Every subsequently opened transaction, including InspectForward's
+	// SET-ROLE transaction, is enforced read-only by PostgreSQL.
+	if _, err := conn.Exec(ctx, "SET default_transaction_read_only = on"); err != nil {
 		emitError("set-read-only", err)
 		os.Exit(1)
 	}
 
+	hasForward, err := migration.HasForwardRevision(ctx, conn)
+	if err != nil {
+		emitError("route-read-only", err)
+		os.Exit(1)
+	}
+	fn := stageA
+	if hasForward {
+		fn = stageB
+	}
 	res, err := fn(ctx, conn)
 	if err != nil {
-		emitError(sub, err)
+		emitError(operation, err)
 		os.Exit(1)
 	}
 	migration.Emit(os.Stdout, res)
@@ -119,17 +126,13 @@ func runReadOnly(ctx context.Context, dsn string, fn func(context.Context, *pgx.
 	}
 }
 
-// runApply executes the apply command via a pool (Apply manages its own
-// connection lifecycle — hijack + destroy).
+// runApply preserves the accepted WP-00 Stage-A executor unchanged.
 func runApply(ctx context.Context, dsn, actor, releaseID, evidenceRef string) {
 	if actor == "" || releaseID == "" || evidenceRef == "" {
 		fmt.Fprintln(os.Stderr, "clarity-migrate apply: -actor, -release, and -evidence are required")
 		os.Exit(2)
 	}
-
-	// Set the build-bound producing commit for the migration package.
 	migration.ProducingCommit = ProducingCommit
-
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		emitError("pool", err)
@@ -142,8 +145,33 @@ func runApply(ctx context.Context, dsn, actor, releaseID, evidenceRef string) {
 		ReleaseID:   releaseID,
 		EvidenceRef: evidenceRef,
 	})
+	emitApplyResult(res, "0001")
+}
 
-	// Emit the result document using the REAL ddl_started state from ApplyResult.
+// runForward executes only WP-01 Stage B. The DSN must authenticate a principal
+// permitted to SET ROLE clarityit_owner; production posture is clarityit_migrator.
+func runForward(ctx context.Context, dsn, actor, releaseID, evidenceRef string) {
+	if actor == "" || releaseID == "" || evidenceRef == "" {
+		fmt.Fprintln(os.Stderr, "clarity-migrate forward: -actor, -release, and -evidence are required")
+		os.Exit(2)
+	}
+	migration.ProducingCommit = ProducingCommit
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		emitError("pool", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	res := migration.ApplyForward(ctx, pool, migration.ApplyOptions{
+		Actor:       actor,
+		ReleaseID:   releaseID,
+		EvidenceRef: evidenceRef,
+	})
+	emitApplyResult(res, migration.ForwardTargetVersion)
+}
+
+func emitApplyResult(res migration.ApplyResult, targetVersion string) {
 	statusStr := "applied"
 	if res.Path == migration.Path("no_op") {
 		statusStr = "no_op"
@@ -157,13 +185,12 @@ func runApply(ctx context.Context, dsn, actor, releaseID, evidenceRef string) {
 		Path:          res.Path,
 		GovernedFP:    res.GovernedFingerprint,
 		RunID:         res.RunID,
-		TargetVersion: "0001",
+		TargetVersion: targetVersion,
 		DurationMs:    res.ExecutionMs,
 	}
 	if res.Err != nil {
 		out.Status = "blocked"
 		out.Code = migration.CodeUnknown
-		out.DDLStarted = res.DDLStarted // preserve real state even on failure
 		out.Diagnostics = []migration.Diag{{
 			CheckID: "apply_error",
 			Result:  "fail",
@@ -177,7 +204,7 @@ func runApply(ctx context.Context, dsn, actor, releaseID, evidenceRef string) {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: clarity-migrate <plan|apply|status|verify|version> [flags]")
+	fmt.Fprintln(os.Stderr, "usage: clarity-migrate <plan|apply|forward|status|verify|version> [flags]")
 }
 
 func emitError(ctx string, err error) {
@@ -193,15 +220,11 @@ func emitError(ctx string, err error) {
 	})
 }
 
-// sanitizeErr maps an error to a stable allowlisted diagnostic string. It never
-// emits raw error text (which may contain DSNs, passwords, or SQL) to stdout.
-// Raw errors go to stderr only; the result document carries a stable code.
 func sanitizeErr(err error) string {
 	if err == nil {
 		return ""
 	}
 	s := err.Error()
-	// Map to stable allowlisted reason codes based on the error content.
 	switch {
 	case strings.Contains(s, "connect") || strings.Contains(s, "connection"):
 		return "connection_failed"
@@ -209,7 +232,7 @@ func sanitizeErr(err error) string {
 		return "preflight_failed"
 	case strings.Contains(s, "lock"):
 		return "lock_contention"
-	case strings.Contains(s, "verify") || strings.Contains(s, "fingerprint") || strings.Contains(s, "mismatch"):
+	case strings.Contains(s, "verify") || strings.Contains(s, "fingerprint") || strings.Contains(s, "manifest") || strings.Contains(s, "mismatch"):
 		return "verification_failed"
 	case strings.Contains(s, "commit") || strings.Contains(s, "rollback"):
 		return "transaction_failed"
@@ -217,6 +240,3 @@ func sanitizeErr(err error) string {
 		return "apply_failed"
 	}
 }
-
-// sub holds the current subcommand name for error context.
-var sub = "unknown"

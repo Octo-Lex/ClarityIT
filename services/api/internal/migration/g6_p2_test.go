@@ -12,10 +12,7 @@ import (
 
 // 1. v3.2 P2 fingerprint → P2 executable path
 func TestG6_P2V32_ClassifiesAsAdoptP2(t *testing.T) {
-	p := Probe{
-		DatabaseName: "clarityit", PGMajor: 16,
-		SourceFingerprint: P2SuccessorFingerprint,
-	}
+	p := Probe{DatabaseName: "clarityit", PGMajor: 16, SourceFingerprint: P2SuccessorFingerprint}
 	class, path, code := Classify(p)
 	if class != ClassApprovedSource || path != PathAdoptP2 || code != CodeOK {
 		t.Fatalf("P2 v3.2: got class=%q path=%q code=%q want approved_source/adopt_p2/OK", class, path, code)
@@ -24,10 +21,7 @@ func TestG6_P2V32_ClassifiesAsAdoptP2(t *testing.T) {
 
 // 2. Historical v3.1 89b7792d... remains non-executable
 func TestG6_HistoricalV31_RemainsNonExecutable(t *testing.T) {
-	p := Probe{
-		DatabaseName: "clarityit", PGMajor: 16,
-		SourceFingerprint: P1P2Fingerprint,
-	}
+	p := Probe{DatabaseName: "clarityit", PGMajor: 16, SourceFingerprint: P1P2Fingerprint}
 	class, path, code := Classify(p)
 	if class != ClassUnknownDrifted || path != PathBlock || code != CodeSourceProfileP1P2 {
 		t.Fatalf("v3.1 historical: got class=%q path=%q code=%q want unknown_drifted/block/P1P2_NOT_EXECUTABLE", class, path, code)
@@ -36,10 +30,7 @@ func TestG6_HistoricalV31_RemainsNonExecutable(t *testing.T) {
 
 // 3. P3 fingerprint/path unchanged
 func TestG6_P3PathUnchanged(t *testing.T) {
-	p := Probe{
-		DatabaseName: "clarityit", PGMajor: 16,
-		SourceFingerprint: P3GoldenFingerprint,
-	}
+	p := Probe{DatabaseName: "clarityit", PGMajor: 16, SourceFingerprint: P3GoldenFingerprint}
 	class, path, code := Classify(p)
 	if class != ClassApprovedSource || path != PathAdopt || code != CodeOK {
 		t.Fatalf("P3: got class=%q path=%q code=%q want approved_source/adopt_p3/OK", class, path, code)
@@ -48,10 +39,7 @@ func TestG6_P3PathUnchanged(t *testing.T) {
 
 // 4. Unknown fingerprint blocks before DDL
 func TestG6_UnknownFingerprintBlocks(t *testing.T) {
-	p := Probe{
-		DatabaseName: "clarityit", PGMajor: 16,
-		SourceFingerprint: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-	}
+	p := Probe{DatabaseName: "clarityit", PGMajor: 16, SourceFingerprint: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"}
 	class, path, code := Classify(p)
 	if path != PathBlock || code != CodeSourceProfileUnknown {
 		t.Fatalf("unknown: got path=%q code=%q want block/SOURCE_PROFILE_UNKNOWN", path, code)
@@ -67,7 +55,6 @@ func TestG6_P2ProfileID_DistinctFromP3(t *testing.T) {
 	if P2SuccessorFingerprint == P3GoldenFingerprint {
 		t.Fatal("P2 and P3 fingerprints must be distinct")
 	}
-	// profileIDForPath must return the correct UUID for each path.
 	if pid := profileIDForPath(PathAdoptP2); pid != P2ProfileID {
 		t.Errorf("P2 profileID: got %q want %q", pid, P2ProfileID)
 	}
@@ -76,18 +63,17 @@ func TestG6_P2ProfileID_DistinctFromP3(t *testing.T) {
 	}
 }
 
-// 6. P2 does not select/embed legacy 001-040
+// 6. P2 does not select/embed historical legacy 001-040. Authorized WP-01
+// forward revisions are explicitly separate and must not be mistaken for v1.
 func TestG6_P2LegacyExclusion(t *testing.T) {
+	allowed := authorizedEmbeddedSQLNames()
 	for _, asset := range assets.AllAssets {
 		name := string(asset)
-		if len(name) >= 3 && name[0] >= '0' && name[0] <= '9' {
-			switch name {
-			case "0000_platform.sql", "0000_roles.sql",
-				"0001_reconciled.sql", "0001_seed.sql",
-				"0001_adopt_p3.sql", "0001_adopt_p2.sql":
-			default:
-				t.Errorf("legacy asset embedded: %s", name)
-			}
+		if isLegacyV1SQLName(name) {
+			t.Errorf("legacy v1 asset embedded: %s", name)
+		}
+		if len(name) >= 4 && name[len(name)-4:] == ".sql" && !allowed[name] {
+			t.Errorf("SQL asset outside explicit execution set: %s", name)
 		}
 	}
 }
@@ -135,19 +121,15 @@ func TestG6_P2TransformDeterministic(t *testing.T) {
 	if ts1.TransformedSHA256 != ts2.TransformedSHA256 {
 		t.Error("P2 transform is non-deterministic")
 	}
-	// P2 artifact must have NeedsSetConfig (like P3 — it binds g3.source_commit).
 	if !ts1.NeedsSetConfig {
 		t.Error("P2 artifact should need set_config (binds g3.source_commit)")
 	}
-	// No psql meta-commands in the body.
 	if psqlMetaLine.Match(ts1.Body) {
 		t.Error("P2 transformed body contains psql meta-command")
 	}
-	// No set_config line in the body.
 	if setConfigLine.Match(ts1.Body) {
 		t.Error("P2 transformed body contains set_config line")
 	}
-	// No outer BEGIN/COMMIT.
 	for _, line := range linesOf(ts1.Body) {
 		if isBeginLine(line) || isCommitLine(line) {
 			t.Errorf("P2 body contains outer BEGIN/COMMIT: %q", line)
@@ -155,9 +137,7 @@ func TestG6_P2TransformDeterministic(t *testing.T) {
 	}
 }
 
-func linesOf(b []byte) []string {
-	return split("\n", string(b))
-}
+func linesOf(b []byte) []string { return split("\n", string(b)) }
 
 func split(sep, s string) []string {
 	var out []string
