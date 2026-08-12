@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	ForwardTargetVersion = "0004"
-	// ForwardPackageSHA256 binds the exact ordered version/name/checksum tuples.
-	// The target-manifest identity is frozen only after the first exact live
-	// PostgreSQL rehearsal of the complete atomic forward batch.
-	ForwardPackageSHA256        = "1fa0b6671aaf93cca37eed4061026aa6bb9716763f23f2a91cd05392772af003"
+	ForwardTargetVersion = "0005"
+	// Binds exact ordered version/name/checksum tuples for the complete G1 batch.
+	// The target-manifest identity is frozen only after a live PostgreSQL rehearsal
+	// of this exact package succeeds.
+	ForwardPackageSHA256        = "9f19b9c94f5d9e978a5cf815d0971788a6d744b5a0b91d6ba5dab1f67135f1ef"
 	ForwardTargetManifestSHA256 = ""
 )
 
@@ -60,6 +60,7 @@ func ForwardCatalog() ([]ForwardRevision, error) {
 		{"0002", "wp01-kernel-foundation", assets.AssetForward0002},
 		{"0003", "wp01-kernel-integrity-hardening", assets.AssetForward0003},
 		{"0004", "wp01-packet-immutability-barrier", assets.AssetForward0004},
+		{"0005", "wp01-lineage-and-message-integrity", assets.AssetForward0005},
 	}
 	out := make([]ForwardRevision, 0, len(specs))
 	for _, s := range specs {
@@ -83,8 +84,8 @@ func ForwardCatalog() ([]ForwardRevision, error) {
 }
 
 func validateForwardCatalog(cat []ForwardRevision) error {
-	if len(cat) != 3 {
-		return fmt.Errorf("%w: expected 3 G1 revisions, got %d", ErrForwardPackaging, len(cat))
+	if len(cat) != 4 {
+		return fmt.Errorf("%w: expected 4 G1 revisions, got %d", ErrForwardPackaging, len(cat))
 	}
 	for i, r := range cat {
 		want := fmt.Sprintf("%04d", i+2)
@@ -128,9 +129,8 @@ func readForwardHistory(ctx context.Context, q forwardQueryer) ([]forwardLedgerR
 	return out, nil
 }
 
-// validateForwardHistory deliberately allows only the exact foundation or the
-// complete G1 target. ApplyForward commits 0002+0003+0004 atomically, so a
-// persisted intermediate prefix cannot be produced by this runner.
+// ApplyForward commits 0002..0005 atomically, so only exact foundation or exact
+// complete G1 target are legitimate persisted histories.
 func validateForwardHistory(rows []forwardLedgerRow, cat []ForwardRevision) (string, error) {
 	if len(rows) == 0 || rows[0].Version != "0001" || rows[0].Checksum != BaselineChecksum || !rows[0].Success {
 		return "", fmt.Errorf("%w: exact successful 0001 ancestry required", ErrForwardHistory)
@@ -150,8 +150,6 @@ func validateForwardHistory(rows []forwardLedgerRow, cat []ForwardRevision) (str
 	return "current", nil
 }
 
-// validateForwardSQL protects the runner-owned transaction boundary and rejects
-// psql client meta-commands. Forward artifacts are raw PostgreSQL statements.
 func validateForwardSQL(body []byte) error {
 	for _, raw := range strings.Split(string(body), "\n") {
 		line := strings.TrimSpace(raw)
