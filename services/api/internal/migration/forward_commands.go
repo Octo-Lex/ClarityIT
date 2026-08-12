@@ -11,6 +11,8 @@ import (
 const CodeForwardPending ReasonCode = "FORWARD_REVISIONS_PENDING"
 
 // HasPlatformLedger reports whether the accepted WP-00 revision ledger exists.
+// to_regclass is intentionally used so the routing probe does not require SELECT
+// on the protected platform control tables.
 func HasPlatformLedger(ctx context.Context, conn *pgx.Conn) (bool, error) {
 	var exists bool
 	if err := conn.QueryRow(ctx, `SELECT to_regclass('platform.schema_revisions') IS NOT NULL`).Scan(&exists); err != nil {
@@ -19,22 +21,22 @@ func HasPlatformLedger(ctx context.Context, conn *pgx.Conn) (bool, error) {
 	return exists, nil
 }
 
-// HasForwardRevision is the CLI routing boundary. An exact revision-0001
-// foundation must continue to use the frozen WP-00 plan/status/verify model so
-// G4/G5 evidence remains reconstructable. Once any >=0002 row exists, the
-// forward-aware read model owns inspection; partial/contradictory histories then
-// fail closed inside InspectForward.
+// HasForwardRevision is the CLI routing boundary. It deliberately does not read
+// platform.schema_revisions because the ordinary application login has no
+// platform-table authority and only clarityit_migrator may SET ROLE owner. The
+// additive forward schemas are themselves the visible Stage-B footprint:
+//
+//   - exact 0001 has no kernel/compat objects and remains on the frozen Stage-A
+//     plan/status/verify model used by the G4/G5 oracle;
+//   - any persisted forward footprint routes into InspectForward, which then
+//     escalates only through the migrator role and verifies exact ledger ancestry
+//     plus the frozen target manifest. A manually partial footprint therefore
+//     cannot escape fail-closed inspection.
 func HasForwardRevision(ctx context.Context, conn *pgx.Conn) (bool, error) {
-	hasLedger, err := HasPlatformLedger(ctx, conn)
-	if err != nil || !hasLedger {
-		return false, err
-	}
 	var exists bool
 	if err := conn.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1 FROM platform.schema_revisions
-			WHERE version >= '0002'
-		)`).Scan(&exists); err != nil {
+		SELECT to_regclass('kernel.principal_refs') IS NOT NULL
+		    OR to_regclass('compat.writer_ownership') IS NOT NULL`).Scan(&exists); err != nil {
 		return false, err
 	}
 	return exists, nil
