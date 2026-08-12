@@ -65,11 +65,11 @@ jobs:
           go-version-file: services/api/go.mod
           cache-dependency-path: services/api/go.sum
 
-      - name: WP-01 G1 live forward target rehearsal
+      - name: WP-01 G1 forward convergence proof
         working-directory: services/api
         run: |
-          go test -p 1 -count=1 -timeout 300s \
-            ./internal/migration -run '^TestForwardManifestProbe$' -v
+          go test -p 1 -count=1 -timeout 420s \
+            ./internal/migration -run '^TestForwardG1Convergence$' -v
 
       - name: Create test network
         run: docker network create clarityit-net
