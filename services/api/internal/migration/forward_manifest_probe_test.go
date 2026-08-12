@@ -3,6 +3,7 @@ package migration
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -18,7 +19,7 @@ func TestForwardG1Convergence(t *testing.T) {
 		name              string
 		container         string
 		port              int
-		buildFoundation   func(*testing.T, int, string) *pgxpool.Pool
+		buildFoundation   func(*testing.T, string, int) *pgxpool.Pool
 		wantStageAPath    Path
 		wantSourceProfile string
 	}{
@@ -26,7 +27,7 @@ func TestForwardG1Convergence(t *testing.T) {
 			name:      "fresh",
 			container: "wp01-g1-forward-fresh",
 			port:      56241,
-			buildFoundation: func(t *testing.T, port int, container string) *pgxpool.Pool {
+			buildFoundation: func(t *testing.T, container string, port int) *pgxpool.Pool {
 				return applyTestPool(t, container, port)
 			},
 			wantStageAPath: PathInstall,
@@ -44,7 +45,7 @@ func TestForwardG1Convergence(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			bootstrapPool := tc.buildFoundation(t, tc.port, tc.container)
+			bootstrapPool := tc.buildFoundation(t, tc.container, tc.port)
 
 			base := Apply(ctx, bootstrapPool, ApplyOptions{
 				Actor:       "wp01-g1-stage-a-test",
@@ -61,31 +62,31 @@ func TestForwardG1Convergence(t *testing.T) {
 				t.Fatalf("Stage A governed fp=%s want=%s", base.GovernedFingerprint, GovernedTargetFingerprint)
 			}
 
-			// Exact revision 0001 remains on the accepted WP-00 read model. This
-			// routing probe requires no direct platform-table privilege.
-			stageAConn, err := pgx.Connect(ctx, applyDSN(tc.port))
-			if err != nil {
-				t.Fatalf("Stage-A read connection: %v", err)
-			}
-			hasForward, err := HasForwardRevision(ctx, stageAConn)
-			if err != nil {
+			// The accepted G4/G5 matrix independently proves exact-0001 read
+			// routing. Recheck it here on the fresh path using the fixture's
+			// bootstrap superuser; P3 intentionally destroys/demotes that source
+			// identity, so it is not used as a post-adoption administrative path.
+			if tc.name == "fresh" {
+				stageAConn, err := pgx.Connect(ctx, applyDSN(tc.port))
+				if err != nil {
+					t.Fatalf("Stage-A read connection: %v", err)
+				}
+				hasForward, err := HasForwardRevision(ctx, stageAConn)
 				stageAConn.Close(ctx)
-				t.Fatalf("HasForwardRevision at 0001: %v", err)
-			}
-			if hasForward {
-				stageAConn.Close(ctx)
-				t.Fatal("exact 0001 incorrectly routed to Stage B")
+				if err != nil {
+					t.Fatalf("HasForwardRevision at 0001: %v", err)
+				}
+				if hasForward {
+					t.Fatal("exact 0001 incorrectly routed to Stage B")
+				}
 			}
 
-			// Production SQL intentionally stores no password. The fixture gives
-			// the actual least-privilege migrator a test-only password, then all
-			// Stage-B execution/inspection uses that login and SET-only owner role.
-			if _, err := stageAConn.Exec(ctx, `ALTER ROLE clarityit_migrator PASSWORD 'wp01-g1-test-only'`); err != nil {
-				stageAConn.Close(ctx)
-				t.Fatalf("provision fixture migrator auth: %v", err)
-			}
-			stageAConn.Close(ctx)
-
+			// Production SQL intentionally stores no passwords. After either
+			// sanctioned Stage-A path, the signed target contains clarityit_admin
+			// (CREATEROLE) and clarityit_migrator (SET-only membership in owner).
+			// The fixture provisions only a test password through the container-local
+			// trusted socket; it does not alter membership, ownership, or fingerprint.
+			provisionTestMigratorPassword(t, tc.container)
 			migratorPool := openTestMigratorPool(t, ctx, tc.port)
 			defer migratorPool.Close()
 
@@ -123,7 +124,7 @@ func TestForwardG1Convergence(t *testing.T) {
 				conn.Release()
 				t.Fatalf("manifest=%s want=%s", ins.ManifestDigest, ForwardTargetManifestSHA256)
 			}
-			hasForward, err = HasForwardRevision(ctx, inspectConn)
+			hasForward, err := HasForwardRevision(ctx, inspectConn)
 			if err != nil || !hasForward {
 				conn.Release()
 				t.Fatalf("post-forward routing hasForward=%v err=%v", hasForward, err)
@@ -146,6 +147,18 @@ func TestForwardG1Convergence(t *testing.T) {
 			}
 			assertForwardLedgerAndPrivileges(t, ctx, migratorPool, tc.wantSourceProfile)
 		})
+	}
+}
+
+func provisionTestMigratorPassword(t *testing.T, container string) {
+	t.Helper()
+	cmd := exec.Command(
+		"docker", "exec", "-u", "postgres", container,
+		"psql", "-U", "clarityit_admin", "-d", "clarityit", "-v", "ON_ERROR_STOP=1", "-c",
+		"ALTER ROLE clarityit_migrator PASSWORD 'wp01-g1-test-only'",
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("provision fixture migrator password: %v: %s", err, strings.TrimSpace(string(out)))
 	}
 }
 
