@@ -7,6 +7,38 @@ import (
 	"github.com/clarityit/api/internal/migration/assets"
 )
 
+// authorizedEmbeddedSQLNames is the exact executable SQL package boundary:
+// accepted WP-00 assets plus the explicit WP-01 ForwardChain. It intentionally
+// does not infer authorization from a numeric filename.
+func authorizedEmbeddedSQLNames() map[string]bool {
+	allowed := map[string]bool{
+		string(assets.AssetRolesBootstrap): true,
+		string(assets.AssetPlatformSchema): true,
+		string(assets.AssetBaseline):       true,
+		string(assets.AssetSeed):           true,
+		string(assets.AssetAdoptP3):        true,
+		string(assets.AssetAdoptP2):        true,
+	}
+	for _, asset := range assets.ForwardChain {
+		allowed[string(asset)] = true
+	}
+	return allowed
+}
+
+// isLegacyV1SQLName recognizes the historical numbered migration naming shape
+// 001_*.sql through 040_*.sql. WP-01 forward files use four-digit revisions
+// (0002_*.sql etc.) and are therefore never confused with the legacy series.
+func isLegacyV1SQLName(name string) bool {
+	if len(name) < 8 || name[3] != '_' || !strings.HasSuffix(name, ".sql") {
+		return false
+	}
+	if name[0] < '0' || name[0] > '9' || name[1] < '0' || name[1] > '9' || name[2] < '0' || name[2] > '9' {
+		return false
+	}
+	n := int(name[0]-'0')*100 + int(name[1]-'0')*10 + int(name[2]-'0')
+	return n >= 1 && n <= 40
+}
+
 // TestCompositeDigestReproducesFrozenIdentity is the load-bearing packaging
 // gate: the Go composite-digest port must reproduce the frozen installation
 // SHA-256 from the embedded bytes. If this fails, the embed boundary is wrong,
@@ -51,31 +83,21 @@ func TestPerAssetDigestsMatchFrozen(t *testing.T) {
 	}
 }
 
-// TestLegacySQLNotEmbedded proves no legacy migration SQL (001-040) is present
-// in the embed boundary. Only the legacy checksum *inventory* (provenance) is
-// embedded. This is the "complete exclusion of legacy migration replay"
-// guarantee at the packaging layer.
+// TestLegacySQLNotEmbedded proves no historical legacy migration SQL (001-040)
+// is present in the embed boundary. Authorized post-0001 WP-01 forward SQL is
+// explicitly enumerated via ForwardChain and does not weaken this guarantee.
 func TestLegacySQLNotEmbedded(t *testing.T) {
-	for _, name := range assets.AllAssets {
-		s := string(name)
-		// Reject any embedded file that looks like a numbered legacy migration.
-		if len(s) >= 3 && s[0] >= '0' && s[0] <= '9' {
-			// Allowed numbered assets are the G3 v2 files: 0000_platform,
-			// 0000_roles, 0001_reconciled, 0001_seed, 0001_adopt_p3.
-			// Legacy files are 001..040 with descriptive names like
-			// 001_core_extensions.sql. Assert the only numbered embeds are G3.
-			switch s {
-			case "0000_platform.sql", "0000_roles.sql",
-				"0001_reconciled.sql", "0001_seed.sql",
-				"0001_adopt_p3.sql", "0001_adopt_p2.sql":
-				// allowed
-			default:
-				t.Errorf("legacy-looking asset embedded: %s", s)
-			}
+	allowed := authorizedEmbeddedSQLNames()
+	for _, asset := range assets.AllAssets {
+		name := string(asset)
+		if isLegacyV1SQLName(name) {
+			t.Errorf("legacy v1 migration embedded: %s", name)
+		}
+		if strings.HasSuffix(name, ".sql") && !allowed[name] {
+			t.Errorf("SQL asset embedded outside explicit execution set: %s", name)
 		}
 	}
-	// Also confirm the legacy checksum inventory is the ONLY legacy artifact
-	// embedded, and that it is an inventory (text), not SQL.
+	// Also confirm the legacy checksum inventory is provenance only, never SQL.
 	inv, err := assets.Bytes(assets.AssetLegacyChecksums)
 	if err != nil {
 		t.Fatalf("legacy inventory missing: %v", err)
