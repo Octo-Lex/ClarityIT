@@ -65,6 +65,12 @@ jobs:
           go-version-file: services/api/go.mod
           cache-dependency-path: services/api/go.sum
 
+      - name: WP-01 G1 live forward target rehearsal
+        working-directory: services/api
+        run: |
+          go test -p 1 -count=1 -timeout 300s \
+            ./internal/migration -run '^TestForwardManifestProbe$' -v
+
       - name: Create test network
         run: docker network create clarityit-net
 
@@ -174,12 +180,6 @@ jobs:
             --network clarityit-net \
             golang:1.25-alpine \
             go test -p 1 -count=1 -timeout 600s ./...
-
-      - name: WP-01 G1 live forward target rehearsal
-        working-directory: services/api
-        run: |
-          go test -p 1 -count=1 -timeout 300s \
-            ./internal/migration -run '^TestForwardManifestProbe$' -v
 
       - name: Run profiler unit tests (13) + migration_state integration tests (3) + P3 validation
         run: |
