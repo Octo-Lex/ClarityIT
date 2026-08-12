@@ -16,8 +16,8 @@
 //
 // `apply` is the unchanged WP-00 Stage-A operation and uses the privileged
 // bootstrap/adoption connection. `forward` is WP-01 Stage B and requires a
-// clarityit_migrator-capable connection. Read-only commands automatically use
-// the forward-aware model once platform.schema_revisions exists.
+// clarityit_migrator-capable connection. Read-only commands preserve the
+// accepted Stage-A model until a >=0002 revision actually exists.
 package main
 
 import (
@@ -70,11 +70,11 @@ func main() {
 
 	switch sub {
 	case "plan":
-		runReadOnlyAuto(ctx, *dsn, migration.Plan, migration.ForwardPlan)
+		runReadOnlyAuto(ctx, sub, *dsn, migration.Plan, migration.ForwardPlan)
 	case "status":
-		runReadOnlyAuto(ctx, *dsn, migration.Status, migration.ForwardStatus)
+		runReadOnlyAuto(ctx, sub, *dsn, migration.Status, migration.ForwardStatus)
 	case "verify":
-		runReadOnlyAuto(ctx, *dsn, migration.Verify, migration.ForwardVerify)
+		runReadOnlyAuto(ctx, sub, *dsn, migration.Verify, migration.ForwardVerify)
 	case "apply":
 		runApply(ctx, *dsn, *actor, *release, *evidence)
 	case "forward":
@@ -87,6 +87,7 @@ func main() {
 
 func runReadOnlyAuto(
 	ctx context.Context,
+	operation string,
 	dsn string,
 	stageA func(context.Context, *pgx.Conn) (migration.Result, error),
 	stageB func(context.Context, *pgx.Conn) (migration.Result, error),
@@ -105,18 +106,18 @@ func runReadOnlyAuto(
 		os.Exit(1)
 	}
 
-	hasLedger, err := migration.HasPlatformLedger(ctx, conn)
+	hasForward, err := migration.HasForwardRevision(ctx, conn)
 	if err != nil {
 		emitError("route-read-only", err)
 		os.Exit(1)
 	}
 	fn := stageA
-	if hasLedger {
+	if hasForward {
 		fn = stageB
 	}
 	res, err := fn(ctx, conn)
 	if err != nil {
-		emitError(sub, err)
+		emitError(operation, err)
 		os.Exit(1)
 	}
 	migration.Emit(os.Stdout, res)
@@ -139,7 +140,11 @@ func runApply(ctx context.Context, dsn, actor, releaseID, evidenceRef string) {
 	}
 	defer pool.Close()
 
-	res := migration.Apply(ctx, pool, migration.ApplyOptions{Actor: actor, ReleaseID: releaseID, EvidenceRef: evidenceRef})
+	res := migration.Apply(ctx, pool, migration.ApplyOptions{
+		Actor:       actor,
+		ReleaseID:   releaseID,
+		EvidenceRef: evidenceRef,
+	})
 	emitApplyResult(res, "0001")
 }
 
@@ -158,7 +163,11 @@ func runForward(ctx context.Context, dsn, actor, releaseID, evidenceRef string) 
 	}
 	defer pool.Close()
 
-	res := migration.ApplyForward(ctx, pool, migration.ApplyOptions{Actor: actor, ReleaseID: releaseID, EvidenceRef: evidenceRef})
+	res := migration.ApplyForward(ctx, pool, migration.ApplyOptions{
+		Actor:       actor,
+		ReleaseID:   releaseID,
+		EvidenceRef: evidenceRef,
+	})
 	emitApplyResult(res, migration.ForwardTargetVersion)
 }
 
@@ -168,15 +177,25 @@ func emitApplyResult(res migration.ApplyResult, targetVersion string) {
 		statusStr = "no_op"
 	}
 	out := migration.Result{
-		Status: statusStr, Code: res.Code, Phase: migration.PhaseApply,
-		DDLStarted: res.DDLStarted, Class: res.Class, Path: res.Path,
-		GovernedFP: res.GovernedFingerprint, RunID: res.RunID,
-		TargetVersion: targetVersion, DurationMs: res.ExecutionMs,
+		Status:        statusStr,
+		Code:          res.Code,
+		Phase:         migration.PhaseApply,
+		DDLStarted:    res.DDLStarted,
+		Class:         res.Class,
+		Path:          res.Path,
+		GovernedFP:    res.GovernedFingerprint,
+		RunID:         res.RunID,
+		TargetVersion: targetVersion,
+		DurationMs:    res.ExecutionMs,
 	}
 	if res.Err != nil {
 		out.Status = "blocked"
 		out.Code = migration.CodeUnknown
-		out.Diagnostics = []migration.Diag{{CheckID: "apply_error", Result: "fail", Detail: sanitizeErr(res.Err)}}
+		out.Diagnostics = []migration.Diag{{
+			CheckID: "apply_error",
+			Result:  "fail",
+			Detail:  sanitizeErr(res.Err),
+		}}
 	}
 	migration.Emit(os.Stdout, out)
 	if res.Err != nil {
@@ -190,13 +209,21 @@ func usage() {
 
 func emitError(ctx string, err error) {
 	migration.Emit(os.Stdout, migration.Result{
-		Status: "blocked", Code: migration.CodeUnknown, Phase: migration.PhasePreflight,
-		Diagnostics: []migration.Diag{{CheckID: ctx, Result: "fail", Detail: sanitizeErr(err)}},
+		Status: "blocked",
+		Code:   migration.CodeUnknown,
+		Phase:  migration.PhasePreflight,
+		Diagnostics: []migration.Diag{{
+			CheckID: ctx,
+			Result:  "fail",
+			Detail:  sanitizeErr(err),
+		}},
 	})
 }
 
 func sanitizeErr(err error) string {
-	if err == nil { return "" }
+	if err == nil {
+		return ""
+	}
 	s := err.Error()
 	switch {
 	case strings.Contains(s, "connect") || strings.Contains(s, "connection"):
@@ -213,5 +240,3 @@ func sanitizeErr(err error) string {
 		return "apply_failed"
 	}
 }
-
-var sub = "unknown"
