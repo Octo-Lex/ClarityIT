@@ -2,11 +2,8 @@ package migration
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -41,7 +38,7 @@ func InspectForward(ctx context.Context, conn *pgx.Conn) (ForwardInspection, err
 		return ForwardInspection{}, err
 	}
 	ins := ForwardInspection{PackageDigest: ForwardPackageDigest(cat)}
-	if ForwardPackageSHA256 != "" && ins.PackageDigest != ForwardPackageSHA256 {
+	if ins.PackageDigest != ForwardPackageSHA256 {
 		return ForwardInspection{}, fmt.Errorf("%w: package=%s frozen=%s", ErrForwardPackaging, ins.PackageDigest, ForwardPackageSHA256)
 	}
 	if state == "foundation" {
@@ -82,17 +79,17 @@ func verifyForwardTargetQuery(ctx context.Context, q forwardVerifierQuery) (stri
 		return "", err
 	}
 	if !sameStrings(kernelTables, expectedKernelTables) {
-		return "", fmt.Errorf("%w: kernel table inventory mismatch", ErrForwardManifest)
+		return "", fmt.Errorf("%w: kernel table inventory mismatch got=%v want=%v", ErrForwardManifest, sortedCopy(kernelTables), sortedCopy(expectedKernelTables))
 	}
 	if !sameStrings(compatTables, expectedCompatTables) {
-		return "", fmt.Errorf("%w: compat table inventory mismatch", ErrForwardManifest)
+		return "", fmt.Errorf("%w: compat table inventory mismatch got=%v want=%v", ErrForwardManifest, sortedCopy(compatTables), sortedCopy(expectedCompatTables))
 	}
 	funcs, err := kernelFunctions(ctx, q)
 	if err != nil {
 		return "", err
 	}
 	if !sameStrings(funcs, expectedKernelFunctions) {
-		return "", fmt.Errorf("%w: kernel function inventory mismatch", ErrForwardManifest)
+		return "", fmt.Errorf("%w: kernel function inventory mismatch got=%v want=%v", ErrForwardManifest, sortedCopy(funcs), sortedCopy(expectedKernelFunctions))
 	}
 
 	var badOwners int
@@ -154,28 +151,12 @@ func verifyForwardTargetQuery(ctx context.Context, q forwardVerifierQuery) (stri
 		return "", fmt.Errorf("%w: writer ownership registry mismatch", ErrForwardManifest)
 	}
 
-	lines := []string{"wp01-g1-schema-manifest-v1"}
-	for _, t := range sortedCopy(kernelTables) {
-		lines = append(lines, "table:kernel."+t)
+	// The target identity is the complete deterministic catalog/control
+	// projection, not merely the table-name inventory above.
+	digest, err := forwardTargetManifestDigest(ctx, q)
+	if err != nil {
+		return "", fmt.Errorf("%w: build catalog manifest: %v", ErrForwardManifest, err)
 	}
-	for _, t := range sortedCopy(compatTables) {
-		lines = append(lines, "table:compat."+t)
-	}
-	for _, f := range sortedCopy(funcs) {
-		lines = append(lines, "function:kernel."+f)
-	}
-	lines = append(lines,
-		"constraint:kernel.principal_refs.principal_refs_uuid_v7=true",
-		"owner:kernel+compat=clarityit_owner",
-		"privilege:clarityit_app:kernel.inbox_messages:DELETE=false",
-		"flag:wp01.kernel.enabled=false",
-		"flag:wp01.effect_broker.fake_route.enabled=false",
-		"flag:wp01.live_provider_mutation.enabled=false;forbidden=true",
-		"writer:v1_existing_product_families=v1",
-		"writer:v2_kernel_objects=v2",
-	)
-	sum := sha256.Sum256([]byte(strings.Join(lines, "\n") + "\n"))
-	digest := hex.EncodeToString(sum[:])
 	if ForwardTargetManifestSHA256 != "" && digest != ForwardTargetManifestSHA256 {
 		return "", fmt.Errorf("%w: computed=%s frozen=%s", ErrForwardManifest, digest, ForwardTargetManifestSHA256)
 	}
