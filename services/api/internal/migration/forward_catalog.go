@@ -14,9 +14,10 @@ import (
 
 const (
 	ForwardTargetVersion = "0004"
-	// Frozen after the first exact G1 rehearsal. G1 cannot close while either
-	// identity remains empty.
-	ForwardPackageSHA256        = ""
+	// ForwardPackageSHA256 binds the exact ordered version/name/checksum tuples.
+	// The target-manifest identity is frozen only after the first exact live
+	// PostgreSQL rehearsal of the complete atomic forward batch.
+	ForwardPackageSHA256        = "1fa0b6671aaf93cca37eed4061026aa6bb9716763f23f2a91cd05392772af003"
 	ForwardTargetManifestSHA256 = ""
 )
 
@@ -43,11 +44,11 @@ type forwardLedgerRow struct {
 }
 
 type ForwardInspection struct {
-	CurrentVersion  string
-	Current         bool
-	FoundationOnly  bool
-	ManifestDigest  string
-	PackageDigest   string
+	CurrentVersion string
+	Current        bool
+	FoundationOnly bool
+	ManifestDigest string
+	PackageDigest  string
 }
 
 func ForwardCatalog() ([]ForwardRevision, error) {
