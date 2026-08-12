@@ -130,8 +130,21 @@ func TestForwardG1Convergence(t *testing.T) {
 
 func buildForwardTestCLI(t *testing.T) (string, string) {
 	t.Helper()
+
+	// These are deliberately host-side Docker integration tests. The inherited
+	// full-Go suite also discovers this package from inside an Alpine container
+	// that has no host Docker socket. Skipping there preserves the hermetic suite;
+	// the dedicated blocking Backend host step runs these tests with Docker and
+	// therefore cannot skip this proof.
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skip("WP-01 G1 host migration fixture requires Docker")
+	}
+
 	sha := strings.TrimSpace(os.Getenv("GITHUB_SHA"))
 	if ValidateProducingCommit(sha) != nil {
+		if _, err := exec.LookPath("git"); err != nil {
+			t.Skip("WP-01 G1 host migration fixture requires Git when GITHUB_SHA is unavailable")
+		}
 		out, err := exec.Command("git", "rev-parse", "HEAD").CombinedOutput()
 		if err != nil {
 			t.Fatalf("resolve test producing commit: %v: %s", err, strings.TrimSpace(string(out)))
