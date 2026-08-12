@@ -89,7 +89,13 @@ func TestForwardG1RuntimeNegatives(t *testing.T) {
 			conn.Release()
 			t.Fatalf("schema rollback inspection: %v", err)
 		}
-		gfp, ok, fpErr := tryGovernedFingerprint(ctx, conn)
+		fpTx, err := conn.Begin(ctx)
+		if err != nil {
+			conn.Release()
+			t.Fatalf("begin rollback fingerprint inspection: %v", err)
+		}
+		gfp, ok, fpErr := tryGovernedFingerprint(ctx, fpTx)
+		_ = fpTx.Rollback(ctx)
 		if _, err := conn.Exec(ctx, `
 			DROP EVENT TRIGGER wp01_g1_fail_forward_0003;
 			DROP FUNCTION public.wp01_g1_fail_forward_0003();
