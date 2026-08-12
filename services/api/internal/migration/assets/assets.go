@@ -1,14 +1,11 @@
-// Package assets embeds the frozen G3 migration artifacts into the G4 runner
-// binary. Repository-root artifacts under migrations/ are the source of truth;
-// the copies embedded here are byte-for-byte refreshes produced by gen_assets.sh
-// (run from the repo root). A divergence test (assets_test.go) fails if any
-// embedded copy diverges from its repo original or from a frozen digest.
+// Package assets embeds the frozen WP-00 migration artifacts plus approved
+// post-0001 forward revisions into the migration runner binary. Repository-root
+// artifacts under migrations/ are the source of truth; embedded copies are
+// byte-for-byte mirrors and divergence is a packaging failure.
 //
-// The package embeds ONLY the G3 v2 artifacts and provenance inventories. It
-// never embeds legacy migration SQL (migrations/legacy/v1/001-040/) — only the
-// legacy checksum inventory (migrations/legacy/v1/SHA256SUMS), which is
-// provenance evidence, not executable SQL. A test asserts no legacy SQL is
-// embedded and that no exported API can select it.
+// Legacy migration SQL (migrations/legacy/v1/001-040/) is never embedded — only
+// the legacy checksum inventory is present as provenance evidence. Tests assert
+// that no legacy SQL is selectable or executable.
 package assets
 
 import (
@@ -22,21 +19,24 @@ import (
 //go:embed v2/*.sql v2/*.json v2/v2-SHA256SUMS v2/legacy-SHA256SUMS
 var v2FS embed.FS
 
-// AssetName identifies a frozen embedded artifact by a stable short name.
+// AssetName identifies an embedded migration artifact by a stable short name.
 type AssetName string
 
 const (
-	// Fresh-install chain (executed in this order by the runner).
+	// Fresh-install chain (executed in this order by the accepted WP-00 stage).
 	AssetRolesBootstrap AssetName = "0000_roles.sql"      // privileged: five-role posture
 	AssetPlatformSchema AssetName = "0000_platform.sql"   // platform control schema (4 tables)
 	AssetBaseline       AssetName = "0001_reconciled.sql" // 64 product tables + 10 app functions
-	AssetSeed           AssetName = "0001_seed.sql"       // 7 canonical permissions + revision 0001 row
+	AssetSeed           AssetName = "0001_seed.sql"       // canonical permissions + revision 0001 row
 
-	// Approved P3 adoption (self-contained: brings its own platform ledger).
+	// Approved WP-00 adoption artifacts.
 	AssetAdoptP3 AssetName = "0001_adopt_p3.sql"
-
-	// Approved P2 adoption (G6 successor; self-contained like P3).
 	AssetAdoptP2 AssetName = "0001_adopt_p2.sql"
+
+	// WP-01 forward revisions. These are applied only after exact accepted
+	// revision 0001 ancestry/foundation verification.
+	AssetForward0002 AssetName = "0002_kernel_foundation.sql"
+	AssetForward0003 AssetName = "0003_kernel_integrity_hardening.sql"
 
 	// Identity manifests (read-only inputs; never executed as SQL).
 	AssetG3A4Manifest    AssetName = "G3-A4-MANIFEST.json"
@@ -49,15 +49,15 @@ const (
 )
 
 // AllAssets enumerates every embedded asset. Order is stable and is the single
-// place that proves the legacy SQL (001-040) is not embedded.
+// place that proves legacy SQL (001-040) is not embedded.
 var AllAssets = []AssetName{
 	AssetRolesBootstrap, AssetPlatformSchema, AssetBaseline, AssetSeed, AssetAdoptP3, AssetAdoptP2,
+	AssetForward0002, AssetForward0003,
 	AssetG3A4Manifest, AssetControlManifest, AssetG2Manifest,
 	AssetV2Checksums, AssetLegacyChecksums,
 }
 
-// FreshInstallChain is the exact execution order for a fresh install. The
-// runner owns the transaction and strips each artifact's outer BEGIN/COMMIT.
+// FreshInstallChain is the exact execution order for a fresh WP-00 install.
 var FreshInstallChain = []AssetName{
 	AssetRolesBootstrap,
 	AssetPlatformSchema,
@@ -65,15 +65,22 @@ var FreshInstallChain = []AssetName{
 	AssetSeed,
 }
 
-// AdoptionChain is the execution chain for approved P3 adoption. The adoption
-// artifact is self-contained (it recreates the platform ledger itself).
+// AdoptionChain is the execution chain for approved P3 adoption.
 var AdoptionChain = []AssetName{
 	AssetAdoptP3,
 }
 
-// P2AdoptionChain is the execution chain for approved P2 adoption (G6 successor).
+// P2AdoptionChain is the execution chain for approved P2 adoption.
 var P2AdoptionChain = []AssetName{
 	AssetAdoptP2,
+}
+
+// ForwardChain is the only ordered post-0001 revision sequence in WP-01 G1.
+// G1 current/accepted state is the complete chain through 0003; 0002 alone is
+// an intermediate revision, not an accepted WP-01 target.
+var ForwardChain = []AssetName{
+	AssetForward0002,
+	AssetForward0003,
 }
 
 // Bytes returns the immutable raw embedded bytes for an asset.
@@ -85,8 +92,8 @@ func Bytes(name AssetName) ([]byte, error) {
 	return b, nil
 }
 
-// MustBytes is Bytes without the error (panics on a missing frozen asset, which
-// is a compile-time packaging defect, not a runtime condition).
+// MustBytes is Bytes without the error (panics on a missing embedded asset,
+// which is a packaging defect rather than a runtime database condition).
 func MustBytes(name AssetName) []byte {
 	b, err := Bytes(name)
 	if err != nil {
