@@ -10,10 +10,10 @@ import (
 // TestForwardG1RuntimeNegatives proves the two live Stage-B failure properties
 // required by G1 without adding production failpoints or changing any migration
 // artifact bytes:
-//   1. a failure after 0002 DDL has begun rolls back the entire 0002..0005 batch
-//      and all >=0002 ledger rows, then a clean rerun converges;
-//   2. the inherited fixed migration advisory lock serializes Stage B before any
-//      forward DDL, and release permits a clean rerun.
+//  1. a failure after 0002 DDL has begun rolls back the entire 0002..0005 batch
+//     and all >=0002 ledger rows, then a clean rerun converges;
+//  2. the inherited fixed migration advisory lock serializes Stage B before any
+//     forward DDL, and release permits a clean rerun.
 func TestForwardG1RuntimeNegatives(t *testing.T) {
 	binaryPath, _ := buildForwardTestCLI(t)
 
