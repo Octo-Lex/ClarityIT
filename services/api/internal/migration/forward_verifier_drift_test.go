@@ -38,9 +38,11 @@ func TestForwardG1VerifierDrift(t *testing.T) {
 			mutation: `REVOKE UPDATE (published_at) ON kernel.outbox_messages FROM clarityit_app`,
 		},
 		{
-			name:     "revision_drift",
-			port:     56249,
-			mutation: `UPDATE platform.schema_revisions SET checksum = repeat('0', 64) WHERE version = '0005'`,
+			name: "revision_drift",
+			port: 56249,
+			mutation: `ALTER TABLE platform.schema_revisions DISABLE TRIGGER schema_revisions_immutable;
+				UPDATE platform.schema_revisions SET checksum = repeat('0', 64) WHERE version = '0005';
+				ALTER TABLE platform.schema_revisions ENABLE TRIGGER schema_revisions_immutable`,
 		},
 	}
 
