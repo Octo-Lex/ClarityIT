@@ -2,7 +2,6 @@ package migration
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -95,6 +94,4 @@ func TestForwardG1VerifierDrift(t *testing.T) {
 			t.Logf("%s drift rejected on disposable PG16 port %d", tc.name, tc.port)
 		})
 	}
-
-	_ = fmt.Sprintf // keep fmt import explicit if future case labels become formatted
 }
