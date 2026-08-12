@@ -6,10 +6,9 @@ import (
 	"github.com/clarityit/api/internal/migration/assets"
 )
 
-// The backend CI container mounts services/api, not the repository root, so
-// source-file equality is evidenced in A2 by the exact Git blob identities used
-// to create the embedded paths. This hermetic runtime test proves the properties
-// the binary itself relies on: exact embedded SHA-256s and ordered package identity.
+// Source/embed byte equality is recorded in A2 through exact Git blob identities.
+// This hermetic binary test independently asserts every embedded forward SHA-256
+// and the ordered package identity.
 func TestForwardAssetsMatchFrozenDigests(t *testing.T) {
 	for _, rev := range []struct {
 		asset assets.AssetName
@@ -18,6 +17,7 @@ func TestForwardAssetsMatchFrozenDigests(t *testing.T) {
 		{assets.AssetForward0002, Forward0002SHA256},
 		{assets.AssetForward0003, Forward0003SHA256},
 		{assets.AssetForward0004, Forward0004SHA256},
+		{assets.AssetForward0005, Forward0005SHA256},
 	} {
 		if _, err := assets.Bytes(rev.asset); err != nil {
 			t.Fatalf("embedded %s: %v", rev.asset, err)
