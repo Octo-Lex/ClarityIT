@@ -3,7 +3,9 @@ package migration
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,10 +13,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const forwardTestSocketDSN = "user=clarityit_migrator dbname=clarityit host=/var/run/postgresql sslmode=disable"
+
 // TestForwardG1Convergence proves the two repository-sanctioned Stage-A paths
 // available in CI (fresh install and P3 adoption) converge through the identical
-// least-privilege Stage-B package to the same frozen WP-01 G1 target.
+// compiled Stage-B binary/package to the same frozen WP-01 G1 target.
+//
+// Stage B runs inside each disposable PostgreSQL container over its trusted Unix
+// socket as the real database role clarityit_migrator. No password or role
+// mutation is introduced; the binary must SET ROLE clarityit_owner through the
+// frozen SET-only membership before forward DDL.
 func TestForwardG1Convergence(t *testing.T) {
+	binaryPath, producingCommit := buildForwardTestCLI(t)
+
 	cases := []struct {
 		name              string
 		container         string
@@ -62,10 +73,8 @@ func TestForwardG1Convergence(t *testing.T) {
 				t.Fatalf("Stage A governed fp=%s want=%s", base.GovernedFingerprint, GovernedTargetFingerprint)
 			}
 
-			// The accepted G4/G5 matrix independently proves exact-0001 read
-			// routing. Recheck it here on the fresh path using the fixture's
-			// bootstrap superuser; P3 intentionally destroys/demotes that source
-			// identity, so it is not used as a post-adoption administrative path.
+			// Exact 0001 must remain on the frozen WP-00 read model. Recheck the
+			// fresh path here; the inherited G4/G5 matrix separately proves P3.
 			if tc.name == "fresh" {
 				stageAConn, err := pgx.Connect(ctx, applyDSN(tc.port))
 				if err != nil {
@@ -81,185 +90,173 @@ func TestForwardG1Convergence(t *testing.T) {
 				}
 			}
 
-			// Production SQL intentionally stores no passwords. The official
-			// PostgreSQL fixture permits local trusted socket access inside the
-			// container. A role may change its own password without CREATEROLE or
-			// ADMIN OPTION, so provision only a fixture TCP credential by connecting
-			// locally as clarityit_migrator itself. No role attributes, memberships,
-			// ownership, grants, or schema identities are changed.
-			provisionTestMigratorPassword(t, tc.container)
-			migratorPool := openTestMigratorPool(t, ctx, tc.port)
-			defer migratorPool.Close()
-
-			forward := ApplyForward(ctx, migratorPool, ApplyOptions{
-				Actor:       "clarityit_migrator@wp01-g1-test",
-				ReleaseID:   "wp01-g1-convergence",
-				EvidenceRef: "sanitized-wp01-g1-convergence",
-			})
-			if forward.Err != nil {
-				t.Fatalf("Stage B: %v", forward.Err)
-			}
-			if forward.Path != Path("forward") {
-				t.Fatalf("Stage B path=%q want=forward", forward.Path)
+			installForwardTestCLI(t, tc.container, binaryPath)
+			forwardOut := runForwardTestCLI(t, tc.container, "forward",
+				"-actor", "clarityit_migrator@wp01-g1-test",
+				"-release", "wp01-g1-convergence",
+				"-evidence", "sanitized-wp01-g1-convergence",
+			)
+			if !strings.Contains(forwardOut, ForwardTargetVersion) {
+				t.Fatalf("forward output missing target version %s: %s", ForwardTargetVersion, forwardOut)
 			}
 
-			conn, err := migratorPool.Acquire(ctx)
-			if err != nil {
-				t.Fatalf("acquire migrator inspection connection: %v", err)
+			// verify must pass exact ancestry, package digest and frozen target
+			// manifest through the same binary and least-privilege role.
+			verifyOut := runForwardTestCLI(t, tc.container, "verify")
+			if !strings.Contains(verifyOut, ForwardTargetVersion) ||
+				!strings.Contains(verifyOut, ForwardTargetManifestSHA256) {
+				t.Fatalf("verify output missing frozen target identity: %s", verifyOut)
 			}
-			inspectConn := conn.Conn()
-			ins, err := InspectForward(ctx, inspectConn)
-			if err != nil {
-				conn.Release()
-				t.Fatalf("InspectForward: %v", err)
-			}
-			if !ins.Current || ins.CurrentVersion != ForwardTargetVersion {
-				conn.Release()
-				t.Fatalf("current=%v version=%s want=true/%s", ins.Current, ins.CurrentVersion, ForwardTargetVersion)
-			}
-			if ins.PackageDigest != ForwardPackageSHA256 {
-				conn.Release()
-				t.Fatalf("package=%s want=%s", ins.PackageDigest, ForwardPackageSHA256)
-			}
-			if ins.ManifestDigest != ForwardTargetManifestSHA256 {
-				conn.Release()
-				t.Fatalf("manifest=%s want=%s", ins.ManifestDigest, ForwardTargetManifestSHA256)
-			}
-			hasForward, err := HasForwardRevision(ctx, inspectConn)
-			if err != nil || !hasForward {
-				conn.Release()
-				t.Fatalf("post-forward routing hasForward=%v err=%v", hasForward, err)
-			}
-			conn.Release()
 
-			assertForwardLedgerAndPrivileges(t, ctx, migratorPool, tc.wantSourceProfile)
+			assertForwardLedgerAndPrivilegesContainer(
+				t, tc.container, tc.wantSourceProfile, producingCommit,
+			)
 
-			// Replay is a verified no-op: no duplicate revision or migration run.
-			replay := ApplyForward(ctx, migratorPool, ApplyOptions{
-				Actor:       "clarityit_migrator@wp01-g1-test",
-				ReleaseID:   "wp01-g1-convergence",
-				EvidenceRef: "sanitized-wp01-g1-convergence-replay",
-			})
-			if replay.Err != nil {
-				t.Fatalf("Stage B replay: %v", replay.Err)
+			// Replay is a verified no-op and must add neither a revision nor a run.
+			replayOut := runForwardTestCLI(t, tc.container, "forward",
+				"-actor", "clarityit_migrator@wp01-g1-test",
+				"-release", "wp01-g1-convergence",
+				"-evidence", "sanitized-wp01-g1-convergence-replay",
+			)
+			if !strings.Contains(replayOut, "no_op") {
+				t.Fatalf("forward replay was not a no-op: %s", replayOut)
 			}
-			if replay.Path != PathNoOp {
-				t.Fatalf("Stage B replay path=%q want=%q", replay.Path, PathNoOp)
-			}
-			assertForwardLedgerAndPrivileges(t, ctx, migratorPool, tc.wantSourceProfile)
+			assertForwardLedgerAndPrivilegesContainer(
+				t, tc.container, tc.wantSourceProfile, producingCommit,
+			)
 		})
 	}
 }
 
-func provisionTestMigratorPassword(t *testing.T, container string) {
+func buildForwardTestCLI(t *testing.T) (string, string) {
 	t.Helper()
-	cmd := exec.Command(
-		"docker", "exec", "-u", "postgres", container,
-		"psql", "-U", "clarityit_migrator", "-d", "clarityit", "-v", "ON_ERROR_STOP=1", "-c",
-		"ALTER ROLE clarityit_migrator PASSWORD 'wp01-g1-test-only'",
-	)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("provision fixture migrator password: %v: %s", err, strings.TrimSpace(string(out)))
-	}
-}
-
-func openTestMigratorPool(t *testing.T, ctx context.Context, port int) *pgxpool.Pool {
-	t.Helper()
-	dsn := fmt.Sprintf("postgres://clarityit_migrator:wp01-g1-test-only@localhost:%d/clarityit?sslmode=disable", port)
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		t.Fatalf("migrator pool: %v", err)
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		t.Fatalf("migrator ping: %v", err)
-	}
-	return pool
-}
-
-func assertForwardLedgerAndPrivileges(t *testing.T, ctx context.Context, pool *pgxpool.Pool, wantSourceProfile string) {
-	t.Helper()
-	conn, err := pool.Acquire(ctx)
-	if err != nil {
-		t.Fatalf("acquire ledger connection: %v", err)
-	}
-	defer conn.Release()
-
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin ledger verification: %v", err)
-	}
-	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `SET LOCAL ROLE clarityit_owner`); err != nil {
-		t.Fatalf("ledger verification SET ROLE: %v", err)
-	}
-
-	rows, err := tx.Query(ctx, `SELECT version,name,checksum FROM platform.schema_revisions ORDER BY version`)
-	if err != nil {
-		t.Fatalf("read revision ledger: %v", err)
-	}
-	defer rows.Close()
-	var got []string
-	for rows.Next() {
-		var version, name, checksum string
-		if err := rows.Scan(&version, &name, &checksum); err != nil {
-			t.Fatalf("scan revision ledger: %v", err)
+	sha := strings.TrimSpace(os.Getenv("GITHUB_SHA"))
+	if ValidateProducingCommit(sha) != nil {
+		out, err := exec.Command("git", "rev-parse", "HEAD").CombinedOutput()
+		if err != nil {
+			t.Fatalf("resolve test producing commit: %v: %s", err, strings.TrimSpace(string(out)))
 		}
-		got = append(got, strings.Join([]string{version, name, checksum}, ":"))
+		sha = strings.TrimSpace(string(out))
 	}
-	if err := rows.Err(); err != nil {
-		t.Fatalf("revision rows: %v", err)
+	if err := ValidateProducingCommit(sha); err != nil {
+		t.Fatalf("test producing commit %q is invalid: %v", sha, err)
 	}
+
+	binaryPath := filepath.Join(t.TempDir(), "clarity-migrate")
+	cmd := exec.Command(
+		"go", "build", "-trimpath",
+		"-ldflags", "-X main.ProducingCommit="+sha,
+		"-o", binaryPath,
+		"../../cmd/clarity-migrate",
+	)
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build clarity-migrate test binary: %v: %s", err, strings.TrimSpace(string(out)))
+	}
+	return binaryPath, sha
+}
+
+func installForwardTestCLI(t *testing.T, container, binaryPath string) {
+	t.Helper()
+	if out, err := exec.Command("docker", "cp", binaryPath, container+":/tmp/clarity-migrate").CombinedOutput(); err != nil {
+		t.Fatalf("copy clarity-migrate into %s: %v: %s", container, err, strings.TrimSpace(string(out)))
+	}
+	if out, err := exec.Command("docker", "exec", container, "chmod", "0555", "/tmp/clarity-migrate").CombinedOutput(); err != nil {
+		t.Fatalf("chmod clarity-migrate in %s: %v: %s", container, err, strings.TrimSpace(string(out)))
+	}
+}
+
+func runForwardTestCLI(t *testing.T, container, operation string, extra ...string) string {
+	t.Helper()
+	args := []string{
+		"exec", "-u", "postgres", container,
+		"/tmp/clarity-migrate", operation,
+		"-dsn", forwardTestSocketDSN,
+	}
+	args = append(args, extra...)
+	out, err := exec.Command("docker", args...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("clarity-migrate %s in %s: %v: %s", operation, container, err, strings.TrimSpace(string(out)))
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func assertForwardLedgerAndPrivilegesContainer(
+	t *testing.T,
+	container, wantSourceProfile, producingCommit string,
+) {
+	t.Helper()
 	cat, err := ForwardCatalog()
 	if err != nil {
 		t.Fatalf("ForwardCatalog: %v", err)
 	}
-	want := []string{"0001:" + ledger0001Name(t, tx) + ":" + BaselineChecksum}
-	for _, rev := range cat {
-		want = append(want, strings.Join([]string{rev.Version, rev.Name, rev.Checksum}, ":"))
+
+	ledger := runForwardPSQL(t, container, `
+		SET ROLE clarityit_owner;
+		SELECT version || '|' || checksum || '|' || name || '|' || source_commit
+		FROM platform.schema_revisions ORDER BY version;
+	`)
+	lines := nonEmptyLines(ledger)
+	if len(lines) != 1+len(cat) {
+		t.Fatalf("revision ledger row count=%d want=%d: %q", len(lines), 1+len(cat), ledger)
 	}
-	if strings.Join(got, "\n") != strings.Join(want, "\n") {
-		t.Fatalf("revision ledger mismatch\ngot:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	first := strings.Split(lines[0], "|")
+	if len(first) != 4 || first[0] != "0001" || first[1] != BaselineChecksum {
+		t.Fatalf("revision 0001 ledger mismatch: %q", lines[0])
+	}
+	for i, rev := range cat {
+		parts := strings.Split(lines[i+1], "|")
+		if len(parts) != 4 || parts[0] != rev.Version || parts[1] != rev.Checksum ||
+			parts[2] != rev.Name || parts[3] != producingCommit {
+			t.Fatalf("forward revision %s ledger mismatch: %q", rev.Version, lines[i+1])
+		}
 	}
 
-	var runCount int
-	var sourceProfile string
-	if err := tx.QueryRow(ctx, `
-		SELECT count(*), COALESCE(max(source_profile_id),'')
+	runState := strings.TrimSpace(runForwardPSQL(t, container, fmt.Sprintf(`
+		SET ROLE clarityit_owner;
+		SELECT count(*)::text || '|' || COALESCE(max(source_profile_id),'')
 		FROM platform.migration_runs
-		WHERE target_version=$1 AND state='completed'`, ForwardTargetVersion).Scan(&runCount, &sourceProfile); err != nil {
-		t.Fatalf("forward migration run: %v", err)
-	}
-	if runCount != 1 {
-		t.Fatalf("forward completed run count=%d want=1", runCount)
-	}
-	if sourceProfile != wantSourceProfile {
-		t.Fatalf("forward source profile=%q want=%q", sourceProfile, wantSourceProfile)
+		WHERE target_version='%s' AND state='completed';
+	`, ForwardTargetVersion)))
+	if runState != "1|"+wantSourceProfile {
+		t.Fatalf("forward run/source profile=%q want=%q", runState, "1|"+wantSourceProfile)
 	}
 
-	var outboxPublishedUpdate, outboxPayloadUpdate bool
-	var inboxProcessedUpdate, inboxPayloadUpdate, inboxDelete bool
-	if err := tx.QueryRow(ctx, `SELECT
-		has_column_privilege('clarityit_app','kernel.outbox_messages','published_at','UPDATE'),
-		has_column_privilege('clarityit_app','kernel.outbox_messages','payload_digest','UPDATE'),
-		has_column_privilege('clarityit_app','kernel.inbox_messages','processed_at','UPDATE'),
-		has_column_privilege('clarityit_app','kernel.inbox_messages','payload_digest','UPDATE'),
-		has_table_privilege('clarityit_app','kernel.inbox_messages','DELETE')`).Scan(
-		&outboxPublishedUpdate, &outboxPayloadUpdate, &inboxProcessedUpdate, &inboxPayloadUpdate, &inboxDelete,
-	); err != nil {
-		t.Fatalf("message privilege verification: %v", err)
-	}
-	if !outboxPublishedUpdate || outboxPayloadUpdate || !inboxProcessedUpdate || inboxPayloadUpdate || inboxDelete {
-		t.Fatalf("message privilege posture published=%v outbox_payload=%v processed=%v inbox_payload=%v inbox_delete=%v",
-			outboxPublishedUpdate, outboxPayloadUpdate, inboxProcessedUpdate, inboxPayloadUpdate, inboxDelete)
+	privileges := strings.TrimSpace(runForwardPSQL(t, container, `
+		SET ROLE clarityit_owner;
+		SELECT
+			has_column_privilege('clarityit_app','kernel.outbox_messages','published_at','UPDATE')::int || '|' ||
+			has_column_privilege('clarityit_app','kernel.outbox_messages','payload_digest','UPDATE')::int || '|' ||
+			has_column_privilege('clarityit_app','kernel.inbox_messages','processed_at','UPDATE')::int || '|' ||
+			has_column_privilege('clarityit_app','kernel.inbox_messages','payload_digest','UPDATE')::int || '|' ||
+			has_table_privilege('clarityit_app','kernel.inbox_messages','DELETE')::int;
+	`))
+	if privileges != "1|0|1|0|0" {
+		t.Fatalf("message privilege posture=%q want=1|0|1|0|0", privileges)
 	}
 }
 
-func ledger0001Name(t *testing.T, tx pgx.Tx) string {
+func runForwardPSQL(t *testing.T, container, sql string) string {
 	t.Helper()
-	var name string
-	if err := tx.QueryRow(context.Background(), `SELECT name FROM platform.schema_revisions WHERE version='0001'`).Scan(&name); err != nil {
-		t.Fatalf("revision 0001 name: %v", err)
+	args := []string{
+		"exec", "-u", "postgres", container,
+		"psql", "-qAt", "-v", "ON_ERROR_STOP=1",
+		"-U", "clarityit_migrator", "-d", "clarityit", "-c", sql,
 	}
-	return name
+	out, err := exec.Command("docker", args...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("psql migrator inspection in %s: %v: %s", container, err, strings.TrimSpace(string(out)))
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func nonEmptyLines(s string) []string {
+	var out []string
+	for _, line := range strings.Split(strings.TrimSpace(s), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			out = append(out, line)
+		}
+	}
+	return out
 }
