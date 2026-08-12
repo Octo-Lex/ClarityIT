@@ -14,11 +14,11 @@ import (
 
 const (
 	ForwardTargetVersion = "0005"
-	// Binds exact ordered version/name/checksum tuples for the complete G1 batch.
-	// The target-manifest identity is frozen only after a live PostgreSQL rehearsal
-	// of this exact package succeeds.
+	// Binds the exact ordered version/name/checksum tuples and the deterministic
+	// semantic PostgreSQL target captured by the first successful live G1
+	// fresh-0001 -> atomic-0005 rehearsal.
 	ForwardPackageSHA256        = "9f19b9c94f5d9e978a5cf815d0971788a6d744b5a0b91d6ba5dab1f67135f1ef"
-	ForwardTargetManifestSHA256 = ""
+	ForwardTargetManifestSHA256 = "5852255211adacfde33c6b86913ef867258359149325cab538a7109bff5b4aa3"
 )
 
 var (
