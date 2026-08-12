@@ -24,20 +24,21 @@ type AssetName string
 
 const (
 	// Fresh-install chain (executed in this order by the accepted WP-00 stage).
-	AssetRolesBootstrap AssetName = "0000_roles.sql"      // privileged: five-role posture
-	AssetPlatformSchema AssetName = "0000_platform.sql"   // platform control schema (4 tables)
-	AssetBaseline       AssetName = "0001_reconciled.sql" // 64 product tables + 10 app functions
-	AssetSeed           AssetName = "0001_seed.sql"       // canonical permissions + revision 0001 row
+	AssetRolesBootstrap AssetName = "0000_roles.sql"
+	AssetPlatformSchema AssetName = "0000_platform.sql"
+	AssetBaseline       AssetName = "0001_reconciled.sql"
+	AssetSeed           AssetName = "0001_seed.sql"
 
 	// Approved WP-00 adoption artifacts.
 	AssetAdoptP3 AssetName = "0001_adopt_p3.sql"
 	AssetAdoptP2 AssetName = "0001_adopt_p2.sql"
 
 	// WP-01 forward revisions. These are applied only after exact accepted
-	// revision 0001 ancestry/foundation verification.
+	// revision-0001 ancestry/foundation verification.
 	AssetForward0002 AssetName = "0002_kernel_foundation.sql"
 	AssetForward0003 AssetName = "0003_kernel_integrity_hardening.sql"
 	AssetForward0004 AssetName = "0004_packet_immutability_barrier.sql"
+	AssetForward0005 AssetName = "0005_lineage_and_message_integrity.sql"
 
 	// Identity manifests (read-only inputs; never executed as SQL).
 	AssetG3A4Manifest    AssetName = "G3-A4-MANIFEST.json"
@@ -49,16 +50,13 @@ const (
 	AssetLegacyChecksums AssetName = "legacy-SHA256SUMS"
 )
 
-// AllAssets enumerates every embedded asset. Order is stable and is the single
-// place that proves legacy SQL (001-040) is not embedded.
 var AllAssets = []AssetName{
 	AssetRolesBootstrap, AssetPlatformSchema, AssetBaseline, AssetSeed, AssetAdoptP3, AssetAdoptP2,
-	AssetForward0002, AssetForward0003, AssetForward0004,
+	AssetForward0002, AssetForward0003, AssetForward0004, AssetForward0005,
 	AssetG3A4Manifest, AssetControlManifest, AssetG2Manifest,
 	AssetV2Checksums, AssetLegacyChecksums,
 }
 
-// FreshInstallChain is the exact execution order for a fresh WP-00 install.
 var FreshInstallChain = []AssetName{
 	AssetRolesBootstrap,
 	AssetPlatformSchema,
@@ -66,26 +64,19 @@ var FreshInstallChain = []AssetName{
 	AssetSeed,
 }
 
-// AdoptionChain is the execution chain for approved P3 adoption.
-var AdoptionChain = []AssetName{
-	AssetAdoptP3,
-}
-
-// P2AdoptionChain is the execution chain for approved P2 adoption.
-var P2AdoptionChain = []AssetName{
-	AssetAdoptP2,
-}
+var AdoptionChain = []AssetName{AssetAdoptP3}
+var P2AdoptionChain = []AssetName{AssetAdoptP2}
 
 // ForwardChain is the only ordered post-0001 revision sequence in WP-01 G1.
-// G1 current/accepted state is the complete chain through 0004. Earlier
-// forward revisions are intermediate revision ancestry, not accepted targets.
+// G1 current/accepted state is the complete atomic chain through 0005. Earlier
+// forward revisions are immutable ancestry, not accepted persisted checkpoints.
 var ForwardChain = []AssetName{
 	AssetForward0002,
 	AssetForward0003,
 	AssetForward0004,
+	AssetForward0005,
 }
 
-// Bytes returns the immutable raw embedded bytes for an asset.
 func Bytes(name AssetName) ([]byte, error) {
 	b, err := v2FS.ReadFile("v2/" + string(name))
 	if err != nil {
@@ -94,8 +85,6 @@ func Bytes(name AssetName) ([]byte, error) {
 	return b, nil
 }
 
-// MustBytes is Bytes without the error (panics on a missing embedded asset,
-// which is a packaging defect rather than a runtime database condition).
 func MustBytes(name AssetName) []byte {
 	b, err := Bytes(name)
 	if err != nil {
@@ -104,7 +93,6 @@ func MustBytes(name AssetName) []byte {
 	return b
 }
 
-// SHA256 returns the lowercase hex SHA-256 of the asset's embedded bytes.
 func SHA256(name AssetName) (string, error) {
 	b, err := Bytes(name)
 	if err != nil {
@@ -114,6 +102,4 @@ func SHA256(name AssetName) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-// ErrDigestMismatch is returned by Verify when an asset's embedded bytes do not
-// hash to its frozen digest.
 var ErrDigestMismatch = errors.New("embedded asset digest mismatch")
