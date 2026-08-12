@@ -32,11 +32,20 @@ func HasPlatformLedger(ctx context.Context, conn *pgx.Conn) (bool, error) {
 //     escalates only through the migrator role and verifies exact ledger ancestry
 //     plus the frozen target manifest. A manually partial footprint therefore
 //     cannot escape fail-closed inspection.
+//
+// The routing probe uses PostgreSQL system catalogs instead of to_regclass so a
+// least-privilege caller does not need USAGE on kernel/compat merely to detect
+// that those schemas contain a forward object.
 func HasForwardRevision(ctx context.Context, conn *pgx.Conn) (bool, error) {
 	var exists bool
 	if err := conn.QueryRow(ctx, `
-		SELECT to_regclass('kernel.principal_refs') IS NOT NULL
-		    OR to_regclass('compat.writer_ownership') IS NOT NULL`).Scan(&exists); err != nil {
+		SELECT EXISTS (
+			SELECT 1
+			FROM pg_catalog.pg_class c
+			JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+			WHERE (n.nspname = 'kernel' AND c.relname = 'principal_refs')
+			   OR (n.nspname = 'compat' AND c.relname = 'writer_ownership')
+		)`).Scan(&exists); err != nil {
 		return false, err
 	}
 	return exists, nil
