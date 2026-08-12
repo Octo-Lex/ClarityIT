@@ -25,13 +25,21 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		SELECT n.nspname, r.rolname
 		FROM pg_namespace n JOIN pg_roles r ON r.oid=n.nspowner
 		WHERE n.nspname IN ('kernel','compat') ORDER BY n.nspname`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, owner string
-		if err := rows.Scan(&schema, &owner); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &owner); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "schema", schema, owner)
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// Table identity/ownership/security posture. Indexes are captured separately.
@@ -43,14 +51,22 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		JOIN pg_roles r ON r.oid=c.relowner
 		WHERE n.nspname IN ('kernel','compat') AND c.relkind IN ('r','p','S')
 		ORDER BY n.nspname, c.relname`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, name, kind, owner string
 		var rls, forceRLS bool
-		if err := rows.Scan(&schema, &name, &kind, &owner, &rls, &forceRLS); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &name, &kind, &owner, &rls, &forceRLS); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "relation", schema, name, kind, owner, fmt.Sprint(rls), fmt.Sprint(forceRLS))
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// Columns are canonicalized by name, not attnum, to avoid physical-order
@@ -68,14 +84,22 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		WHERE n.nspname IN ('kernel','compat')
 		  AND c.relkind IN ('r','p') AND a.attnum>0 AND NOT a.attisdropped
 		ORDER BY n.nspname, c.relname, a.attname`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, table, column, typ, def, coll, identity, generated string
 		var notnull bool
-		if err := rows.Scan(&schema, &table, &column, &typ, &notnull, &def, &coll, &identity, &generated); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &table, &column, &typ, &notnull, &def, &coll, &identity, &generated); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "column", schema, table, column, typ, fmt.Sprint(notnull), def, coll, identity, generated)
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// Constraints including PK/UQ/FK/CHECK semantics.
@@ -87,13 +111,21 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		JOIN pg_namespace n ON n.oid=t.relnamespace
 		WHERE n.nspname IN ('kernel','compat')
 		ORDER BY n.nspname, t.relname, c.conname`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, table, name, typ, def string
-		if err := rows.Scan(&schema, &table, &name, &typ, &def); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &table, &name, &typ, &def); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "constraint", schema, table, name, typ, def)
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// All indexes, including constraint-backed indexes.
@@ -105,13 +137,21 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		JOIN pg_namespace n ON n.oid=t.relnamespace
 		WHERE n.nspname IN ('kernel','compat')
 		ORDER BY n.nspname, t.relname, i.relname`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, table, name, def string
-		if err := rows.Scan(&schema, &table, &name, &def); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &table, &name, &def); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "index", schema, table, name, def)
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// User-defined triggers.
@@ -122,13 +162,21 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		JOIN pg_namespace n ON n.oid=c.relnamespace
 		WHERE n.nspname IN ('kernel','compat') AND NOT t.tgisinternal
 		ORDER BY n.nspname, c.relname, t.tgname`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, table, name, def string
-		if err := rows.Scan(&schema, &table, &name, &def); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &table, &name, &def); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "trigger", schema, table, name, def)
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// Function definitions and ownership.
@@ -140,13 +188,21 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		JOIN pg_roles r ON r.oid=p.proowner
 		WHERE n.nspname IN ('kernel','compat')
 		ORDER BY n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, name, args, owner, def string
-		if err := rows.Scan(&schema, &name, &args, &owner, &def); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &name, &args, &owner, &def); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "function", schema, name, args, owner, def)
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// Explicit/effective table ACLs, canonicalized by role/privilege.
@@ -161,14 +217,22 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		LEFT JOIN pg_roles gee ON gee.oid=a.grantee
 		WHERE n.nspname IN ('kernel','compat') AND c.relkind IN ('r','p','S')
 		ORDER BY n.nspname,c.relname,COALESCE(gee.rolname,'PUBLIC'),a.privilege_type,COALESCE(gor.rolname,'PUBLIC')`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, rel, grantor, grantee, privilege string
 		var grantable bool
-		if err := rows.Scan(&schema, &rel, &grantor, &grantee, &privilege, &grantable); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &rel, &grantor, &grantee, &privilege, &grantable); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "relation_acl", schema, rel, grantor, grantee, privilege, fmt.Sprint(grantable))
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// Schema ACLs.
@@ -181,14 +245,22 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		LEFT JOIN pg_roles gee ON gee.oid=a.grantee
 		WHERE n.nspname IN ('kernel','compat')
 		ORDER BY n.nspname,COALESCE(gee.rolname,'PUBLIC'),a.privilege_type,COALESCE(gor.rolname,'PUBLIC')`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, grantor, grantee, privilege string
 		var grantable bool
-		if err := rows.Scan(&schema, &grantor, &grantee, &privilege, &grantable); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &grantor, &grantee, &privilege, &grantable); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "schema_acl", schema, grantor, grantee, privilege, fmt.Sprint(grantable))
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// Function ACLs.
@@ -203,14 +275,22 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		LEFT JOIN pg_roles gee ON gee.oid=a.grantee
 		WHERE n.nspname IN ('kernel','compat')
 		ORDER BY n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),COALESCE(gee.rolname,'PUBLIC'),a.privilege_type,COALESCE(gor.rolname,'PUBLIC')`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, fn, args, grantor, grantee, privilege string
 		var grantable bool
-		if err := rows.Scan(&schema, &fn, &args, &grantor, &grantee, &privilege, &grantable); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &fn, &args, &grantor, &grantee, &privilege, &grantable); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "function_acl", schema, fn, args, grantor, grantee, privilege, fmt.Sprint(grantable))
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// Default ACLs owned by clarityit_owner for the forward schemas.
@@ -226,37 +306,61 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 		LEFT JOIN pg_roles gee ON gee.oid=a.grantee
 		WHERE r.rolname='clarityit_owner' AND (n.nspname IN ('kernel','compat') OR n.nspname IS NULL)
 		ORDER BY COALESCE(n.nspname,''),d.defaclobjtype::text,COALESCE(gee.rolname,'PUBLIC'),a.privilege_type,COALESCE(gor.rolname,'PUBLIC')`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var schema, owner, objtype, grantor, grantee, privilege string
 		var grantable bool
-		if err := rows.Scan(&schema, &owner, &objtype, &grantor, &grantee, &privilege, &grantable); err != nil { rows.Close(); return "", err }
+		if err := rows.Scan(&schema, &owner, &objtype, &grantor, &grantee, &privilege, &grantable); err != nil {
+			rows.Close()
+			return "", err
+		}
 		manifestRecord(h, "default_acl", schema, owner, objtype, grantor, grantee, privilege, fmt.Sprint(grantable))
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	// G1 compatibility control data is part of the accepted target identity.
 	rows, err = q.Query(ctx, `SELECT flag_name,scope_key,COALESCE(workspace_id::text,''),enabled,config::text,authority_ref FROM compat.feature_flags ORDER BY flag_name,scope_key`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var name, scope, workspace, config, authority string
 		var enabled bool
-		if err := rows.Scan(&name,&scope,&workspace,&enabled,&config,&authority); err != nil { rows.Close(); return "", err }
-		manifestRecord(h,"feature_flag",name,scope,workspace,fmt.Sprint(enabled),config,authority)
+		if err := rows.Scan(&name, &scope, &workspace, &enabled, &config, &authority); err != nil {
+			rows.Close()
+			return "", err
+		}
+		manifestRecord(h, "feature_flag", name, scope, workspace, fmt.Sprint(enabled), config, authority)
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	rows, err = q.Query(ctx, `SELECT object_family,authoritative_writer,owner_version,effective_from::text,COALESCE(effective_to::text,''),authority_ref FROM compat.writer_ownership ORDER BY object_family,owner_version`)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	for rows.Next() {
 		var family, writer, from, to, authority string
 		var version int
-		if err := rows.Scan(&family,&writer,&version,&from,&to,&authority); err != nil { rows.Close(); return "", err }
-		manifestRecord(h,"writer_ownership",family,writer,fmt.Sprint(version),from,to,authority)
+		if err := rows.Scan(&family, &writer, &version, &from, &to, &authority); err != nil {
+			rows.Close()
+			return "", err
+		}
+		manifestRecord(h, "writer_ownership", family, writer, fmt.Sprint(version), from, to, authority)
 	}
-	if err := rows.Err(); err != nil { rows.Close(); return "", err }
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
 	rows.Close()
 
 	return hex.EncodeToString(h.Sum(nil)), nil
@@ -264,7 +368,9 @@ func forwardTargetManifestDigest(ctx context.Context, q forwardVerifierQuery) (s
 
 func manifestRecord(h hash.Hash, kind string, fields ...string) {
 	writeManifestField(h, kind)
-	for _, field := range fields { writeManifestField(h, field) }
+	for _, field := range fields {
+		writeManifestField(h, field)
+	}
 }
 
 func writeManifestField(h hash.Hash, value string) {
