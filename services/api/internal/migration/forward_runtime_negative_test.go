@@ -2,6 +2,7 @@ package migration
 
 import (
 	"context"
+	"os/exec"
 	"strings"
 	"testing"
 )
